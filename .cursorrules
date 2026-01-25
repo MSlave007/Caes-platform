@@ -1,0 +1,128 @@
+# CAES Aerotermia Platform - Dual-Interface Edition
+
+## Project Context
+Building a **B2B SaaS marketplace** for CAES energy certificate automation.
+- **Maker:** Installers (field workers, mobile-first)
+- **Checker:** Intermediaries/Admin (desktop, control center)
+- **Goal:** Automate 2-3 hours of compliance work → 15 minutes
+
+## Code Architecture
+- **Language:** TypeScript (strict mode)
+- **Framework:** Next.js 15 App Router
+- **UI:** Shadcn/UI + Tailwind CSS
+- **Database:** Supabase (PostgreSQL + RLS)
+- **Format:** 2-space indentation, semicolons, double quotes
+
+## Dual-Interface Design Principles
+
+### Installer Interface (Mobile-First)
+- **Primary Device:** Smartphone (iOS/Android via responsive web)
+- **UX Philosophy:** One decision at a time (Wizard pattern)
+- **Visual Style:** Large buttons (44px min), full-width cards, touch-friendly
+- **Interaction:** Snappy, forgiving (can go back/edit)
+- **Theme:** Dark mode, emerald green for CTAs
+
+### Admin Interface (Desktop-First)
+- **Primary Device:** Desktop/Laptop
+- **UX Philosophy:** Dense information, power-user controls
+- **Visual Style:** Tables, split-screens, keyboard shortcuts (Cmd+K search)
+- **Interaction:** Fast batch actions, real-time feedback
+- **Theme:** Dark mode (like Linear.app), subtle grey borders
+
+## Authentication & Authorization
+- **Auth Method:** Supabase Auth (email + password)
+- **Roles:** installer | admin
+- **Role Detection:** Read from `profiles.role` after login
+- **Routing:** Middleware redirects to `/installer/*` or `/admin/*` based on role
+- **Sessions:** Use Supabase Auth session tokens (no JWT manipulation)
+
+## RLS (Row-Level Security) - CRITICAL
+### Installers
+- Can read/update ONLY their own projects
+- Cannot see other installers' data
+- Cannot access admin routes
+
+### Admins
+- Can read ALL projects from ALL installers
+- Can update any project (for validation)
+- Can create/manage other admins (future)
+
+## Data Model (Key Tables)
+- `profiles`: user_id, role (installer|admin), company_name, nif
+- `projects`: installer_id, status (draft|submitted|approved|rejected), energy calculations, margins
+- `project_documents`: Uploaded files + AI extractions
+- `audit_log`: Every admin action (for compliance)
+
+## Energy Calculations (Non-Negotiable)
+**Formula:**
+Savings_kWh = Old_Consumption - New_Consumption
+Savings_EUR = Savings_kWh × 0.086
+Installer_EUR = Savings_EUR × (Installer_Percent / 100)
+Admin_EUR = Savings_EUR - Installer_EUR
+
+**Validation:**
+- If Savings < 20% of Old: Flag for review (BOE requirement)
+- If Installer_Percent > 30%: Error (legal cap)
+- If both pass: Eligible for certificate generation
+
+## Workflow States
+### Project Status
+- **draft**: Installer is filling the wizard (can edit freely)
+- **submitted**: Installer hit "Submit for Review" (read-only for installer)
+- **in_review**: Admin is reviewing (only admin can edit)
+- **approved**: Admin clicked "Approve & Generate" (read-only for both)
+- **rejected**: Admin sent back to installer (with notes)
+
+## PDF Generation (Delayed Until Approval)
+- **CRITICAL:** Do NOT generate PDFs until admin clicks "Approve"
+- **Why:** Ensures no illegal documents are created
+- **When:** Generate all 4 PDFs on approval (background job or async)
+- **Storage:** Save to Supabase Storage, email URLs to installer + client
+
+## AI/Claude Integration
+- **Extraction:** Use Claude Vision to read invoices/heater labels
+- **System Prompt:** See `docs/PROMPTS.md` for exact wording
+- **Fallback:** If Claude can't extract, let user fill manually (graceful)
+- **Validation:** Admin reviews + can override extraction results
+
+## Design System
+- **Colors:** 
+  - Installer: Emerald-500 (primary), slate-950 (bg), slate-400 (text secondary)
+  - Admin: Same (but denser layout)
+- **Buttons:** Shadcn/UI variants (primary, secondary, outline)
+- **Typography:** Geist Sans, 14px base, scale 1.25 ratio
+- **Animations:** Framer Motion (no bounce, spring ease), confetti on success
+
+## Error Handling
+- **Form Validation:** Zod schemas (client + server-side)
+- **API Errors:** Return `{ error, message, code }` JSON
+- **User Feedback:** Toast notifications (not popups)
+- **Logging:** Console in dev, Sentry in prod
+
+## Testing
+- Unit tests: Energy calculations, margin splitting (Jest)
+- E2E tests: Full wizard flow, admin approval (Playwright)
+- Manual: Test on iPhone 13 (375px) + Desktop (1920px)
+
+## Deployment
+- **Hosting:** Vercel (auto-deploy from GitHub)
+- **Database:** Supabase cloud project
+- **Environment:** Use Vercel ENV dashboard (never commit secrets)
+
+## Red Flags
+- ❌ Hard-coding installer/admin role (always check DB)
+- ❌ Generating PDFs before admin approval
+- ❌ Skipping RLS policies (security hole)
+- ❌ Not sanitizing uploaded files
+- ❌ Displaying financial calculations without validation
+- ❌ Using localStorage for sensitive data
+
+## Documentation
+- **Why comments:** Link to regulatory requirements or business logic files
+- **API routes:** Document with JSDoc (params, response, RLS checks)
+- **Complex math:** Comment every formula step
+
+## Git Convention
+- Commits: `feat:`, `fix:`, `docs:`, `chore:`
+- Branches: `feature/installer-wizard`, `fix/rls-margin-calc`, etc.
+- PRs: Link to GitHub issues, describe why (not what)
