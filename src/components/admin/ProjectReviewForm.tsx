@@ -8,7 +8,7 @@ import { Slider } from '@/components/ui/slider'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Check, X, Download, FileText, AlertTriangle, Eye } from 'lucide-react'
+import { Check, X, Download, FileText, AlertTriangle, Eye, Send } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import confetti from 'canvas-confetti'
 import { useRouter } from 'next/navigation'
@@ -18,6 +18,30 @@ export function ProjectReviewForm({ project }: { project: any }) {
     const [adminMargin, setAdminMargin] = useState(65)
     const [isApproved, setIsApproved] = useState(project.status === 'approved')
     const [isSaving, setIsSaving] = useState(false)
+    const [isRequestingChanges, setIsRequestingChanges] = useState(false)
+    const [feedback, setFeedback] = useState('')
+
+    // ... existing calculations ...
+
+    const handleRequestChanges = async () => {
+        setIsSaving(true)
+        try {
+            await fetch('/api/projects', {
+                method: 'POST',
+                body: JSON.stringify({
+                    id: project.id,
+                    status: 'draft',
+                    admin_feedback: feedback
+                })
+            })
+            router.push('/admin/dashboard')
+        } catch (e) {
+            console.error(e)
+            alert('Failed to update')
+        } finally {
+            setIsSaving(false)
+        }
+    }
 
     // Real Calculations
     const PROJECT_VALUE_EUR = project.savings_eur || 0
@@ -102,66 +126,109 @@ export function ProjectReviewForm({ project }: { project: any }) {
             <div>
                 <h3 className="font-semibold text-foreground mb-4">Margin & Approval</h3>
 
-                <Card className="bg-card border-border shadow-sm mb-6">
-                    <CardContent className="p-4 space-y-4">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Project Savings</span>
-                            <span className="font-bold text-foreground">€{displayValue.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Installer Cut ({INSTALLER_PERCENT}%)</span>
-                            <span className="text-foreground">-€{installerCut.toFixed(2)}</span>
-                        </div>
-                        <Separator className="bg-border" />
-
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-primary font-medium">Your Margin</span>
-                                <span className="font-bold text-primary">{adminMargin}%</span>
+                <Card className="bg-white border border-slate-200 shadow-sm mb-6 rounded-xl overflow-hidden">
+                    <CardContent className="p-6 space-y-6">
+                        {/* Breakdown */}
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-slate-500 font-medium">Project Savings</span>
+                                <span className="font-bold text-slate-900 text-lg">€{displayValue.toFixed(2)}</span>
                             </div>
-                            <Slider
-                                value={[adminMargin]}
-                                onValueChange={(vals) => setAdminMargin(vals[0])}
-                                max={100}
-                                step={5}
-                                className="py-2"
-                            />
-                            <div className="text-right text-xs text-muted-foreground">
-                                Admin Revenue: <span className="text-foreground font-bold ml-1">€{adminCut.toFixed(2)}</span>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-400">Installer Cut ({INSTALLER_PERCENT}%)</span>
+                                <span className="text-slate-500">-€{installerCut.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <Separator className="bg-slate-100" />
+
+                        {/* Interactive Slider Section */}
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-emerald-600 font-semibold text-sm uppercase tracking-wide">Your Margin</span>
+                                <span className="font-bold text-emerald-600 text-xl">{adminMargin}%</span>
+                            </div>
+
+                            <div className="px-1">
+                                <Slider
+                                    value={[adminMargin]}
+                                    onValueChange={(vals) => setAdminMargin(vals[0])}
+                                    max={100}
+                                    step={1}
+                                    className="py-4 cursor-pointer"
+                                />
+                            </div>
+
+                            <div className="flex justify-end items-end gap-2 pt-2">
+                                <span className="text-slate-400 text-sm mb-1">Admin Revenue:</span>
+                                <span className="text-slate-900 font-extrabold text-2xl tracking-tight">€{adminCut.toFixed(2)}</span>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* Action Buttons */}
-                <div className="flex gap-4 pt-4">
-                    <Button variant="outline" className="flex-1 border-destructive text-destructive hover:bg-destructive/10">
-                        <X className="mr-2 h-4 w-4" />
-                        Reject
-                    </Button>
-                    <div className="flex-1 flex gap-2">
+                {!isRequestingChanges ? (
+                    <div className="flex gap-4 pt-2">
                         <Button
                             variant="outline"
-                            className="flex-1 border-primary text-primary hover:bg-primary/10"
-                            onClick={async () => {
-                                alert('In a real app, this would open the generated PDF.')
-                            }}
+                            className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 h-10 rounded-lg"
+                            onClick={() => setIsRequestingChanges(true)}
                         >
-                            <Eye className="mr-2 h-4 w-4" />
-                            Preview
+                            <X className="mr-2 h-4 w-4" />
+                            Request Changes
                         </Button>
-                        <Button
-                            className="flex-[2] bg-primary hover:bg-primary/90 text-primary-foreground"
-                            onClick={handleApprove}
-                            disabled={isApproved || isSaving}
-                        >
-                            <Check className="mr-2 h-4 w-4" />
-                            {isApproved ? 'Approved' : isSaving ? 'Approving...' : 'Approve'}
-                        </Button>
+                        <div className="flex-[2] flex gap-3">
+                            <Button
+                                variant="outline"
+                                className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 h-10 rounded-lg"
+                                onClick={async () => {
+                                    alert('In a real app, this would open the generated PDF.')
+                                }}
+                            >
+                                <Eye className="mr-2 h-4 w-4" />
+                                Preview
+                            </Button>
+                            <Button
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-lg shadow-sm shadow-emerald-200"
+                                onClick={handleApprove}
+                                disabled={isApproved || isSaving}
+                            >
+                                <Check className="mr-2 h-4 w-4" />
+                                {isApproved ? 'Approved' : isSaving ? 'Approving...' : 'Approve'}
+                            </Button>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex justify-between items-center">
+                            <Label className="text-sm font-semibold text-slate-700">Reason for returning to Draft</Label>
+                            <Button variant="ghost" size="sm" onClick={() => setIsRequestingChanges(false)} className="h-6 w-6 p-0 text-slate-400">
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <textarea
+                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            placeholder="Please explain what needs to be corrected..."
+                            value={feedback}
+                            onChange={(e) => setFeedback(e.target.value)}
+                        />
+                        <div className="flex justify-end gap-2">
+                            <Button variant="ghost" onClick={() => setIsRequestingChanges(false)}>Cancel</Button>
+                            <Button
+                                variant="destructive"
+                                className="bg-orange-500 hover:bg-orange-600 text-white"
+                                onClick={handleRequestChanges}
+                                disabled={!feedback || isSaving}
+                            >
+                                <Send className="mr-2 h-3 w-3" />
+                                {isSaving ? 'Sending...' : 'Send Back to Installer'}
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
-                <div className="mt-4 flex items-center gap-2 justify-center text-xs text-amber-500 bg-amber-500/10 p-2 rounded">
+                <div className="mt-6 flex items-center gap-2 justify-center bg-amber-50 border border-amber-100 text-amber-600 p-2 rounded-lg text-xs">
                     <AlertTriangle className="h-3 w-3" />
                     <span>Approve generates final legal documents.</span>
                 </div>

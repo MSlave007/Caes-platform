@@ -1,177 +1,227 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Filter, Eye, ArrowRight, Loader2 } from 'lucide-react'
-import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
+import { ArrowUpDown, Download, Loader2, Search } from 'lucide-react'
+import ProjectRow from '@/components/admin/ProjectRow'
+import { normalize } from '@/components/platform/StatusChip'
+import { eur, MARGEN_AGENCIA_PCT } from '@/lib/caes/estimate'
+import type { Project } from '@/lib/mockDb'
 
-// Types
-type Project = {
-    id: string
-    created_at: string
-    client_name: string
-    installer_name: string
-    savings_eur: number
-    status: string
-    make: string
-    model: string
-}
+const EASE = [0.16, 1, 0.3, 1] as const
 
-export default function ProjectsDatabasePage() {
+type SortKey = 'date' | 'value' | 'savings'
+
+/**
+ * Archivio completo degli espedienti.
+ *
+ * Diverso dalla coda: lì si lavora su ciò che aspetta, qui si cerca nel
+ * pregresso. Quindi ordinamento, totali e esportazione, non filtri di stato
+ * pensati per smaltire.
+ */
+export default function AdminProjects() {
     const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
-    const [search, setSearch] = useState('')
-    const [statusFilter, setStatusFilter] = useState('all')
+    const [q, setQ] = useState('')
+    const [sort, setSort] = useState<SortKey>('date')
 
     useEffect(() => {
-        const fetchAll = async () => {
-            try {
-                const res = await fetch('/api/projects')
-                const { data } = await res.json()
-                if (data) setProjects(data)
-            } catch (error) {
-                console.error("Failed to fetch projects", error)
-            } finally {
-                setLoading(false)
-            }
-        }
-        fetchAll()
+        fetch('/api/projects')
+            .then((r) => r.json())
+            .then((j) => setProjects(j.data ?? []))
+            .catch((e) => console.error('Error al cargar:', e))
+            .finally(() => setLoading(false))
     }, [])
 
-    // Filter Logic
-    const filteredProjects = projects.filter(project => {
-        const matchesSearch =
-            project.client_name?.toLowerCase().includes(search.toLowerCase()) ||
-            project.installer_name?.toLowerCase().includes(search.toLowerCase()) ||
-            project.id.toLowerCase().includes(search.toLowerCase())
+    const rows = useMemo(() => {
+        const needle = q.trim().toLowerCase()
+        const list = projects.filter(
+            (p) =>
+                !needle ||
+                p.client_name?.toLowerCase().includes(needle) ||
+                p.installer_name?.toLowerCase().includes(needle) ||
+                p.address?.toLowerCase().includes(needle) ||
+                p.id.includes(needle)
+        )
+        return [...list].sort((a, b) => {
+            if (sort === 'value') return b.savings_eur - a.savings_eur
+            if (sort === 'savings') return b.savings_pct - a.savings_pct
+            return b.created_at.localeCompare(a.created_at)
+        })
+    }, [projects, q, sort])
 
-        const matchesStatus = statusFilter === 'all' || project.status === statusFilter
+    const totals = useMemo(() => {
+        const approved = projects.filter((p) => normalize(p.status) === 'approved')
+        const certified = approved.reduce((a, p) => a + p.savings_eur, 0)
+        const ours = approved.reduce(
+            (a, p) => a + p.savings_eur * ((p.agency_pct ?? MARGEN_AGENCIA_PCT) / 100),
+            0
+        )
+        return { certified, ours, approved: approved.length }
+    }, [projects])
 
-        return matchesSearch && matchesStatus
-    })
+    /** Esportazione: un CSV generato nel browser, senza passare dal server. */
+    const exportCsv = () => {
+        const head = [
+            'id',
+            'fecha',
+            'origen',
+            'cliente',
+            'instalador',
+            'direccion',
+            'estado',
+            'ahorro_pct',
+            'valor_eur',
+            'instalador_pct',
+            'agencia_pct',
+        ]
+        const lines = rows.map((p) =>
+            [
+                p.id,
+                p.created_at,
+                p.source,
+                p.client_name,
+                p.installer_name ?? '',
+                p.address,
+                p.status,
+                String(p.savings_pct).replace('.', ','),
+                String(p.savings_eur).replace('.', ','),
+                p.installer_pct,
+                p.agency_pct ?? '',
+            ]
+                .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+                .join(';')
+        )
+        const csv = [head.join(';'), ...lines].join('\r\n')
+        // BOM: senza, Excel in spagnolo rompe gli accenti.
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `expedientes-${new Date().toISOString().slice(0, 10)}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+    }
 
-    const getStatusColor = (status?: string) => {
-        switch (status) {
-            case 'approved': return 'bg-emerald-500/10 text-emerald-600 border-emerald-200'
-            case 'submitted': return 'bg-blue-500/10 text-blue-600 border-blue-200'
-            case 'draft': return 'bg-slate-100 text-slate-500 border-slate-200'
-            case 'rejected': return 'bg-red-500/10 text-red-600 border-red-200'
-            default: return 'bg-slate-100 text-slate-500 border-slate-200'
-        }
+    if (loading) {
+        return (
+            <div className="flex items-center gap-3 text-[14px] text-[var(--caes-mut)]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando…
+            </div>
+        )
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">Project Database</h1>
-                <p className="text-slate-400">Master database of all system projects (Drafts, Active, and Archived).</p>
+        <div className="flex flex-col gap-9">
+            <div className="flex flex-wrap items-end justify-between gap-6">
+                <div>
+                    <p className="label-mono text-[var(--caes-mut)]">Expedientes</p>
+                    <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
+                        {projects.length} en total, {totals.approved}{' '}
+                        <em className="serif-accent">certificados</em>.
+                    </h1>
+                </div>
+                <button
+                    type="button"
+                    onClick={exportCsv}
+                    className="inline-flex items-center gap-2.5 rounded-full border border-[var(--caes-line)] px-5 py-3 text-[14px] text-[var(--caes-ink)] transition-colors hover:border-[var(--caes-ink)]/40 hover:bg-[var(--caes-band)]"
+                >
+                    <Download className="h-4 w-4" />
+                    Exportar CSV
+                </button>
             </div>
 
-            <Card className="bg-card border-border shadow-sm">
-                <CardHeader className="pb-4">
-                    <div className="flex flex-col md:flex-row gap-4 justify-between">
-                        <div className="relative w-full md:w-96">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                            <Input
-                                placeholder="Search client, installer, or ID..."
-                                className="pl-9"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
+            <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-3">
+                {[
+                    {
+                        k: 'Ahorro certificado',
+                        v: eur(totals.certified),
+                        n: 'suma de los expedientes aprobados',
+                    },
+                    {
+                        k: 'Tu margen acumulado',
+                        v: eur(totals.ours),
+                        n: 'sobre esos mismos expedientes',
+                    },
+                    {
+                        k: 'Ticket medio',
+                        v: totals.approved ? eur(totals.certified / totals.approved) : '—',
+                        n: 'valor medio por expediente aprobado',
+                    },
+                ].map((s, i) => (
+                    <motion.div
+                        key={s.k}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: i * 0.06, ease: EASE }}
+                        className="bg-[var(--caes-panel)] p-6"
+                    >
+                        <div className="label-mono text-[var(--caes-faint)]">{s.k}</div>
+                        <div className="mt-4 font-sans text-[clamp(22px,2.2vw,28px)] font-semibold leading-none tracking-[-0.04em] tabular">
+                            {s.v}
                         </div>
-                        <div className="flex gap-2">
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-[180px]">
-                                    <Filter className="mr-2 h-4 w-4 text-slate-400" />
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem value="submitted">Submitted</SelectItem>
-                                    <SelectItem value="approved">Approved</SelectItem>
-                                    <SelectItem value="draft">Draft</SelectItem>
-                                    <SelectItem value="rejected">Rejected</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <div className="flex justify-center p-12">
-                            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-                        </div>
-                    ) : (
-                        <div className="rounded-md border border-slate-200 overflow-hidden">
-                            <Table>
-                                <TableHeader className="bg-slate-50">
-                                    <TableRow>
-                                        <TableHead className="w-[100px]">Project ID</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Client</TableHead>
-                                        <TableHead>Installer</TableHead>
-                                        <TableHead>System</TableHead>
-                                        <TableHead className="text-right">Savings</TableHead>
-                                        <TableHead className="text-center">Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredProjects.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={8} className="text-center py-12 text-slate-400">
-                                                No projects match your filters.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        filteredProjects.map((project) => (
-                                            <TableRow key={project.id} className="hover:bg-slate-50/50">
-                                                <TableCell className="font-mono text-xs text-slate-500">
-                                                    #{project.id.slice(0, 6)}
-                                                </TableCell>
-                                                <TableCell className="text-slate-600">
-                                                    {new Date(project.created_at).toLocaleDateString()}
-                                                </TableCell>
-                                                <TableCell className="font-medium text-slate-900">
-                                                    {project.client_name || '—'}
-                                                </TableCell>
-                                                <TableCell className="text-slate-600">
-                                                    {project.installer_name || 'Unknown'}
-                                                </TableCell>
-                                                <TableCell className="text-slate-500 text-sm">
-                                                    {project.make} {project.model}
-                                                </TableCell>
-                                                <TableCell className="text-right font-medium text-slate-900">
-                                                    €{(project.savings_eur || 0).toLocaleString()}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <Badge variant="outline" className={getStatusColor(project.status)}>
-                                                        {project.status || 'draft'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                                            <Link href={`/admin/review/${project.id}`}>
-                                                                <Eye className="h-4 w-4 text-slate-400 hover:text-emerald-600" />
-                                                            </Link>
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                        <p className="mt-2.5 text-[12.5px] text-[var(--caes-mut)]">{s.n}</p>
+                    </motion.div>
+                ))}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="relative w-full max-w-[24rem]">
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--caes-faint)]" />
+                    <input
+                        type="search"
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        placeholder="Cliente, instalador, dirección o número"
+                        className="w-full rounded-full border border-[var(--caes-line)] bg-[var(--caes-panel)] py-2.5 pl-11 pr-4 text-[13.5px] outline-none transition-colors placeholder:text-[var(--caes-faint)] focus:border-[var(--caes-green)] focus:ring-4 focus:ring-[var(--caes-green)]/12"
+                    />
+                </div>
+
+                <div className="flex items-center gap-2 text-[13px] text-[var(--caes-mut)]">
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                    {(
+                        [
+                            { id: 'date', l: 'Fecha' },
+                            { id: 'value', l: 'Valor' },
+                            { id: 'savings', l: 'Ahorro %' },
+                        ] as { id: SortKey; l: string }[]
+                    ).map((s) => (
+                        <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setSort(s.id)}
+                            className={`rounded-full px-3.5 py-2 transition-colors ${sort === s.id
+                                    ? 'bg-[var(--caes-band)] font-medium text-[var(--caes-ink)]'
+                                    : 'hover:text-[var(--caes-ink)]'
+                                }`}
+                        >
+                            {s.l}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {rows.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[var(--caes-line)] px-8 py-14 text-center">
+                    <h2 className="text-[19px] font-semibold tracking-[-0.026em]">
+                        Nada coincide con esa búsqueda.
+                    </h2>
+                </div>
+            ) : (
+                <ul className="flex flex-col gap-3">
+                    {rows.map((p, i) => (
+                        <motion.li
+                            key={p.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, delay: Math.min(i, 10) * 0.03, ease: EASE }}
+                        >
+                            <ProjectRow p={p} />
+                        </motion.li>
+                    ))}
+                </ul>
+            )}
         </div>
     )
 }

@@ -1,133 +1,191 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowUpRight, FileCheck, Euro, Users, AlertCircle, DollarSign } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useState, useEffect } from 'react'
-import { Badge } from '@/components/ui/badge' // Assuming Badge is needed for the new Recent Projects section
+import { motion } from 'framer-motion'
+import { ArrowRight, Home, Loader2, Wrench } from 'lucide-react'
+import ProjectRow from '@/components/admin/ProjectRow'
+import { normalize } from '@/components/platform/StatusChip'
+import { AHORRO_MINIMO_PCT, eur } from '@/lib/caes/estimate'
+import type { Project } from '@/lib/mockDb'
 
-// Initial state empty, will fetch
-const INITIAL_PROJECTS: any[] = []
+const EASE = [0.16, 1, 0.3, 1] as const
 
 export default function AdminDashboard() {
-    const [projects, setProjects] = useState<any[]>([])
+    const [projects, setProjects] = useState<Project[]>([])
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const fetchProjects = async () => {
-            try {
-                const res = await fetch('/api/projects')
-                const { data } = await res.json()
-                if (data) setProjects(data)
-            } catch (e) {
-                console.error("Failed to fetch projects", e)
-            }
-        }
-        fetchProjects()
-
-        // Poll for updates every 10s so we see new submissions live
-        const interval = setInterval(fetchProjects, 10000)
-        return () => clearInterval(interval)
+        fetch('/api/projects')
+            .then((r) => r.json())
+            .then((j) => setProjects(j.data ?? []))
+            .catch((e) => console.error('Error al cargar los expedientes:', e))
+            .finally(() => setLoading(false))
     }, [])
 
-    const kpis = [
-        { title: 'Total Revenue', value: '€24,500', change: '+12% from last month', icon: DollarSign, color: 'text-emerald-500' },
-        { title: 'Approved Projects', value: String(projects.filter(p => p.status === 'approved').length), change: '+5 this week', icon: FileCheck, color: 'text-blue-500' },
-        { title: 'Pending Review', value: String(projects.filter(p => p.status === 'submitted').length), change: 'Requires attention', icon: AlertCircle, color: 'text-orange-500' },
-        {
-            title: 'Active Installers',
-            value: '18',
-            change: '2 new joined',
-            icon: Users,
-            color: 'text-purple-500',
-        },
-    ]
+    const m = useMemo(() => {
+        const st = (p: Project) => normalize(p.status)
+        const pending = projects.filter((p) => ['submitted', 'in_review'].includes(st(p)))
+        const approved = projects.filter((p) => st(p) === 'approved')
+
+        // Margine già maturato: solo sugli espedienti approvati, dove la
+        // percentuale dell'agenzia è stata effettivamente fissata.
+        const earned = approved.reduce((a, p) => {
+            const remaining = p.savings_eur * (1 - p.installer_pct / 100)
+            return a + remaining * ((p.agency_pct ?? 0) / 100)
+        }, 0)
+
+        return {
+            pending,
+            approved,
+            fromInstallers: projects.filter((p) => p.source === 'installer').length,
+            fromClients: projects.filter((p) => p.source === 'client').length,
+            blocked: pending.filter((p) => p.savings_pct < AHORRO_MINIMO_PCT).length,
+            earned,
+        }
+    }, [projects])
+
+    if (loading) {
+        return (
+            <div className="flex items-center gap-3 text-[14px] text-[var(--caes-mut)]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando…
+            </div>
+        )
+    }
 
     return (
-        <div className="space-y-8">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-                    <p className="text-slate-400 mt-1">Overview of your CAES platform performance.</p>
-                </div>
-                <Button asChild className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                    <Link href="/admin/review">
-                        Process Queue
-                        <ArrowUpRight className="ml-2 h-4 w-4" />
+        <div className="flex flex-col gap-12">
+            <div>
+                <p className="label-mono text-[var(--caes-mut)]">Resumen</p>
+                <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
+                    {m.pending.length > 0 ? (
+                        <>
+                            Hay {m.pending.length} expedientes{' '}
+                            <em className="serif-accent">esperando</em>.
+                        </>
+                    ) : (
+                        <>
+                            Nada <em className="serif-accent">pendiente</em>.
+                        </>
+                    )}
+                </h1>
+            </div>
+
+            {/* ------------------------------------------------------ numeri */}
+            <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                    {
+                        k: 'Por revisar',
+                        v: String(m.pending.length),
+                        n:
+                            m.blocked > 0
+                                ? `${m.blocked} por debajo del ${AHORRO_MINIMO_PCT} % mínimo`
+                                : 'todos elegibles',
+                    },
+                    {
+                        k: 'Aprobados',
+                        v: String(m.approved.length),
+                        n: 'certificado emitido',
+                    },
+                    {
+                        k: 'Tu margen',
+                        v: eur(m.earned),
+                        n: 'sobre expedientes ya aprobados',
+                    },
+                    {
+                        k: 'Origen',
+                        v: `${m.fromInstallers} / ${m.fromClients}`,
+                        n: 'instaladores / clientes',
+                    },
+                ].map((s, i) => (
+                    <motion.div
+                        key={s.k}
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.55, delay: i * 0.06, ease: EASE }}
+                        className="bg-[var(--caes-panel)] p-6"
+                    >
+                        <div className="label-mono text-[var(--caes-faint)]">{s.k}</div>
+                        <div className="mt-4 font-sans text-[clamp(24px,2.4vw,30px)] font-semibold leading-none tracking-[-0.04em] tabular">
+                            {s.v}
+                        </div>
+                        <p className="mt-2.5 text-[12.5px] leading-[1.45] text-[var(--caes-mut)]">
+                            {s.n}
+                        </p>
+                    </motion.div>
+                ))}
+            </div>
+
+            {/* -------------------------------------------- da dove arrivano */}
+            <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                    {
+                        Icon: Wrench,
+                        title: 'De instaladores',
+                        n: m.fromInstallers,
+                        body: 'Llegan con la instalación hecha y la comisión ya fijada. Solo hay que verificar y aprobar.',
+                        href: '/admin/review',
+                    },
+                    {
+                        Icon: Home,
+                        title: 'De clientes',
+                        n: m.fromClients,
+                        body: 'Llegan del calculador, sin instalador asignado. Hay que asignarles uno de su zona antes de seguir.',
+                        href: '/admin/review',
+                    },
+                ].map((c) => (
+                    <Link
+                        key={c.title}
+                        href={c.href}
+                        className="group rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7 transition-all duration-300 hover:border-[var(--caes-ink)]/25 hover:shadow-[0_18px_40px_-26px_rgba(6,35,26,.35)]"
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <c.Icon
+                                className="h-5 w-5 text-[var(--caes-green)]"
+                                strokeWidth={1.7}
+                            />
+                            <span className="font-mono tabular text-[26px] font-medium leading-none tracking-[-0.03em]">
+                                {c.n}
+                            </span>
+                        </div>
+                        <h2 className="mt-6 text-[16px] font-semibold tracking-[-0.02em]">
+                            {c.title}
+                        </h2>
+                        <p className="mt-2 max-w-[38ch] text-[13.5px] leading-[1.55] text-[var(--caes-mut)]">
+                            {c.body}
+                        </p>
                     </Link>
-                </Button>
+                ))}
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {kpis.map((kpi) => {
-                    const Icon = kpi.icon
-                    return (
-                        <Card key={kpi.title} className="bg-card border-border shadow-sm">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">
-                                    {kpi.title}
-                                </CardTitle>
-                                <Icon className={`h-4 w-4 ${kpi.color}`} />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-foreground mb-1">{kpi.value}</div>
-                                <p className="text-xs text-muted-foreground">{kpi.change}</p>
-                            </CardContent>
-                        </Card>
-                    )
-                })}
-            </div>
+            {/* ------------------------------------------------ coda breve */}
+            <div>
+                <div className="flex items-baseline justify-between gap-4">
+                    <h2 className="text-[17px] font-semibold tracking-[-0.024em]">
+                        Lo primero de la cola
+                    </h2>
+                    <Link
+                        href="/admin/review"
+                        className="group inline-flex items-center gap-2 text-[13.5px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
+                    >
+                        Ver toda la cola
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+                    </Link>
+                </div>
 
-            {/* Recent Activity (Real) */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4 bg-card border-border shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Recent Projects</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {projects.slice(0, 5).map((project) => (
-                                <div key={project.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg">
-                                    <div>
-                                        <p className="font-medium text-foreground">{project.client_name}</p>
-                                        <p className="text-xs text-muted-foreground">{project.model}</p>
-                                    </div>
-                                    <Badge variant={(project.status === 'approved') ? 'default' : 'secondary'}>
-                                        {project.status === 'submitted' ? 'Pending' : project.status}
-                                    </Badge>
-                                </div>
-                            ))}
-                            {projects.length === 0 && <p className="text-center text-muted-foreground py-4">No projects yet.</p>}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="col-span-3 bg-card border-border shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {[
-                                { user: 'Juan Perez', action: 'submitted new project', time: '5 mins ago' },
-                                { user: 'Admin System', action: 'generated monthly report', time: '2 hours ago' },
-                                { user: 'Maria Lopez', action: 'joined as installer', time: '5 hours ago' },
-                                { user: 'Carlos Ruiz', action: 'project approved', time: 'Yesterday' },
-                            ].map((item, i) => (
-                                <div key={i} className="flex items-center gap-4 text-sm">
-                                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                                    <div className="flex-1">
-                                        <span className="font-medium text-foreground">{item.user}</span>{' '}
-                                        <span className="text-muted-foreground">{item.action}</span>
-                                    </div>
-                                    <div className="text-muted-foreground text-xs">{item.time}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                <ul className="mt-6 flex flex-col gap-3">
+                    {m.pending.slice(0, 4).map((p) => (
+                        <li key={p.id}>
+                            <ProjectRow p={p} />
+                        </li>
+                    ))}
+                    {m.pending.length === 0 && (
+                        <li className="rounded-2xl border border-dashed border-[var(--caes-line)] px-8 py-10 text-center text-[14px] text-[var(--caes-mut)]">
+                            No queda nada por revisar.
+                        </li>
+                    )}
+                </ul>
             </div>
         </div>
     )

@@ -45,7 +45,12 @@ export async function POST(request: Request) {
             })
         })
 
-        return new NextResponse(pdfBuffer, {
+        // I tipi dei typed array ora distinguono il buffer sottostante, e un
+        // Buffer di Node non passa più come BodyInit. Ricopiarlo in un
+        // Uint8Array su ArrayBuffer risolve senza forzature di tipo.
+        const pdfBody = Uint8Array.from(pdfBuffer)
+
+        return new NextResponse(pdfBody, {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',

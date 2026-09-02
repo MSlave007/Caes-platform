@@ -1,135 +1,184 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ArrowRight, Clock, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
+import { Loader2, Search } from 'lucide-react'
+import ProjectRow from '@/components/admin/ProjectRow'
+import { normalize } from '@/components/platform/StatusChip'
+import type { Project, Source } from '@/lib/mockDb'
 
-export default function ReviewQueuePage() {
-    const [projects, setProjects] = useState<any[]>([])
+const EASE = [0.16, 1, 0.3, 1] as const
+
+type SourceFilter = 'all' | Source
+type StatusFilter = 'pending' | 'all' | 'approved' | 'rejected'
+
+const STATUS_TABS: { id: StatusFilter; label: string }[] = [
+    { id: 'pending', label: 'Por revisar' },
+    { id: 'approved', label: 'Aprobados' },
+    { id: 'rejected', label: 'Rechazados' },
+    { id: 'all', label: 'Todos' },
+]
+
+const SOURCE_TABS: { id: SourceFilter; label: string }[] = [
+    { id: 'all', label: 'Todo' },
+    { id: 'installer', label: 'De instaladores' },
+    { id: 'client', label: 'De clientes' },
+]
+
+export default function AdminReviewQueue() {
+    const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
+    const [source, setSource] = useState<SourceFilter>('all')
+    const [status, setStatus] = useState<StatusFilter>('pending')
+    const [q, setQ] = useState('')
 
     useEffect(() => {
-        const fetchProjects = async () => {
-            try {
-                const res = await fetch('/api/projects')
-                const { data } = await res.json()
-                if (data) {
-                    setProjects(data.filter((p: any) => p.status === 'submitted'))
-                }
-            } catch (error) {
-                console.error("Failed to fetch", error)
-            } finally {
-                setLoading(false)
-            }
-        }
-        fetchProjects()
+        fetch('/api/projects')
+            .then((r) => r.json())
+            .then((j) => setProjects(j.data ?? []))
+            .catch((e) => console.error('Error al cargar la cola:', e))
+            .finally(() => setLoading(false))
     }, [])
 
-    const createDemoProject = async () => {
-        setLoading(true)
-        try {
-            await fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    client_name: 'Demo Hotel Central',
-                    client_email: 'hotel@demo.com',
-                    installer_name: 'Demo Installer',
-                    address: 'Gran Via 45, Madrid',
-                    status: 'submitted',
-                    savings_eur: 4500,
-                    make: 'Daikin',
-                    model: 'Altherma 3 H HT',
-                    documents: { invoice: 'mock', technical_sheet: 'mock' },
-                    is_eligible: true
-                })
-            })
-            window.location.reload()
-        } catch (e) {
-            console.error(e)
-            alert('Failed to create demo project')
-        } finally {
-            setLoading(false)
+    const counts = useMemo(() => {
+        const bySource = (s: SourceFilter) =>
+            s === 'all' ? projects : projects.filter((p) => p.source === s)
+        return {
+            all: projects.length,
+            installer: bySource('installer').length,
+            client: bySource('client').length,
         }
-    }
+    }, [projects])
+
+    const filtered = useMemo(() => {
+        const needle = q.trim().toLowerCase()
+        return projects.filter((p) => {
+            if (source !== 'all' && p.source !== source) return false
+
+            const st = normalize(p.status)
+            if (status === 'pending' && !['submitted', 'in_review'].includes(st))
+                return false
+            if (status === 'approved' && st !== 'approved') return false
+            if (status === 'rejected' && st !== 'rejected') return false
+
+            if (!needle) return true
+            return (
+                p.client_name?.toLowerCase().includes(needle) ||
+                p.installer_name?.toLowerCase().includes(needle) ||
+                p.address?.toLowerCase().includes(needle) ||
+                p.id.includes(needle)
+            )
+        })
+    }, [projects, source, status, q])
+
+    const pending = projects.filter((p) =>
+        ['submitted', 'in_review'].includes(normalize(p.status))
+    ).length
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Review Queue</h1>
-                    <p className="text-slate-400 mt-1">Projects waiting for validation and approval.</p>
-                </div>
-                <Button variant="outline" onClick={createDemoProject}>
-                    + Test Data
-                </Button>
+        <div className="flex flex-col gap-9">
+            <div>
+                <p className="label-mono text-[var(--caes-mut)]">Cola de revisión</p>
+                <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
+                    {pending > 0 ? (
+                        <>
+                            {pending} esperando <em className="serif-accent">tu firma</em>.
+                        </>
+                    ) : (
+                        <>
+                            La cola está <em className="serif-accent">vacía</em>.
+                        </>
+                    )}
+                </h1>
             </div>
 
-            <Card className="bg-card border-border shadow-sm">
-                <CardHeader>
-                    <CardTitle>Pending Submissions</CardTitle>
-                    <CardDescription>{projects.length} projects currently in queue</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <div className="flex justify-center p-8">
-                            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-                        </div>
-                    ) : projects.length === 0 ? (
-                        <div className="text-center py-12 text-slate-500 flex flex-col items-center gap-4">
-                            <p>No pending projects found.</p>
-                            <Button onClick={createDemoProject} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                Generate Demo Project
-                            </Button>
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="border-border hover:bg-muted/50">
-                                    <TableHead className="text-muted-foreground">Date</TableHead>
-                                    <TableHead className="text-muted-foreground">Client</TableHead>
-                                    <TableHead className="text-muted-foreground">Installer</TableHead>
-                                    <TableHead className="text-muted-foreground">Est. Savings</TableHead>
-                                    <TableHead className="text-muted-foreground">Status</TableHead>
-                                    <TableHead className="text-right text-muted-foreground">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {projects.map((project) => (
-                                    <TableRow key={project.id} className="border-border hover:bg-muted/50">
-                                        <TableCell className="font-medium text-foreground">
-                                            <div className="flex items-center gap-2">
-                                                <Clock className="h-3 w-3 text-muted-foreground" />
-                                                {new Date(project.created_at).toLocaleDateString()}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-foreground">{project.client_name}</TableCell>
-                                        <TableCell className="text-muted-foreground">{project.installer_name || 'Unknown'}</TableCell>
-                                        <TableCell className="text-foreground font-semibold">€{project.savings_eur || 0}</TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">
-                                                Submitted
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button asChild size="sm" variant="ghost" className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
-                                                <Link href={`/admin/review/${project.id}`}>
-                                                    Review
-                                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                                </Link>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </CardContent>
-            </Card>
+            {/* --------------------------------------------------- filtri */}
+            <div className="flex flex-col gap-4">
+                {/* origine: è il taglio che cambia davvero la lavorazione */}
+                <div className="flex flex-wrap items-center gap-2">
+                    {SOURCE_TABS.map((t) => {
+                        const on = t.id === source
+                        const n = counts[t.id]
+                        return (
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setSource(t.id)}
+                                className={`flex items-center gap-2.5 rounded-full px-4 py-2.5 text-[13.5px] transition-colors ${on
+                                        ? 'bg-[var(--caes-ink)] font-medium text-[var(--caes-paper)]'
+                                        : 'border border-[var(--caes-line)] text-[var(--caes-mut)] hover:border-[var(--caes-ink)]/30 hover:text-[var(--caes-ink)]'
+                                    }`}
+                            >
+                                {t.label}
+                                <span
+                                    className={`font-mono tabular text-[11.5px] ${on ? 'text-[var(--caes-lime)]' : 'text-[var(--caes-faint)]'}`}
+                                >
+                                    {n}
+                                </span>
+                            </button>
+                        )
+                    })}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--caes-line)] pt-4">
+                    <div className="flex flex-wrap items-center gap-1">
+                        {STATUS_TABS.map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setStatus(t.id)}
+                                className={`rounded-full px-3.5 py-2 text-[13px] transition-colors ${t.id === status
+                                        ? 'bg-[var(--caes-band)] font-medium text-[var(--caes-ink)]'
+                                        : 'text-[var(--caes-mut)] hover:text-[var(--caes-ink)]'
+                                    }`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="relative w-full max-w-[22rem]">
+                        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--caes-faint)]" />
+                        <input
+                            type="search"
+                            value={q}
+                            onChange={(e) => setQ(e.target.value)}
+                            placeholder="Cliente, instalador, dirección o número"
+                            className="w-full rounded-full border border-[var(--caes-line)] bg-[var(--caes-panel)] py-2.5 pl-11 pr-4 text-[13.5px] outline-none transition-colors placeholder:text-[var(--caes-faint)] focus:border-[var(--caes-green)] focus:ring-4 focus:ring-[var(--caes-green)]/12"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* ---------------------------------------------------- lista */}
+            {loading ? (
+                <div className="flex items-center gap-3 rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] px-6 py-8 text-[14px] text-[var(--caes-mut)]">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cargando la cola…
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[var(--caes-line)] bg-[var(--caes-panel)]/60 px-8 py-14 text-center">
+                    <h2 className="text-[19px] font-semibold tracking-[-0.026em]">
+                        Nada aquí con estos filtros.
+                    </h2>
+                    <p className="mx-auto mt-3 max-w-[42ch] text-[14px] text-[var(--caes-mut)]">
+                        Prueba a cambiar el estado o el origen, o quita la búsqueda.
+                    </p>
+                </div>
+            ) : (
+                <ul className="flex flex-col gap-3">
+                    {filtered.map((p, i) => (
+                        <motion.li
+                            key={p.id}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.45, delay: Math.min(i, 8) * 0.04, ease: EASE }}
+                        >
+                            <ProjectRow p={p} />
+                        </motion.li>
+                    ))}
+                </ul>
+            )}
         </div>
     )
 }

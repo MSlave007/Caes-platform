@@ -1,155 +1,196 @@
-import { createClient } from '@/utils/supabase/server'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Mail, MapPin, Building, TrendingUp } from 'lucide-react'
+'use client'
 
-export default async function InstallersPage() {
-    const supabase = await createClient()
+import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
+import { Check, Loader2, Search, ShieldCheck, ShieldOff } from 'lucide-react'
+import { eur } from '@/lib/caes/estimate'
+import { normalize } from '@/components/platform/StatusChip'
+import type { Project } from '@/lib/mockDb'
 
-    // 1. Fetch Installers (Profiles)
-    const { data: installers } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'installer')
+const EASE = [0.16, 1, 0.3, 1] as const
 
-    // 2. Fetch Projects Summary to calculate stats
-    // Ideally we would do this with an aggregation query or view, 
-    // but for now fetch all projects and aggregate in JS
-    const { data: projects } = await supabase
-        .from('projects')
-        .select('id, installer_id, status, savings_eur, created_at')
+type Installer = {
+    name: string
+    projects: number
+    approved: number
+    savings: number
+    lastSeen: string
+    /** Verificato dall'agenzia: senza questo non riceve clienti */
+    verified: boolean
+}
 
-    // 3. Aggregate Stats
-    const stats = (installerId: string) => {
-        // If it's a mock user, return hardcoded realistic stats
-        if (installerId.startsWith('mock_')) {
-            // Deterministic random based on string length to keep UI stable
-            const seed = installerId.length
-            return {
-                totalProjects: 12 + (seed % 10),
-                totalRevenue: 5000 + (seed * 1500),
-                active: seed % 2 !== 0
+/**
+ * Gestione degli installatori.
+ *
+ * L'elenco si ricava dagli espedienti: non esiste ancora una tabella di
+ * installatori, e inventarne una vuota avrebbe mostrato una pagina morta.
+ * Quando ci sarà, cambia solo la fonte — la scheda resta questa.
+ *
+ * ⚠️ La verifica è per ora solo visiva: non viene salvata da nessuna parte.
+ */
+export default function AdminInstallers() {
+    const [projects, setProjects] = useState<Project[]>([])
+    const [loading, setLoading] = useState(true)
+    const [q, setQ] = useState('')
+    const [verified, setVerified] = useState<Record<string, boolean>>({})
+
+    useEffect(() => {
+        fetch('/api/projects')
+            .then((r) => r.json())
+            .then((j) => setProjects(j.data ?? []))
+            .catch((e) => console.error('Error al cargar:', e))
+            .finally(() => setLoading(false))
+    }, [])
+
+    const installers = useMemo<Installer[]>(() => {
+        const map = new Map<string, Installer>()
+        for (const p of projects) {
+            if (!p.installer_name) continue
+            const cur =
+                map.get(p.installer_name) ??
+                ({
+                    name: p.installer_name,
+                    projects: 0,
+                    approved: 0,
+                    savings: 0,
+                    lastSeen: p.created_at,
+                    verified: true,
+                } as Installer)
+
+            cur.projects += 1
+            if (normalize(p.status) === 'approved') {
+                cur.approved += 1
+                cur.savings += p.savings_eur
             }
+            if (p.created_at > cur.lastSeen) cur.lastSeen = p.created_at
+            map.set(p.installer_name, cur)
         }
+        return [...map.values()].sort((a, b) => b.projects - a.projects)
+    }, [projects])
 
-        const theirProjects = projects?.filter(p => p.installer_id === installerId) || []
-        const totalProjects = theirProjects.length
-        const totalRevenue = theirProjects.reduce((sum, p) => sum + (p.savings_eur || 0), 0)
+    const filtered = installers.filter((i) =>
+        i.name.toLowerCase().includes(q.trim().toLowerCase())
+    )
 
-        // Check activity (last 30 days)
-        const last30Days = new Date()
-        last30Days.setDate(last30Days.getDate() - 30)
-        const active = theirProjects.some(p => new Date(p.created_at) > last30Days)
+    const isVerified = (name: string) => verified[name] ?? true
 
-        return { totalProjects, totalRevenue, active }
+    if (loading) {
+        return (
+            <div className="flex items-center gap-3 text-[14px] text-[var(--caes-mut)]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando…
+            </div>
+        )
     }
 
-    // MOCK DATA for Visualisation
-    const MOCK_INSTALLERS = [
-        { id: 'mock_1', full_name: 'Solar Tech S.L.', email: 'contacto@solartech.es', role: 'installer', company_name: 'Solar Tech' },
-        { id: 'mock_2', full_name: 'Instalaciones Perez', email: 'juan@perezinstalaciones.com', role: 'installer', company_name: 'Perez Inst' },
-        { id: 'mock_3', full_name: 'EcoEnergy Madrid', email: 'info@ecoenergy.net', role: 'installer', company_name: 'EcoEnergy' },
-        { id: 'mock_4', full_name: 'Clima Confort', email: 'tecnicos@climaconfort.es', role: 'installer', company_name: 'Clima Confort' },
-    ]
-
-    const allInstallers = [...(installers || []), ...MOCK_INSTALLERS]
-
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Installers Directory</h1>
-                    <p className="text-slate-400 mt-1">Manage network of certified installers.</p>
-                </div>
-                <Button className="bg-emerald-600 hover:bg-emerald-700">
-                    Invite New Installer
-                </Button>
+        <div className="flex flex-col gap-9">
+            <div>
+                <p className="label-mono text-[var(--caes-mut)]">Instaladores</p>
+                <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
+                    {installers.length} trabajando <em className="serif-accent">contigo</em>.
+                </h1>
+                <p className="mt-4 max-w-[54ch] text-[15px] leading-[1.6] text-[var(--caes-mut)]">
+                    Solo los verificados reciben clientes del calculador. Quitar la
+                    verificación no borra nada: deja de mandarle trabajo nuevo.
+                </p>
             </div>
 
-            <Card className="bg-card border-border shadow-sm">
-                <CardHeader>
-                    <CardTitle>Registered Partners</CardTitle>
-                    <CardDescription>{allInstallers.length} installers currently on the platform</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-border hover:bg-muted/50">
-                                <TableHead className="w-[300px] text-muted-foreground">Installer</TableHead>
-                                <TableHead className="text-muted-foreground">Location</TableHead>
-                                <TableHead className="text-muted-foreground">Status</TableHead>
-                                <TableHead className="text-muted-foreground text-right">Projects</TableHead>
-                                <TableHead className="text-muted-foreground text-right">Total Generated</TableHead>
-                                <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {allInstallers.map((installer) => {
-                                const { totalProjects, totalRevenue, active } = stats(installer.id)
-                                return (
-                                    <TableRow key={installer.id} className="border-border hover:bg-muted/50">
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-9 w-9 bg-slate-100 border border-slate-200">
-                                                    <AvatarFallback className="text-emerald-700 bg-emerald-50">
-                                                        {installer.full_name?.slice(0, 2).toUpperCase() || 'IN'}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div>
-                                                    <div className="font-medium text-foreground">
-                                                        {installer.full_name || installer.company_name || 'Unnamed Installer'}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                        <Mail className="h-3 w-3" />
-                                                        {installer.email}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                <MapPin className="h-3 w-3" />
-                                                Madrid, SP
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={active
-                                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-200"
-                                                : "bg-slate-100 text-slate-500 border-slate-200"
-                                            }>
-                                                {active ? 'Active' : 'Inactive'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right font-medium">
-                                            {totalProjects}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-1 font-mono text-emerald-600">
-                                                €{totalRevenue.toLocaleString()}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })}
-                            {!allInstallers.length && (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-12 text-slate-400">
-                                        No installers found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+            <div className="relative max-w-[24rem]">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--caes-faint)]" />
+                <input
+                    type="search"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Buscar instalador"
+                    className="w-full rounded-full border border-[var(--caes-line)] bg-[var(--caes-panel)] py-2.5 pl-11 pr-4 text-[13.5px] outline-none transition-colors placeholder:text-[var(--caes-faint)] focus:border-[var(--caes-green)] focus:ring-4 focus:ring-[var(--caes-green)]/12"
+                />
+            </div>
+
+            {filtered.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[var(--caes-line)] px-8 py-14 text-center">
+                    <h2 className="text-[19px] font-semibold tracking-[-0.026em]">
+                        {q ? 'Ningún instalador con ese nombre.' : 'Todavía no hay instaladores.'}
+                    </h2>
+                </div>
+            ) : (
+                <ul className="flex flex-col gap-3">
+                    {filtered.map((inst, i) => {
+                        const ok = isVerified(inst.name)
+                        return (
+                            <motion.li
+                                key={inst.name}
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.45, delay: i * 0.05, ease: EASE }}
+                                className="grid items-center gap-5 rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-6 lg:grid-cols-[minmax(0,1fr)_repeat(3,auto)_auto]"
+                            >
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2.5">
+                                        <h2 className="truncate text-[15.5px] font-semibold tracking-[-0.02em]">
+                                            {inst.name}
+                                        </h2>
+                                        {ok ? (
+                                            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--caes-green)]/12 px-2.5 py-1 text-[11px] font-medium text-[var(--caes-green)]">
+                                                <Check className="h-3 w-3" strokeWidth={3} />
+                                                Verificado
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--caes-band)] px-2.5 py-1 text-[11px] text-[var(--caes-mut)]">
+                                                Sin verificar
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="mt-1 text-[13px] text-[var(--caes-mut)]">
+                                        Último expediente:{' '}
+                                        {new Intl.DateTimeFormat('es-ES', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            year: 'numeric',
+                                        }).format(new Date(inst.lastSeen))}
+                                    </p>
+                                </div>
+
+                                <Metric label="Expedientes" value={String(inst.projects)} />
+                                <Metric label="Aprobados" value={String(inst.approved)} />
+                                <Metric label="Ahorro certificado" value={eur(inst.savings)} />
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setVerified((v) => ({ ...v, [inst.name]: !ok }))
+                                    }
+                                    className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 text-[13px] transition-colors ${ok
+                                            ? 'border-[var(--caes-line)] text-[var(--caes-mut)] hover:border-[#C4643F]/50 hover:text-[#9B4526]'
+                                            : 'border-[var(--caes-ink)] font-medium text-[var(--caes-ink)] hover:bg-[var(--caes-ink)] hover:text-[var(--caes-paper)]'
+                                        }`}
+                                >
+                                    {ok ? (
+                                        <>
+                                            <ShieldOff className="h-3.5 w-3.5" />
+                                            Quitar verificación
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ShieldCheck className="h-3.5 w-3.5" />
+                                            Verificar
+                                        </>
+                                    )}
+                                </button>
+                            </motion.li>
+                        )
+                    })}
+                </ul>
+            )}
+        </div>
+    )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="lg:w-[130px] lg:text-right">
+            <div className="label-mono text-[var(--caes-faint)]">{label}</div>
+            <div className="mt-1.5 font-mono tabular text-[15px] font-medium">{value}</div>
         </div>
     )
 }

@@ -120,3 +120,120 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ============================================================
+   CAES BRAND TOKENS — direzione approvata A×C + barra B
+   Fissi: la landing vive nel suo mondo chiaro, indipendente
+   dal tema chiaro/scuro dell'applicazione.
+   ============================================================ */
+:root {
+  --caes-paper: #F1F0E9;
+  --caes-band: #E9E8DF;
+  --caes-panel: #FBFBF6;
+  --caes-deep: #0A1D16;
+  --caes-ink: #06231A;
+  --caes-mut: #5C6D62;
+  --caes-faint: #8B958C;
+  --caes-line: #D8D7CC;
+  --caes-line-2: #E5E4DA;
+  --caes-green: #0B6E48;
+  --caes-green-hi: #0E8557;
+  --caes-lime: #C7F04A;
+  --caes-lime-ink: #3E5406;
+}
+
+@theme inline {
+  --color-paper: var(--caes-paper);
+  --color-band: var(--caes-band);
+  --color-panel: var(--caes-panel);
+  --color-deep: var(--caes-deep);
+  --color-ink: var(--caes-ink);
+  --color-mut: var(--caes-mut);
+  --color-faint: var(--caes-faint);
+  --color-line: var(--caes-line);
+  --color-line2: var(--caes-line-2);
+  --color-brand: var(--caes-green);
+  --color-brandhi: var(--caes-green-hi);
+  --color-lime: var(--caes-lime);
+  --color-limeink: var(--caes-lime-ink);
+  --font-serif: var(--font-instrument-serif), Georgia, serif;
+}
+
+/* Accento editoriale: il corsivo serif dentro i titoli sans */
+.serif-accent {
+  font-family: var(--font-instrument-serif), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.012em;
+}
+
+/* Micro-etichette in monospazio, molto tracciate */
+.label-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Slider della fattura: il default di sistema stona su una pagina premium. */
+.caes-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--caes-line);
+  outline: none;
+  cursor: pointer;
+}
+.caes-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--caes-ink);
+  border: 3px solid var(--caes-panel);
+  box-shadow: 0 2px 10px rgba(6, 35, 26, 0.28);
+  cursor: grab;
+  transition: transform 0.2s ease;
+}
+.caes-range::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.08); }
+.caes-range::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--caes-ink);
+  border: 3px solid var(--caes-panel);
+  box-shadow: 0 2px 10px rgba(6, 35, 26, 0.28);
+  cursor: grab;
+}
+.caes-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(11, 110, 72, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+  Ventola del diagramma. transform-box: fill-box fa sì che l'origine sia il
+  centro dell'elemento stesso, indipendentemente dalle coordinate nel viewBox:
+  ruotare per coordinate assolute sposta la figura invece di farla girare.
+*/
+.caes-fan {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: caes-spin 7s linear infinite;
+}
+@keyframes caes-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .caes-fan { animation: none; }
+}
