@@ -138,7 +138,7 @@ export default function Benefits({ dict }: { dict: ConsumerDict }) {
                     </div>
                 </motion.div>
 
-                {/* ---------- celle piccole ---------- */}
+                {/* colonna con due schede, accanto alla cella grande */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
                     {b.items.slice(0, 2).map((it, i) => {
                         const Icon = ICONS[i]
@@ -158,18 +158,14 @@ export default function Benefits({ dict }: { dict: ConsumerDict }) {
                         )
                     })}
                 </div>
+            </div>
 
-                {/* riga bassa: tre schede uguali */}
-                {b.items.slice(2).map((it, i) => {
+            {/* seconda riga: due schede della stessa larghezza */}
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {b.items.slice(2, 4).map((it, i) => {
                     const Icon = ICONS[i + 2]
-                    const isLast = i === b.items.length - 3
                     return (
-                        <Card
-                            key={it.title}
-                            delay={0.12 + i * 0.08}
-                            reduce={!!reduce}
-                            className={isLast ? 'lg:col-span-2' : undefined}
-                        >
+                        <Card key={it.title} delay={0.12 + i * 0.08} reduce={!!reduce}>
                             <Icon
                                 className="h-[22px] w-[22px] text-[var(--caes-green)]"
                                 strokeWidth={1.6}
@@ -177,18 +173,37 @@ export default function Benefits({ dict }: { dict: ConsumerDict }) {
                             <h3 className="mt-6 text-[16.5px] font-semibold tracking-[-0.02em]">
                                 {it.title}
                             </h3>
-                            <p className="mt-2.5 max-w-[34ch] text-[14px] leading-[1.55] text-[var(--caes-mut)]">
+                            <p className="mt-2.5 max-w-[42ch] text-[14px] leading-[1.55] text-[var(--caes-mut)]">
                                 {it.body}
                             </p>
-                            {isLast && (
-                                <div className="mt-7 border-t border-[var(--caes-line-2)] pt-6">
-                                    <EnergyScale dict={dict} />
-                                </div>
-                            )}
                         </Card>
                     )
                 })}
             </div>
+
+            {/* terza riga: la scala energetica, a tutta larghezza e in due
+                colonne, cosi' le sette bande hanno lo spazio che chiedono */}
+            {b.items[4] && (
+                <div className="mt-4">
+                    <Card delay={0.2} reduce={!!reduce}>
+                        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-center lg:gap-16">
+                            <div>
+                                <Home
+                                    className="h-[22px] w-[22px] text-[var(--caes-green)]"
+                                    strokeWidth={1.6}
+                                />
+                                <h3 className="mt-6 text-[16.5px] font-semibold tracking-[-0.02em]">
+                                    {b.items[4].title}
+                                </h3>
+                                <p className="mt-2.5 max-w-[42ch] text-[14px] leading-[1.55] text-[var(--caes-mut)]">
+                                    {b.items[4].body}
+                                </p>
+                            </div>
+                            <EnergyScale dict={dict} />
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     )
 }
