@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Check } from 'lucide-react'
 import SimulatorBar from '@/components/landing/SimulatorBar'
+import InstallerEarnings from '@/components/landing/InstallerEarnings'
 import {
     LOCALES,
     isLocale,
@@ -278,6 +279,27 @@ export default async function InstalladoresPage({
                 <div className="absolute inset-x-0 bottom-0 top-[92px] border-t border-[var(--caes-line)] bg-[var(--caes-band)]" />
                 <div className="relative mx-auto max-w-[1440px] px-6 pt-12 pb-14 sm:px-10 lg:px-16">
                     <SimulatorBar dict={d} locale={locale} />
+                </div>
+            </section>
+
+            {/* ------------------------------- QUANTO GUADAGNA L'INSTALLATORE */}
+            <section
+                id="ganancias"
+                className="scroll-mt-24 border-t border-[var(--caes-line)] bg-[var(--caes-band)]"
+            >
+                <div className="mx-auto max-w-[1440px] px-6 py-20 sm:px-10 lg:px-16">
+                    <div className="max-w-[62ch]">
+                        <p className="label-mono text-[var(--caes-mut)]">{d.ganancias.eyebrow}</p>
+                        <h2 className="mt-4 text-[clamp(30px,4vw,48px)] font-semibold leading-[1.06] tracking-[-0.03em] text-[var(--caes-ink)]">
+                            {d.ganancias.title}
+                        </h2>
+                        <p className="mt-5 text-[16.5px] leading-[1.6] text-[var(--caes-mut)]">
+                            {d.ganancias.sub}
+                        </p>
+                    </div>
+                    <div className="mt-11">
+                        <InstallerEarnings dict={d} locale={locale} />
+                    </div>
                 </div>
             </section>
 

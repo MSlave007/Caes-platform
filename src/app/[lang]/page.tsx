@@ -81,7 +81,7 @@ export default async function ConsumerLanding({
                 className="relative z-30 -mt-[132px] scroll-mt-28 px-6 pb-24 sm:px-10"
             >
                 <Reveal y={30} className="mx-auto max-w-[880px]">
-                    <Calculator dict={d} />
+                    <Calculator dict={d} locale={lang} />
                 </Reveal>
             </section>
 

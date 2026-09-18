@@ -32,7 +32,27 @@ export const consumerDict = {
             sub: 'Responde tres preguntas y te decimos cuánto ahorrarías cambiándola por aerotermia. Sin dar tu email, sin que te llame nadie.',
         },
         calc: {
-            steps: ['Tu sistema', 'Tu factura', 'Tu zona'],
+            // La prima domanda separa i due pubblici: da qui in poi il
+            // percorso del risparmio è diverso per ciascuno.
+            gate: {
+                title: '¿Quién eres?',
+                sub: 'Según quién seas, lo que puedes recuperar se calcula de otra forma.',
+                particular: {
+                    label: 'Cambio la caldera de mi casa',
+                    hint: 'Calcula lo que ahorras y lo que te devuelve el certificado.',
+                },
+                instalador: {
+                    label: 'Instalo aerotermia',
+                    hint: 'Calcula lo que ganas por expediente y lo que llevas sin cobrar desde 2024.',
+                },
+            },
+            proPanel: {
+                title: 'Entonces el cálculo es otro.',
+                body: 'Cada instalación que has hecho desde 2023 generaba derecho a un certificado, y tienes tres años desde el fin de obra para pedirlo. Te llevamos a la calculadora de instalador: pones tus instalaciones al año y te dice lo que ganas y lo que tienes atrasado.',
+                cta: 'Ir a la calculadora de instalador',
+                back: 'No, soy particular',
+            },
+            steps: ['Quién eres', 'Tu sistema', 'Tu factura', 'Tu zona'],
             q1: '¿Qué calienta tu casa hoy?',
             q2: '¿Cuánto pagas al mes de media?',
             q3: '¿Dónde vives?',
@@ -373,7 +393,25 @@ export const consumerDict = {
             sub: 'Answer three questions and we will tell you how much you would save by swapping it for a heat pump. No email, no one calling you.',
         },
         calc: {
-            steps: ['Your system', 'Your bill', 'Your area'],
+            gate: {
+                title: 'Who are you?',
+                sub: 'What you can recover is calculated differently depending on who you are.',
+                particular: {
+                    label: 'I am replacing my boiler',
+                    hint: 'See what you save and what the certificate pays back.',
+                },
+                instalador: {
+                    label: 'I install heat pumps',
+                    hint: 'See what you earn per case and what you have not claimed since 2024.',
+                },
+            },
+            proPanel: {
+                title: 'Then the maths is different.',
+                body: 'Every installation you have done since 2023 earned the right to a certificate, and you have three years from completion to claim it. We will take you to the installer calculator: put in your installations per year and it tells you what you earn and what is still owed to you.',
+                cta: 'Go to the installer calculator',
+                back: 'No, I am a homeowner',
+            },
+            steps: ['Who you are', 'Your system', 'Your bill', 'Your area'],
             q1: 'What heats your home today?',
             q2: 'What do you pay a month on average?',
             q3: 'Where do you live?',

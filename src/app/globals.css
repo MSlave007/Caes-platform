@@ -237,3 +237,47 @@
 @media (prefers-reduced-motion: reduce) {
   .caes-fan { animation: none; }
 }
+
+/* ============================================================
+   Slider del simulatore guadagni installatore.
+   Il thumb è quadrato come il resto della UI: niente pillole.
+   ============================================================ */
+.earn-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  margin: 0;
+}
+.earn-range::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--caes-line);
+}
+.earn-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--caes-ink);
+}
+.earn-range::-moz-range-track {
+  height: 2px;
+  background: var(--caes-line);
+}
+.earn-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--caes-ink);
+}
+.earn-range:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--caes-green);
+  outline-offset: 2px;
+}
+.earn-range:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--caes-green);
+  outline-offset: 2px;
+}

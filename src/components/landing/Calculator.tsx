@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, Flame, Droplet, Zap } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, ArrowRight, Check, Flame, Droplet, Zap, Home, Wrench } from 'lucide-react'
 import { EASE } from './motion'
 import InvestmentResult from './InvestmentResult'
 import {
@@ -21,11 +22,19 @@ const SISTEMAS: { key: SistemaActual; Icon: typeof Flame }[] = [
 
 const ZONAS: Zona[] = ['norte', 'centro', 'levante', 'sur', 'islas']
 
-export default function Calculator({ dict }: { dict: ConsumerDict }) {
+export default function Calculator({
+    dict,
+    locale = 'es',
+}: {
+    dict: ConsumerDict
+    locale?: string
+}) {
     const t = dict.calc
     const r = dict.result
     const reduce = useReducedMotion()
 
+    // null = non ha ancora risposto: la scelta è la prima cosa che vede.
+    const [perfil, setPerfil] = useState<'particular' | 'instalador' | null>(null)
     const [step, setStep] = useState(0)
     const [sistema, setSistema] = useState<SistemaActual | null>(null)
     const [factura, setFactura] = useState(90)
@@ -74,28 +83,31 @@ export default function Calculator({ dict }: { dict: ConsumerDict }) {
         )
     }
 
+    // Con la scelta iniziale le tappe diventano quattro: quella è la 0.
+    const headStep = perfil === null ? 0 : step + 1
+
     /* -------------------------------------------------------- DOMANDE */
     return (
         <motion.div
             layout={!reduce}
             className="overflow-hidden rounded-[20px] border border-[var(--caes-line)] bg-[var(--caes-panel)] shadow-[0_2px_6px_rgba(6,35,26,.05),0_40px_80px_-40px_rgba(6,35,26,.42)]"
         >
-            {/* avanzamento */}
+            {/* avanzamento — la scelta iniziale conta come prima tappa */}
             <div className="flex items-center gap-5 border-b border-[var(--caes-line-2)] px-7 py-4 sm:px-9">
                 {t.steps.map((s, i) => (
                     <div key={s} className="flex items-center gap-2.5">
                         <span
-                            className={`flex h-[22px] w-[22px] items-center justify-center rounded-full text-[10.5px] font-medium transition-colors duration-300 ${i < step
+                            className={`flex h-[22px] w-[22px] items-center justify-center rounded-full text-[10.5px] font-medium transition-colors duration-300 ${i < headStep
                                     ? 'bg-[var(--caes-green)] text-white'
-                                    : i === step
+                                    : i === headStep
                                         ? 'bg-[var(--caes-ink)] text-[var(--caes-paper)]'
                                         : 'bg-[var(--caes-line)] text-[var(--caes-faint)]'
                                 }`}
                         >
-                            {i < step ? <Check className="h-3 w-3" /> : i + 1}
+                            {i < headStep ? <Check className="h-3 w-3" /> : i + 1}
                         </span>
                         <span
-                            className={`hidden text-[13px] transition-colors duration-300 sm:block ${i === step ? 'text-[var(--caes-ink)]' : 'text-[var(--caes-faint)]'
+                            className={`hidden text-[13px] transition-colors duration-300 sm:block ${i === headStep ? 'text-[var(--caes-ink)]' : 'text-[var(--caes-faint)]'
                                 }`}
                         >
                             {s}
@@ -106,8 +118,74 @@ export default function Calculator({ dict }: { dict: ConsumerDict }) {
 
             <div className="px-7 py-9 sm:px-9 sm:py-11">
                 <AnimatePresence mode="wait">
+                    {/* ------------------------------------ 0 · CHI SEI */}
+                    {perfil === null && (
+                        <motion.div key="gate" {...slide}>
+                            <h2 className="text-[clamp(21px,2.6vw,27px)] font-semibold tracking-[-0.028em]">
+                                {t.gate.title}
+                            </h2>
+                            <p className="mt-2.5 max-w-[52ch] text-[15px] leading-[1.55] text-[var(--caes-mut)]">
+                                {t.gate.sub}
+                            </p>
+                            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                                {([
+                                    { key: 'particular' as const, Icon: Home },
+                                    { key: 'instalador' as const, Icon: Wrench },
+                                ]).map(({ key, Icon }) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => setPerfil(key)}
+                                        className="group flex flex-col items-start gap-4 rounded-xl border border-[var(--caes-line)] p-6 text-left transition-all duration-300 hover:border-[var(--caes-ink)]/40 hover:bg-white/50"
+                                    >
+                                        <Icon
+                                            className="h-6 w-6 text-[var(--caes-green)]"
+                                            strokeWidth={1.6}
+                                        />
+                                        <span>
+                                            <span className="block text-[16px] font-semibold tracking-[-0.015em]">
+                                                {t.gate[key].label}
+                                            </span>
+                                            <span className="mt-1 block text-[13px] leading-[1.45] text-[var(--caes-mut)]">
+                                                {t.gate[key].hint}
+                                            </span>
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* ------------------------- 0b · SEI UN INSTALLATORE */}
+                    {perfil === 'instalador' && (
+                        <motion.div key="pro" {...slide}>
+                            <h2 className="text-[clamp(21px,2.6vw,27px)] font-semibold tracking-[-0.028em]">
+                                {t.proPanel.title}
+                            </h2>
+                            <p className="mt-3.5 max-w-[58ch] text-[15.5px] leading-[1.6] text-[var(--caes-mut)]">
+                                {t.proPanel.body}
+                            </p>
+                            <div className="mt-8 flex flex-wrap items-center gap-5">
+                                <Link
+                                    href={`/${locale}/instaladores#ganancias`}
+                                    className="group inline-flex items-center gap-2.5 rounded-full bg-[var(--caes-green)] px-8 py-3.5 text-[15px] font-medium text-white transition-all duration-300 hover:bg-[var(--caes-green-hi)]"
+                                >
+                                    {t.proPanel.cta}
+                                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => setPerfil(null)}
+                                    className="text-[14px] text-[var(--caes-mut)] underline underline-offset-4 transition-colors hover:text-[var(--caes-ink)]"
+                                >
+                                    {t.proPanel.back}
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+
                     {/* ---------------------------------------- 1 · SISTEMA */}
-                    {step === 0 && (
+                    {perfil === 'particular' && step === 0 && (
                         <motion.div key="s0" {...slide}>
                             <h2 className="text-[clamp(21px,2.6vw,27px)] font-semibold tracking-[-0.028em]">
                                 {t.q1}
@@ -150,7 +228,7 @@ export default function Calculator({ dict }: { dict: ConsumerDict }) {
                     )}
 
                     {/* ---------------------------------------- 2 · FACTURA */}
-                    {step === 1 && (
+                    {perfil === 'particular' && step === 1 && (
                         <motion.div key="s1" {...slide}>
                             <h2 className="text-[clamp(21px,2.6vw,27px)] font-semibold tracking-[-0.028em]">
                                 {t.q2}
@@ -186,7 +264,7 @@ export default function Calculator({ dict }: { dict: ConsumerDict }) {
                     )}
 
                     {/* ------------------------------------------- 3 · ZONA */}
-                    {step === 2 && (
+                    {perfil === 'particular' && step === 2 && (
                         <motion.div key="s2" {...slide}>
                             <h2 className="text-[clamp(21px,2.6vw,27px)] font-semibold tracking-[-0.028em]">
                                 {t.q3}
@@ -228,13 +306,17 @@ export default function Calculator({ dict }: { dict: ConsumerDict }) {
                     )}
                 </AnimatePresence>
 
-                {/* navigazione */}
-                <div className="mt-9 flex items-center justify-between gap-4">
+                {/* navigazione — solo nel percorso del privato */}
+                <div
+                    className={`mt-9 flex items-center justify-between gap-4 ${perfil === 'particular' ? '' : 'hidden'
+                        }`}
+                >
                     <button
                         type="button"
-                        onClick={() => setStep((s) => Math.max(0, s - 1))}
-                        className={`inline-flex items-center gap-2 text-[14px] text-[var(--caes-mut)] transition-opacity hover:text-[var(--caes-ink)] ${step === 0 ? 'pointer-events-none opacity-0' : 'opacity-100'
-                            }`}
+                        onClick={() =>
+                            step === 0 ? setPerfil(null) : setStep((v) => Math.max(0, v - 1))
+                        }
+                        className="inline-flex items-center gap-2 text-[14px] text-[var(--caes-mut)] transition-opacity hover:text-[var(--caes-ink)]"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         {t.back}

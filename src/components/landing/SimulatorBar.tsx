@@ -7,12 +7,12 @@ import {
     estimate,
     eur,
     AHORRO_MINIMO_PCT,
-    ORE_ANUALES_POR_ZONA,
+    DEMANDA_CALEFACCION_POR_ZONA,
 } from '@/lib/caes/estimate'
 import type { Dict, Locale } from '@/lib/i18n/landing'
 
-const POTENCIAS = [2.5, 3.5, 4.5, 6, 8, 10, 14]
-const ZONAS = Object.keys(ORE_ANUALES_POR_ZONA)
+const SUPERFICIES = [70, 90, 110, 130, 150, 180, 220, 280, 350, 500]
+const ZONAS = Object.keys(DEMANDA_CALEFACCION_POR_ZONA)
 const SUSTITUIDOS = ['termo_electrico', 'caldera_gas', 'caldera_gasoleo'] as const
 
 const ZONA_CIUDAD: Record<string, string> = {
@@ -52,14 +52,14 @@ const selectClass =
 
 export default function SimulatorBar({ dict, locale }: Props) {
     const t = dict.simulator
-    const [potencia, setPotencia] = useState(3.5)
+    const [superficie, setSuperficie] = useState(150)
     const [zona, setZona] = useState('C3')
     const [sustituido, setSustituido] = useState<string>('termo_electrico')
     const [shown, setShown] = useState(false)
 
     const result = useMemo(
-        () => estimate({ potenciaKw: potencia, zona, sustituido }),
-        [potencia, zona, sustituido]
+        () => estimate({ superficieM2: superficie, zona, sustituido }),
+        [superficie, zona, sustituido]
     )
 
     const money = (n: number) => eur(n, dict.intlLocale)
@@ -82,18 +82,18 @@ export default function SimulatorBar({ dict, locale }: Props) {
                         </span>
                     </Field>
 
-                    <Field label={t.fields.potencia}>
+                    <Field label={t.fields.superficie}>
                         <select
                             className={selectClass}
-                            value={potencia}
+                            value={superficie}
                             onChange={(e) => {
-                                setPotencia(parseFloat(e.target.value))
+                                setSuperficie(parseFloat(e.target.value))
                                 setShown(false)
                             }}
                         >
-                            {POTENCIAS.map((p) => (
-                                <option key={p} value={p}>
-                                    {new Intl.NumberFormat(dict.intlLocale).format(p)} kW
+                            {SUPERFICIES.map((m) => (
+                                <option key={m} value={m}>
+                                    {new Intl.NumberFormat(dict.intlLocale).format(m)} m²
                                 </option>
                             ))}
                         </select>
