@@ -69,19 +69,20 @@ export async function POST(request: Request) {
         if (uploadError) {
             console.warn('Storage upload failed (likely mock mode or permissions):', uploadError.message)
             // In mock mode, we just return a fake URL
-            return NextResponse.json({
-                url: `https://mock-storage.com/${bucket}/${fileName}`,
-                path: filePath,
-                mock: true
-            })
+            return NextResponse.json({ path: filePath, mock: true })
         }
 
-        // 2. Get Public URL
-        const { data: { publicUrl } } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(filePath)
-
-        return NextResponse.json({ url: publicUrl, path: filePath })
+        // 2. Restituiamo il PERCORSO, non un indirizzo pubblico.
+        //
+        // Prima qui c'era getPublicUrl(), che produce un indirizzo valido
+        // per chiunque e per sempre. Su un bucket che contiene carte
+        // d'identita e fatture non va bene: basta che quell'indirizzo
+        // finisca in una email o nella cronologia di un browser.
+        //
+        // Il percorso da solo non apre niente: per guardare un documento si
+        // chiede un indirizzo firmato e a scadenza a /api/documents/url,
+        // che verifica prima chi sta chiedendo.
+        return NextResponse.json({ path: filePath })
 
     } catch (error: any) {
         console.error('Upload Error:', error)
