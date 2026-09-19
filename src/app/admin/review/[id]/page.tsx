@@ -94,10 +94,18 @@ export default function AdminReviewDetail({
         setBusy(status === 'approved' ? 'approve' : 'reject')
         setError(null)
         try {
+            // Le spunte di verifica vivevano solo nello stato locale: chi
+            // riapriva la pratica le ritrovava tutte da rifare. Vanno salvate
+            // insieme alla decisione.
+            const docsVerificados = (p?.docs ?? []).map((d) => ({
+                ...d,
+                verified: Boolean(verified[d.id]),
+            }))
+
             await patch(
                 status === 'approved'
-                    ? { status, savings_eur: savings, agency_pct: agencyPct }
-                    : { status }
+                    ? { status, savings_eur: savings, agency_pct: agencyPct, docs: docsVerificados }
+                    : { status, docs: docsVerificados }
             )
             router.push('/admin/review')
         } catch (err: unknown) {

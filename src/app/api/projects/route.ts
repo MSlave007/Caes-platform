@@ -80,7 +80,38 @@ export async function POST(request: Request) {
 
 
         } else {
-            return NextResponse.json({ error: 'Not authenticated. Please log in.' }, { status: 401 })
+            // MODALITÀ DIMOSTRATIVA — senza sessione si scrive in memoria.
+            //
+            // Prima qui c'era un 401: la lettura ripiegava su mockDb ma la
+            // scrittura no, quindi una pratica inviata non poteva comparire
+            // nella coda admin in nessun modo. Le due metà non si toccavano.
+            // Ora la scrittura segue la stessa strada della lettura.
+            if (body.id) {
+                const updated = mockDb.updateProject(String(body.id), body)
+                if (!updated) {
+                    return NextResponse.json({ error: 'Expediente no encontrado' }, { status: 404 })
+                }
+                return NextResponse.json({ data: updated })
+            }
+
+            const created = mockDb.createProject({
+                source: body.source ?? 'installer',
+                client_name: body.client_name,
+                installer_name: body.installer_name ?? null,
+                // La coda admin filtra su questo: un invio entra come "submitted".
+                status: body.status ?? 'submitted',
+                savings_eur: Number(body.savings_eur) || 0,
+                installer_pct: Number(body.installer_pct) || 0,
+                agency_pct: body.agency_pct ?? null,
+                savings_pct: Number(body.savings_pct) || 0,
+                address: body.address ?? '',
+                make: body.make ?? '',
+                model: body.model ?? '',
+                power_kw: Number(body.power_kw) || 0,
+                docs: Array.isArray(body.docs) ? body.docs : [],
+                files: Array.isArray(body.files) ? body.files : [],
+            })
+            return NextResponse.json({ data: created })
         }
 
         const { data, error } = { data: dbData, error: dbError }

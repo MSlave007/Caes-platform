@@ -6,6 +6,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react'
 import DocumentChecklist, {
     type FileMap,
 } from '@/components/platform/DocumentChecklist'
+import SubmitStep from '@/components/platform/SubmitStep'
 import WizardShell, {
     StepPlaceholder,
     type SaveState,
@@ -192,9 +193,14 @@ export default function DocumentosPage() {
                     )}
 
                     {step === 3 && (
-                        <StepPlaceholder
-                            title="Tu comisión y el envío"
-                            body="Eliges cuánto te quedas, hasta el 30 % que marca la norma. Al enviar queda bloqueado y el acuerdo CAES se genera con el reparto ya aplicado."
+                        <SubmitStep
+                            docs={Object.entries(files)
+                                .filter(([, v]) => v.state === 'done')
+                                .map(([id, v]) => ({
+                                    id,
+                                    name: v.name,
+                                    verified: false,
+                                }))}
                         />
                     )}
                 </WizardShell>

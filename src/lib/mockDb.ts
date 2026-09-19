@@ -145,9 +145,17 @@ export const mockDb = {
     getProjectById: (id: string) => projects.find((p) => p.id === id),
 
     createProject: (project: Omit<Project, 'id' | 'created_at'>) => {
+        // Id progressivo sopra il più alto esistente: accanto ai 2477-2481
+        // della demo, un id casuale tipo "k3f9x" si nota subito ed è brutto
+        // da leggere ad alta voce durante una dimostrazione.
+        const maxId = projects.reduce((m, p) => {
+            const n = Number(p.id)
+            return Number.isFinite(n) && n > m ? n : m
+        }, 2481)
+
         const newProject: Project = {
             ...project,
-            id: Math.random().toString(36).substring(7),
+            id: String(maxId + 1),
             created_at: new Date().toISOString(),
         }
         projects.unshift(newProject)
