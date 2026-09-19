@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ESTADOS, type EstadoId } from '@/lib/caes/status'
 import { motion } from 'framer-motion'
@@ -29,7 +29,7 @@ const SOURCE_TABS: { id: SourceFilter; label: string }[] = [
     { id: 'client', label: 'De clientes' },
 ]
 
-export default function AdminReviewQueue() {
+function ColaDeRevision() {
     const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [source, setSource] = useState<SourceFilter>('all')
@@ -187,5 +187,18 @@ export default function AdminReviewQueue() {
                 </ul>
             )}
         </div>
+    )
+}
+
+/**
+ * useSearchParams() obbliga a un confine Suspense: senza, Next non riesce
+ * a pre-renderizzare la pagina e la build fallisce. Il typecheck non lo
+ * intercetta, solo `npm run build`.
+ */
+export default function AdminReviewQueue() {
+    return (
+        <Suspense fallback={null}>
+            <ColaDeRevision />
+        </Suspense>
     )
 }
