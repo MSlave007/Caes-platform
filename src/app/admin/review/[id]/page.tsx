@@ -254,17 +254,6 @@ export default function AdminReviewDetail({
                     <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
                         Documentación y datos
                     </h2>
-                    <span className="flex items-center gap-4 font-mono text-[11.5px] text-[var(--caes-faint)]">
-                        <span>
-                            {Object.values(verified).filter(Boolean).length} / {uploaded.size}{' '}
-                            verificados
-                        </span>
-                        <span className={faltan.length === 0 ? 'text-[var(--caes-green)]' : undefined}>
-                            {faltan.length === 0
-                                ? 'fórmula completa'
-                                : `faltan ${faltan.length} de la fórmula`}
-                        </span>
-                    </span>
                 </div>
 
                 <div className="mt-6">

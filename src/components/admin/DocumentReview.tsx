@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Check, ChevronRight, AlertTriangle, Upload } from 'lucide-react'
 import DocumentViewer from './DocumentViewer'
 import {
     camposDe,
@@ -130,6 +130,70 @@ function Campo({
     )
 }
 
+/** Barra di avanzamento: quanto e fatto su quanto serve. */
+function Medidor({
+    etiqueta,
+    hecho,
+    total,
+    nota,
+    acento,
+}: {
+    etiqueta: string
+    hecho: number
+    total: number
+    nota: string
+    acento?: boolean
+}) {
+    const pct = total === 0 ? 100 : Math.round((hecho / total) * 100)
+    const completo = hecho === total
+
+    return (
+        <div className="flex flex-1 flex-col gap-2.5 px-5 py-4">
+            <span className="font-mono text-[9.5px] uppercase tracking-[.14em] text-[var(--caes-faint)]">
+                {etiqueta}
+            </span>
+            <span className="flex items-baseline gap-2">
+                <span
+                    className={`font-mono tabular text-[26px] font-medium leading-none tracking-[-0.03em] ${completo ? 'text-[var(--caes-green)]' : 'text-[var(--caes-ink)]'
+                        }`}
+                >
+                    {hecho}
+                </span>
+                <span className="font-mono tabular text-[15px] text-[var(--caes-faint)]">
+                    / {total}
+                </span>
+            </span>
+            <span className="h-[3px] w-full overflow-hidden rounded-full bg-[var(--caes-line)]">
+                <span
+                    className={`block h-full rounded-full transition-all duration-500 ${completo
+                            ? 'bg-[var(--caes-green)]'
+                            : acento
+                                ? 'bg-[#D9A94F]'
+                                : 'bg-[var(--caes-ink)]'
+                        }`}
+                    style={{ width: `${pct}%` }}
+                />
+            </span>
+            <span className="text-[12.5px] leading-[1.35] text-[var(--caes-mut)]">{nota}</span>
+        </div>
+    )
+}
+
+/** I pallini dei dati: uno per campo, pieno quando e confermato. */
+function Puntos({ total, hechos }: { total: number; hechos: number }) {
+    return (
+        <span className="flex items-center gap-[3px]" aria-hidden>
+            {Array.from({ length: total }).map((_, i) => (
+                <span
+                    key={i}
+                    className={`h-[5px] w-[5px] rounded-full ${i < hechos ? 'bg-[var(--caes-green)]' : 'bg-[var(--caes-line)]'
+                        }`}
+                />
+            ))}
+        </span>
+    )
+}
+
 export default function DocumentReview({
     specs,
     subidos,
@@ -175,38 +239,65 @@ export default function DocumentReview({
                         type="button"
                         onClick={() => setAbierto(esAbierto ? null : s.id)}
                         disabled={!has}
-                        className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
+                        className="flex min-w-0 flex-1 items-center gap-3.5 text-left disabled:cursor-default"
                     >
-                        <ChevronRight
-                            className={`h-3.5 w-3.5 shrink-0 text-[var(--caes-faint)] transition-transform ${esAbierto ? 'rotate-90' : ''
-                                } ${!has ? 'opacity-0' : ''}`}
-                            strokeWidth={2.5}
-                        />
+                        {/* Il marcatore dice una cosa sola: il documento c'e,
+                            manca, o e gia verificato. */}
+                        <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${!has
+                                    ? s.required
+                                        ? 'border-dashed border-[#C4863F] text-[#C4863F]'
+                                        : 'border-dashed border-[var(--caes-line)] text-[var(--caes-faint)]'
+                                    : ok
+                                        ? 'border-[var(--caes-green)] bg-[var(--caes-green)] text-white'
+                                        : 'border-[var(--caes-line-2)] text-[var(--caes-faint)]'
+                                }`}
+                        >
+                            {!has ? (
+                                <Upload className="h-3 w-3" strokeWidth={2} />
+                            ) : ok ? (
+                                <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                            ) : (
+                                <ChevronRight
+                                    className={`h-3.5 w-3.5 transition-transform ${esAbierto ? 'rotate-90' : ''
+                                        }`}
+                                    strokeWidth={2.5}
+                                />
+                            )}
+                        </span>
+
                         <span className="min-w-0">
                             <span
-                                className={`block truncate text-[14px] font-medium ${has ? 'text-[var(--caes-ink)]' : 'text-[var(--caes-faint)]'
+                                className={`block truncate text-[14.5px] font-medium ${has ? 'text-[var(--caes-ink)]' : 'text-[var(--caes-faint)]'
                                     }`}
                             >
                                 {s.label}
                             </span>
                             {!has && (
-                                <span className="text-[12px] text-[var(--caes-faint)]">
-                                    {s.required ? 'Falta · obligatorio' : 'No aportado · opcional'}
+                                <span
+                                    className={`text-[12px] ${s.required ? 'text-[#8A5B0B]' : 'text-[var(--caes-faint)]'
+                                        }`}
+                                >
+                                    {s.required
+                                        ? 'Falta · sin él no se puede aprobar'
+                                        : 'No aportado · opcional'}
                                 </span>
                             )}
                         </span>
                     </button>
 
+                    {/* I dati: pallini piu conteggio. Si legge senza aprire. */}
                     {has && campos.length > 0 && (
-                        <span
-                            className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium ${pendientes > 0
-                                    ? 'bg-[#D9A94F]/16 text-[#8A5B0B]'
-                                    : 'bg-[var(--caes-green)]/12 text-[var(--caes-green)]'
-                                }`}
-                        >
-                            {pendientes > 0
-                                ? `${pendientes} de ${campos.length} sin confirmar`
-                                : `${campos.length} datos confirmados`}
+                        <span className="flex shrink-0 items-center gap-2.5">
+                            <Puntos total={campos.length} hechos={campos.length - pendientes} />
+                            <span
+                                className={`font-mono text-[11.5px] tabular-nums ${pendientes > 0
+                                        ? 'text-[#8A5B0B]'
+                                        : 'text-[var(--caes-green)]'
+                                    }`}
+                            >
+                                {campos.length - pendientes} / {campos.length} datos
+                            </span>
                         </span>
                     )}
 
@@ -214,8 +305,8 @@ export default function DocumentReview({
                         <button
                             type="button"
                             onClick={() => onVerificar(s.id)}
-                            className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition-colors ${ok
-                                    ? 'bg-[var(--caes-green)] text-white'
+                            className={`shrink-0 rounded-full px-3.5 py-1.5 text-[12.5px] transition-colors ${ok
+                                    ? 'text-[var(--caes-green)] hover:text-[var(--caes-ink)]'
                                     : 'border border-[var(--caes-line)] text-[var(--caes-mut)] hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]'
                                 }`}
                         >
@@ -265,8 +356,43 @@ export default function DocumentReview({
         )
     }
 
+    // Due assi indipendenti: i documenti e i dati. Mescolarli in un solo
+    // conteggio nascondeva quale dei due stava frenando l'approvazione.
+    const docsPresentes = specs.filter((s) => mapa.has(s.id)).length
+    const docsVerificados = specs.filter((s) => mapa.has(s.id) && verified[s.id]).length
+    const faltanObligatorios = specs.filter((s) => s.required && !mapa.has(s.id)).length
+
+    const camposTotales = specs.flatMap((s) => camposDe(s.id))
+    const camposHechos = camposTotales.filter((c) =>
+        ['confirmado', 'corregido'].includes(extraccion[c.id]?.estado ?? 'vacio')
+    ).length
+
     return (
         <div className="flex flex-col gap-6">
+            <div className="flex flex-col divide-y divide-[var(--caes-line-2)] rounded-xl border border-[var(--caes-line-2)] sm:flex-row sm:divide-x sm:divide-y-0">
+                <Medidor
+                    etiqueta="Documentos verificados"
+                    hecho={docsVerificados}
+                    total={docsPresentes}
+                    nota={
+                        faltanObligatorios > 0
+                            ? `${faltanObligatorios} obligatorio${faltanObligatorios === 1 ? '' : 's'} sin aportar`
+                            : 'Están todos los obligatorios'
+                    }
+                    acento={faltanObligatorios > 0}
+                />
+                <Medidor
+                    etiqueta="Datos confirmados"
+                    hecho={camposHechos}
+                    total={camposTotales.length}
+                    nota={
+                        camposHechos === camposTotales.length
+                            ? 'Nada pendiente de comprobar'
+                            : 'Ábrelos y compruébalos contra el documento'
+                    }
+                />
+            </div>
+
             <ul className="flex flex-col gap-2.5">{conDatos.map(fila)}</ul>
 
             {sinDatos.length > 0 && (
