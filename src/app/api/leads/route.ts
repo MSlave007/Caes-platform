@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { quienLlama, negado } from '@/lib/auth/guard'
 import { createClient } from '@/utils/supabase/server'
 import { mockLeads, type Lead } from '@/lib/mockLeads'
 
@@ -65,6 +66,11 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
+    // Dati personali: nome, telefono, email. Prima questa rotta rispondeva
+    // a chiunque conoscesse l'indirizzo.
+    const quien = await quienLlama()
+    if (!quien) return negado()
+
     try {
         const supabase = await createClient()
         const { data, error } = await supabase

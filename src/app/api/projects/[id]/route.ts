@@ -1,8 +1,12 @@
 import { createClient } from '@/lib/supabaseServer'
 import { mockDb } from '@/lib/mockDb'
+import { quienLlama, negado } from '@/lib/auth/guard'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const quien = await quienLlama()
+    if (!quien) return negado()
+
     const id = (await params).id
     const supabase = await createClient()
 
@@ -26,6 +30,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const quien = await quienLlama()
+    if (!quien) return negado()
+
     const id = (await params).id
     const body = await request.json()
     const supabase = await createClient()

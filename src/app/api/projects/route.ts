@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { mockDb } from '@/lib/mockDb'
+import { quienLlama, negado } from '@/lib/auth/guard'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -7,13 +8,12 @@ export async function GET(request: Request) {
     const url = new URL(request.url)
     const role = url.searchParams.get('role')
 
-    // Check if we are in mock mode (using the client structure hack or checking env)
-    // Safe access to session
-    const authResult = await supabase.auth.getSession()
-    const session = authResult?.data?.session
+    // Senza sessione si passa solo in modalità dimostrativa: prima questa
+    // rotta rispondeva a chiunque, anche online.
+    const quien = await quienLlama()
+    if (!quien) return negado()
 
-    // If no real session and we want to allow demo access, fetch from mockDb
-    if (!session || !session.user) {
+    if (quien.demo) {
         // MOCK MODE FETCH
         const projects = mockDb.getProjects()
         return NextResponse.json({ data: projects })
@@ -37,6 +37,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        const quien = await quienLlama()
+        if (!quien) return negado()
+
         const body = await request.json()
         const supabase = await createClient()
 

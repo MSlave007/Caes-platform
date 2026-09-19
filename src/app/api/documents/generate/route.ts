@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
+import { quienLlama, negado } from '@/lib/auth/guard'
 import PDFDocument from 'pdfkit'
 
 export async function POST(request: Request) {
+    const quien = await quienLlama()
+    if (!quien) return negado()
+
     try {
         const body = await request.json()
         const { type, projectData } = body

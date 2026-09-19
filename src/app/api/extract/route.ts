@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { quienLlama, negado } from '@/lib/auth/guard'
 
 // Mock response simulating Claude 3.5 Sonnet analysis
 const MOCK_EXTRACTION = {
@@ -13,6 +14,9 @@ const MOCK_EXTRACTION = {
 }
 
 export async function POST(request: Request) {
+    const quien = await quienLlama()
+    if (!quien) return negado()
+
     try {
         const { fileUrl, fileType } = await request.json()
 

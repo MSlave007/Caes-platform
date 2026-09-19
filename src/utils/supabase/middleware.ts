@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { esModoDemo } from '@/lib/auth/demoMode'
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -38,23 +39,30 @@ export async function updateSession(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
-    if (
-        !user &&
-        !request.nextUrl.pathname.startsWith('/login') &&
-        !request.nextUrl.pathname.startsWith('/auth') &&
-        request.nextUrl.pathname.startsWith('/dashboard')
-    ) {
-        // Determine where to redirect if trying to access protected route logged out
+    // ── AREE RISERVATE ────────────────────────────────────────────────
+    //
+    // Prima qui c'era `startsWith('/dashboard')`: una rotta che in questo
+    // progetto NON ESISTE. Le aree vere sono /admin e /installer, ed erano
+    // aperte a chiunque conoscesse l'indirizzo — tutta l'area agenzia,
+    // margini compresi, senza mai fare login.
+    //
+    // In modalità dimostrativa restano aperte: serve a mostrare il giro
+    // senza credenziali. In produzione no.
+    const path = request.nextUrl.pathname
+    const reservada = path.startsWith('/admin') || path.startsWith('/installer')
+
+    if (!user && reservada && !esModoDemo()) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
+        url.searchParams.set('volver', path)
         return NextResponse.redirect(url)
     }
 
-    // Dual Role Logic: Redirect to correct dashboard if trying to access wrong one
-    if (user) {
-        // Ideally we check profile role here, but for middleware speed we might skip or cache it.
-        // For now, let's just allow access and let the Page components handle role authorization.
-    }
+    // NOTA — separazione dei ruoli ancora da fare.
+    // `getUserRole()` esiste in src/lib/auth/roleDetection.ts ma non è
+    // chiamata da nessuna parte: oggi un account installatore autenticato
+    // può aprire /admin/settings. Il controllo va messo qui, leggendo il
+    // ruolo dal profilo, appena la tabella `profiles` è popolata.
 
     return supabaseResponse
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { quienLlama, negado } from '@/lib/auth/guard'
 import { createClient } from '@/utils/supabase/server'
 import { mockLeads } from '@/lib/mockLeads'
 
