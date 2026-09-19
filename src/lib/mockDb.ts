@@ -25,6 +25,11 @@ export type ProjectDoc = {
     name: string
     /** Verificato dall'agenzia */
     verified: boolean
+    /**
+     * Percorso nel deposito. Senza questo il visore non ha niente da
+     * aprire: era il pezzo che mancava per poter verificare guardando.
+     */
+    path?: string
 }
 
 export type Project = {

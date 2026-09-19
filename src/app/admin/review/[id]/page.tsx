@@ -2,6 +2,13 @@
 
 import { use, useEffect, useMemo, useState } from 'react'
 import StatusControl from '@/components/admin/StatusControl'
+import DocumentViewer from '@/components/admin/DocumentViewer'
+import ExtractedFields from '@/components/admin/ExtractedFields'
+import {
+    CAMPOS,
+    faltanParaFormula,
+    type Extraccion,
+} from '@/lib/caes/extraction'
 import type { EstadoId } from '@/lib/caes/status'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -44,6 +51,39 @@ export default function AdminReviewDetail({
     const [savings, setSavings] = useState(0)
     const [agencyPct, setAgencyPct] = useState(65)
     const [verified, setVerified] = useState<Record<string, boolean>>({})
+
+    /** Documento aperto nel visore, a sinistra. */
+    const [docAbierto, setDocAbierto] = useState<string | null>(null)
+
+    /**
+     * I dati estratti dai documenti.
+     *
+     * DA COLLEGARE: oggi partono vuoti. Quando /api/extract chiamera un
+     * modello vero, arriveranno precompilati con la loro confidenza — e il
+     * pannello serve esattamente a confermarli o correggerli.
+     */
+    const [extraccion, setExtraccion] = useState<Extraccion>(() =>
+        Object.fromEntries(CAMPOS.map((c) => [c.id, { valor: null, estado: 'vacio' as const }]))
+    )
+
+    const cambiarCampo = (id: string, valor: string) =>
+        setExtraccion((prev) => ({
+            ...prev,
+            // Toccato a mano: diventa "corregido", cioe risponde chi rivede.
+            [id]: { ...prev[id], valor, estado: valor ? 'corregido' : 'vacio' },
+        }))
+
+    const confirmarCampo = (id: string) =>
+        setExtraccion((prev) => ({
+            ...prev,
+            [id]: { ...prev[id], estado: prev[id]?.valor ? 'confirmado' : 'vacio' },
+        }))
+
+    const faltan = faltanParaFormula(extraccion)
+
+    /** Etichetta leggibile di uno slot documento, da entrambi i ruoli. */
+    const etiquetaDocumento = (id: string) =>
+        [...DOCUMENTS.installer, ...DOCUMENTS.client].find((d) => d.id === id)?.label ?? id
 
     useEffect(() => {
         fetch(`/api/projects/${id}`)
@@ -214,7 +254,11 @@ export default function AdminReviewDetail({
                 </motion.div>
             )}
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,23rem)]">
+            {/* Documenti a sinistra, dati estratti a destra. Il riparto sta
+                sotto: e una decisione che si prende DOPO aver verificato,
+                non mentre si verifica. */}
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
+                <div className="flex flex-col gap-6">
                 {/* ------------------------------------------- documenti */}
                 <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
                     <div className="flex items-baseline justify-between gap-4">
@@ -279,6 +323,39 @@ export default function AdminReviewDetail({
                     </ul>
                 </section>
 
+                    {docAbierto ? (
+                        <DocumentViewer
+                            path={(p?.docs ?? []).find((d) => d.id === docAbierto)?.path}
+                            nombre={etiquetaDocumento(docAbierto)}
+                            onClose={() => setDocAbierto(null)}
+                        />
+                    ) : null}
+                </div>
+
+                {/* ------------------------------------ dati estratti */}
+                <section className="flex flex-col gap-4">
+                    <div className="flex items-baseline justify-between gap-4">
+                        <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+                            Datos extraídos
+                        </h2>
+                        <span className="font-mono text-[11.5px] text-[var(--caes-faint)]">
+                            {faltan.length === 0
+                                ? 'todo confirmado'
+                                : `faltan ${faltan.length} de la fórmula`}
+                        </span>
+                    </div>
+                    <ExtractedFields
+                        extraccion={extraccion}
+                        documentoAbierto={docAbierto}
+                        onAbrirDocumento={setDocAbierto}
+                        onCambiar={cambiarCampo}
+                        onConfirmar={confirmarCampo}
+                        etiquetaDocumento={etiquetaDocumento}
+                    />
+                </section>
+            </div>
+
+            {/* Il riparto, sotto: si decide dopo aver verificato. */}
                 {/* ------------------------------------------- ripartizione */}
                 <aside className="flex flex-col gap-6">
                     <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
@@ -371,7 +448,6 @@ export default function AdminReviewDetail({
                         )}
                     </section>
                 </aside>
-            </div>
 
             {error && (
                 <p

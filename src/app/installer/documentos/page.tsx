@@ -200,6 +200,9 @@ export default function DocumentosPage() {
                                     id,
                                     name: v.name,
                                     verified: false,
+                                    // Senza il percorso, in revisione non c'e
+                                    // niente da aprire.
+                                    path: v.path,
                                 }))}
                         />
                     )}

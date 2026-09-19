@@ -42,7 +42,7 @@ const SUSTITUIDOS: { id: string; label: string }[] = [
     { id: 'termo_electrico', label: 'Termo eléctrico' },
 ]
 
-type Doc = { id: string; name: string; verified: boolean }
+type Doc = { id: string; name: string; verified: boolean; path?: string }
 
 const label = 'block font-mono text-[9.5px] uppercase tracking-[.14em] text-[var(--caes-faint)]'
 const field =

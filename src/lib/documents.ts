@@ -74,10 +74,24 @@ export const DOCUMENTS: Record<Role, DocSpec[]> = {
             accept: 'application/pdf,image/*',
         },
         {
+            // Il certificato energetico e il documento piu importante del
+            // fascicolo: la ficha RES060 dice testualmente che superficie,
+            // domanda di riscaldamento e domanda di ACS si prendono da qui,
+            // «antes de la actuacion». Sono i tre ingressi della formula.
+            id: 'cee',
+            label: 'Certificado de eficiencia energética',
+            why: 'El anterior a la instalación. De aquí salen la superficie y las demandas: son las que deciden cuánto vale el certificado.',
+            required: true,
+            accept: 'application/pdf,image/*',
+            extracted: true,
+        },
+        {
+            // Da qui esce lo SCOP, che e nella formula e deve superare un
+            // minimo per zona climatica. Era marcata opzionale per errore.
             id: 'ficha',
             label: 'Ficha técnica del equipo',
-            why: 'Si la factura no trae todas las características, esta las completa.',
-            required: false,
+            why: 'De aquí sale el SCOP, que entra en el cálculo y tiene que superar el mínimo de la zona.',
+            required: true,
             accept: 'application/pdf,image/*',
             extracted: true,
         },
