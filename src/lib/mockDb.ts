@@ -102,7 +102,7 @@ const SEMILLA: Project[] = [
         source: 'installer',
         client_name: 'Instal·lacions Roca',
         installer_name: 'Instal·la Girona',
-        status: 'under_review',
+        status: 'submitted',
         savings_eur: 336,
         installer_pct: 20,
         agency_pct: null,

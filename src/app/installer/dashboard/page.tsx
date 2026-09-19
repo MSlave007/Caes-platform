@@ -57,7 +57,7 @@ export default function InstallerDashboard() {
 
     const totalSavings = projects.reduce((a, p) => a + (p.savings_eur || 0), 0)
     const open = projects.filter((p) =>
-        ['draft', 'submitted', 'under_review', 'changes_requested', 'awaiting_signatures', 'at_delegate', 'issued'].includes(
+        ['draft', 'submitted', 'changes_requested', 'approved', 'issued'].includes(
             normalize(p.status)
         )
     ).length

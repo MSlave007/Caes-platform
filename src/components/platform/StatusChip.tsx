@@ -55,10 +55,15 @@ export function normalize(raw?: string): Status {
         rechazado: 'rejected',
         enviado: 'submitted',
         borrador: 'draft',
-        in_review: 'under_review',
-        review: 'under_review',
-        revision: 'under_review',
-        'en_revision': 'under_review',
+        // "in revisione" non esiste piu come stato a se: una pratica
+        // arrivata e' gia in revisione. I vecchi dati confluiscono qui.
+        in_review: 'submitted',
+        under_review: 'submitted',
+        review: 'submitted',
+        revision: 'submitted',
+        en_revision: 'submitted',
+        awaiting_signatures: 'changes_requested',
+        at_delegate: 'approved',
     }
     if (alias[s]) return alias[s]
 

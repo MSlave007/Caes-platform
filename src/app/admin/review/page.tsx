@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { ESTADOS, type EstadoId } from '@/lib/caes/status'
 import { motion } from 'framer-motion'
 import { Loader2, Search } from 'lucide-react'
 import ProjectRow from '@/components/admin/ProjectRow'
@@ -10,13 +12,15 @@ import type { Project, Source } from '@/lib/mockDb'
 const EASE = [0.16, 1, 0.3, 1] as const
 
 type SourceFilter = 'all' | Source
-type StatusFilter = 'pending' | 'all' | 'approved' | 'rejected'
+/** Un filtro per ogni stato reale, piu "todos". */
+type StatusFilter = 'all' | EstadoId
 
 const STATUS_TABS: { id: StatusFilter; label: string }[] = [
-    { id: 'pending', label: 'Por revisar' },
-    { id: 'approved', label: 'Aprobados' },
-    { id: 'rejected', label: 'Rechazados' },
     { id: 'all', label: 'Todos' },
+    ...ESTADOS.filter((e) => e.id !== 'draft').map((e) => ({
+        id: e.id as StatusFilter,
+        label: e.label,
+    })),
 ]
 
 const SOURCE_TABS: { id: SourceFilter; label: string }[] = [
@@ -29,7 +33,13 @@ export default function AdminReviewQueue() {
     const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [source, setSource] = useState<SourceFilter>('all')
-    const [status, setStatus] = useState<StatusFilter>('pending')
+    const params = useSearchParams()
+    const desdeUrl = params.get('estado')
+    const [status, setStatus] = useState<StatusFilter>(
+        desdeUrl && STATUS_TABS.some((t) => t.id === desdeUrl)
+            ? (desdeUrl as StatusFilter)
+            : 'submitted'
+    )
     const [q, setQ] = useState('')
 
     useEffect(() => {
@@ -56,10 +66,7 @@ export default function AdminReviewQueue() {
             if (source !== 'all' && p.source !== source) return false
 
             const st = normalize(p.status)
-            if (status === 'pending' && !['submitted', 'under_review'].includes(st))
-                return false
-            if (status === 'approved' && st !== 'approved') return false
-            if (status === 'rejected' && st !== 'rejected') return false
+            if (status !== 'all' && st !== status) return false
 
             if (!needle) return true
             return (
@@ -72,7 +79,7 @@ export default function AdminReviewQueue() {
     }, [projects, source, status, q])
 
     const pending = projects.filter((p) =>
-        ['submitted', 'under_review'].includes(normalize(p.status))
+        normalize(p.status) === 'submitted'
     ).length
 
     return (

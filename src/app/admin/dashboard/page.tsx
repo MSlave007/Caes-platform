@@ -26,7 +26,7 @@ export default function AdminDashboard() {
 
     const m = useMemo(() => {
         const st = (p: Project) => normalize(p.status)
-        const pending = projects.filter((p) => ['submitted', 'under_review'].includes(st(p)))
+        const pending = projects.filter((p) => st(p) === 'submitted')
         const approved = projects.filter((p) => st(p) === 'approved')
 
         // Margine già maturato: solo sugli espedienti approvati, dove la
@@ -167,37 +167,71 @@ export default function AdminDashboard() {
                         En qué punto están
                     </h2>
                     <span className="font-mono text-[9.5px] uppercase tracking-[.13em] text-[var(--caes-faint)]">
-                        Todo el ciclo, no solo la revisión
+                        Pulsa para filtrar la cola
                     </span>
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-[10px] border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-4 lg:grid-cols-8">
-                    {FLUJO.filter((id) => id !== 'draft').map((id) => {
+                {/* Una barra sola con le tappe in fila: la griglia di riquadri
+                    spezzava la lettura e lasciava una cella vuota in fondo. */}
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                    {FLUJO.filter((id) => id !== 'draft').map((id, i, arr) => {
                         const e = estado(id)
                         const n = projects.filter((p) => normalize(p.status) === id).length
+                        const vivo = n > 0
                         return (
-                            <div key={id} className="bg-[var(--caes-paper)] px-4 py-4">
-                                <div className="font-mono tabular text-[22px] font-medium tracking-[-0.03em] text-[var(--caes-ink)]">
+                            <Link
+                                key={id}
+                                href={`/admin/review?estado=${id}`}
+                                className={`group relative flex flex-1 items-center gap-4 rounded-[9px] border px-5 py-4 transition-colors sm:flex-col sm:items-start sm:gap-2 ${vivo
+                                        ? 'border-[var(--caes-line-2)] bg-[var(--caes-panel)] hover:border-[var(--caes-ink)]'
+                                        : 'border-dashed border-[var(--caes-line)] bg-transparent hover:border-[var(--caes-line-2)]'
+                                    }`}
+                            >
+                                <span
+                                    className={`font-mono tabular text-[30px] font-medium leading-none tracking-[-0.035em] ${vivo ? 'text-[var(--caes-ink)]' : 'text-[var(--caes-line-2)]'
+                                        }`}
+                                >
                                     {n}
-                                </div>
-                                <div className="mt-1 text-[12.5px] leading-[1.3] text-[var(--caes-mut)]">
-                                    {e.label}
-                                </div>
-                            </div>
+                                </span>
+                                <span className="flex flex-col gap-0.5">
+                                    <span
+                                        className={`text-[13.5px] font-medium leading-[1.2] ${vivo ? 'text-[var(--caes-ink)]' : 'text-[var(--caes-faint)]'
+                                            }`}
+                                    >
+                                        {e.label}
+                                    </span>
+                                    <span className="font-mono text-[9px] uppercase tracking-[.12em] text-[var(--caes-faint)]">
+                                        {i + 1} / {arr.length}
+                                    </span>
+                                </span>
+
+                                {/* il raccordo fra una tappa e la successiva */}
+                                {i < arr.length - 1 ? (
+                                    <span
+                                        aria-hidden
+                                        className="absolute right-[-7px] top-1/2 hidden h-px w-[14px] -translate-y-1/2 bg-[var(--caes-line)] sm:block"
+                                    />
+                                ) : null}
+                            </Link>
                         )
                     })}
                 </div>
 
                 {/* le eccezioni stanno a parte: non sono una tappa del percorso */}
-                <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2">
-                    {ESTADOS.filter((e) => e.excepcion).map((e) => (
-                        <span key={e.id} className="text-[13px] text-[var(--caes-mut)]">
-                            {e.label}{' '}
-                            <b className="font-mono tabular font-medium text-[var(--caes-ink)]">
-                                {projects.filter((p) => normalize(p.status) === e.id).length}
-                            </b>
-                        </span>
-                    ))}
+                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2">
+                    {ESTADOS.filter((e) => e.excepcion).map((e) => {
+                        const n = projects.filter((p) => normalize(p.status) === e.id).length
+                        return (
+                            <Link
+                                key={e.id}
+                                href={`/admin/review?estado=${e.id}`}
+                                className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-3.5 py-1.5 text-[12.5px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]"
+                            >
+                                {e.label}
+                                <b className="font-mono tabular font-medium text-[var(--caes-ink)]">{n}</b>
+                            </Link>
+                        )
+                    })}
                 </div>
             </div>
 

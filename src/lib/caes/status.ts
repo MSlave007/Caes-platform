@@ -18,16 +18,24 @@
  * l'installatore non ha niente da rispondere perché nemmeno lui sa a che
  * punto è.
  *
- * ── DUE SCELTE DI PROGETTO ────────────────────────────────────────────
+ * ── LA REGOLA: SOLO STATI CHE SAPPIAMO DAVVERO ────────────────────────
  *
- * 1) Non spacchettiamo «delegato / verificatore / Ministero» in tre stati.
- *    Voi non sapete quando Bettergy passa la pratica al verificatore:
- *    dichiarare uno stato che non potete aggiornare è peggio che non
- *    averlo. Un solo `at_delegate` copre onestamente quello che sapete.
+ * La prima versione ne aveva dieci e aggiungeva `under_review`,
+ * `awaiting_signatures`, `at_delegate`. Erano di troppo:
  *
- * 2) Ogni stato dichiara DI CHI È LA PALLA. Per l'installatore è
- *    l'informazione più importante — più della tassonomia: vuole sapere se
- *    deve fare qualcosa lui o se può solo aspettare.
+ * - `under_review` non si distingue da `submitted`. Non esiste un momento
+ *   in cui qualcuno aggiorna l'uno e non l'altro: una pratica arrivata è
+ *   una pratica in revisione.
+ * - `awaiting_signatures` e `at_delegate` descrivono cose che succedono
+ *   davvero, ma che voi non potete aggiornare con affidabilità — non
+ *   sapete quando Bettergy passa il fascicolo al verificatore.
+ *
+ * Uno stato che nessuno aggiorna è peggio che non averlo: mostra al
+ * cliente un'informazione ferma e sbagliata. Meglio pochi stati veri.
+ *
+ * Resta la seconda scelta: ogni stato dichiara DI CHI È LA PALLA. Per
+ * l'installatore conta più della tassonomia — vuole sapere se deve fare
+ * qualcosa lui o se può solo aspettare.
  */
 
 /** Chi deve muoversi perché la pratica avanzi. */
@@ -36,17 +44,14 @@ export type Actor = 'installer' | 'agency' | 'external' | 'none'
 export type EstadoId =
     | 'draft'
     | 'submitted'
-    | 'under_review'
     | 'changes_requested'
     | 'rejected'
     | 'approved'
-    | 'awaiting_signatures'
-    | 'at_delegate'
     | 'issued'
     | 'paid'
 
 /** Le cinque tappe che vede l'installatore. Più stati mappano sulla stessa. */
-export type PistaId = 'enviado' | 'revision' | 'tuyo' | 'tramitacion' | 'cobrado'
+export type PistaId = 'enviado' | 'tuyo' | 'aprobado' | 'emitido' | 'cobrado'
 
 export type Estado = {
     id: EstadoId
@@ -81,49 +86,25 @@ export const ESTADOS: Estado[] = [
     {
         id: 'submitted',
         label: 'Enviado',
-        hint: 'Ha llegado a la cola. Nadie lo ha abierto todavía.',
+        hint: 'Ha llegado y está en revisión. Nada que hacer por parte del instalador.',
         actor: 'agency',
         pista: 'enviado',
         tone: 'info',
     },
     {
-        id: 'under_review',
-        label: 'En revisión',
-        hint: 'Alguien de la agencia lo está comprobando ahora mismo.',
-        actor: 'agency',
-        pista: 'revision',
-        tone: 'info',
-    },
-    {
         id: 'approved',
         label: 'Aprobado',
-        hint: 'Verificado y con el reparto fijado. Los cuatro documentos ya se pueden generar.',
-        actor: 'agency',
-        pista: 'revision',
-        tone: 'ok',
-    },
-    {
-        id: 'awaiting_signatures',
-        label: 'Pendiente de firmas',
-        hint: 'Faltan las firmas del instalador, del cliente o vuestra. Aquí se atasca lo que ya estaba listo.',
-        actor: 'installer',
-        pista: 'tuyo',
-        tone: 'warn',
-    },
-    {
-        id: 'at_delegate',
-        label: 'En el sujeto delegado',
-        hint: 'Enviado a Bettergy. De ahí pasa al verificador externo y al Ministerio. Fuera de vuestras manos.',
+        hint: 'Verificado, reparto fijado y documentos generados. En trámite hacia el sujeto delegado.',
         actor: 'external',
-        pista: 'tramitacion',
-        tone: 'info',
+        pista: 'aprobado',
+        tone: 'ok',
     },
     {
         id: 'issued',
         label: 'CAE emitido',
         hint: 'El certificado existe. Falta que se venda y llegue el dinero.',
         actor: 'external',
-        pista: 'tramitacion',
+        pista: 'emitido',
         tone: 'ok',
     },
     {
@@ -186,7 +167,7 @@ export function siguientes(id: string): EstadoId[] {
     const avanti: EstadoId[] = i >= 0 && i < FLUJO.length - 1 ? [FLUJO[i + 1]] : []
 
     // Da un'eccezione si rientra nel flusso dalla revisione.
-    if (e.excepcion) return ['under_review']
+    if (e.excepcion) return ['submitted']
 
     return [...avanti, 'changes_requested', 'rejected']
 }
@@ -196,12 +177,7 @@ export const PISTA: { id: PistaId; label: string; body: string }[] = [
     {
         id: 'enviado',
         label: 'Enviado',
-        body: 'Tu expediente ha llegado. No tienes que hacer nada.',
-    },
-    {
-        id: 'revision',
-        label: 'En revisión',
-        body: 'La agencia está comprobando los documentos y el cálculo.',
+        body: 'Ha llegado y la agencia lo está revisando. No tienes que hacer nada.',
     },
     {
         id: 'tuyo',
@@ -209,9 +185,14 @@ export const PISTA: { id: PistaId; label: string; body: string }[] = [
         body: 'Hay algo que solo puedes hacer tú. Hasta entonces no avanza.',
     },
     {
-        id: 'tramitacion',
-        label: 'En tramitación',
-        body: 'Está en el sujeto delegado y el Ministerio. Nadie puede acelerarlo.',
+        id: 'aprobado',
+        label: 'Aprobado',
+        body: 'Verificado y en trámite. Tu comisión ya está fijada.',
+    },
+    {
+        id: 'emitido',
+        label: 'CAE emitido',
+        body: 'El certificado existe. Falta que se venda y llegue el dinero.',
     },
     {
         id: 'cobrado',
