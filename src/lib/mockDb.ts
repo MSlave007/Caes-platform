@@ -1,8 +1,20 @@
-// Archivio in memoria per la sessione dimostrativa.
-// Vive finché il processo del server è vivo: serve a far funzionare l'area
-// admin mentre Supabase non è raggiungibile, non a sostituirlo.
+// Archivio dimostrativo, appoggiato a un file su disco.
+//
+// Prima era un array a livello di modulo. Non funzionava: in sviluppo le
+// due rotte (/api/projects e /api/projects/[id]) finiscono in bundle
+// diversi e ciascuna si ritrova la SUA copia del modulo — una pratica
+// creata dalla prima era invisibile alla seconda. In più ogni
+// ricompilazione azzerava tutto, quindi bastava salvare un file mentre
+// stavi mostrando qualcosa e i dati sparivano.
+//
+// Il file risolve entrambe le cose: è uno solo per tutte le rotte e
+// sopravvive alle ricompilazioni. Resta comunque un ripiego per le
+// dimostrazioni, non un database: per un pilota vero serve Supabase.
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import type { DocSpec } from './documents'
+import type { EstadoId } from './caes/status'
 
 /** Chi ha aperto l'espediente. Cambia i documenti richiesti e la lavorazione. */
 export type Source = 'installer' | 'client'
@@ -22,7 +34,8 @@ export type Project = {
     client_name: string
     /** Vuoto quando l'espediente arriva dal cliente e non è ancora assegnato */
     installer_name: string | null
-    status: 'submitted' | 'under_review' | 'approved' | 'rejected'
+    /** Ciclo di vita completo: vedi src/lib/caes/status.ts */
+    status: EstadoId
     /** Risparmio annuo riconosciuto, € */
     savings_eur: number
     /** Percentuale trattenuta dall'installatore, bloccata all'invio */
@@ -44,7 +57,9 @@ const hoursAgo = (h: number) => new Date(Date.now() - h * 3600000).toISOString()
 const docs = (ids: string[], verified = false): ProjectDoc[] =>
     ids.map((id) => ({ id, name: `${id}.pdf`, verified }))
 
-let projects: Project[] = [
+const ARCHIVO = join(process.cwd(), '.caes-demo.json')
+
+const SEMILLA: Project[] = [
     {
         id: '2481',
         created_at: hoursAgo(2),
@@ -140,15 +155,49 @@ let projects: Project[] = [
     },
 ]
 
+/**
+ * Lettura e scrittura del file. I dati sono pochi: leggere ogni volta
+ * costa niente ed evita di tenere una cache che può divergere fra rotte,
+ * che è esattamente il problema da cui veniamo.
+ */
+function leer(): Project[] {
+    try {
+        if (!existsSync(ARCHIVO)) {
+            escribir(SEMILLA)
+            return SEMILLA
+        }
+        return JSON.parse(readFileSync(ARCHIVO, 'utf8')) as Project[]
+    } catch {
+        // File corrotto o illeggibile: si riparte dalla semilla invece di
+        // far cadere la pagina durante una dimostrazione.
+        return SEMILLA
+    }
+}
+
+function escribir(rows: Project[]) {
+    try {
+        writeFileSync(ARCHIVO, JSON.stringify(rows, null, 2), 'utf8')
+    } catch {
+        /* sola lettura: la dimostrazione continua, senza persistenza */
+    }
+}
+
 export const mockDb = {
-    getProjects: () => projects,
-    getProjectById: (id: string) => projects.find((p) => p.id === id),
+    getProjects: () => leer(),
+    getProjectById: (id: string) => leer().find((p) => p.id === id),
+
+    /** Riporta la demo allo stato iniziale. Comodo fra una dimostrazione e l'altra. */
+    reset: () => {
+        escribir(SEMILLA)
+        return SEMILLA
+    },
 
     createProject: (project: Omit<Project, 'id' | 'created_at'>) => {
         // Id progressivo sopra il più alto esistente: accanto ai 2477-2481
         // della demo, un id casuale tipo "k3f9x" si nota subito ed è brutto
         // da leggere ad alta voce durante una dimostrazione.
-        const maxId = projects.reduce((m, p) => {
+        const rows = leer()
+        const maxId = rows.reduce((m, p) => {
             const n = Number(p.id)
             return Number.isFinite(n) && n > m ? n : m
         }, 2481)
@@ -158,23 +207,28 @@ export const mockDb = {
             id: String(maxId + 1),
             created_at: new Date().toISOString(),
         }
-        projects.unshift(newProject)
+        rows.unshift(newProject)
+        escribir(rows)
         return newProject
     },
 
     updateProjectStatus: (id: string, status: Project['status']) => {
-        const idx = projects.findIndex((p) => p.id === id)
+        const rows = leer()
+        const idx = rows.findIndex((p) => p.id === id)
         if (idx === -1) return null
-        projects[idx].status = status
-        return projects[idx]
+        rows[idx].status = status
+        escribir(rows)
+        return rows[idx]
     },
 
     /** Approvazione: fissa il risparmio riconosciuto e il margine dell'agenzia. */
     updateProject: (id: string, patch: Partial<Project>) => {
-        const idx = projects.findIndex((p) => p.id === id)
+        const rows = leer()
+        const idx = rows.findIndex((p) => p.id === id)
         if (idx === -1) return null
-        projects[idx] = { ...projects[idx], ...patch }
-        return projects[idx]
+        rows[idx] = { ...rows[idx], ...patch }
+        escribir(rows)
+        return rows[idx]
     },
 }
 

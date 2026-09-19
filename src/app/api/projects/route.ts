@@ -41,7 +41,9 @@ export async function POST(request: Request) {
         const supabase = await createClient()
 
         // 1. Validate (Basic)
-        if (!body.client_name) {
+        // Il nome serve solo per creare: un aggiornamento porta l'id e
+        // magari cambia un campo solo, tipo lo stato.
+        if (!body.id && !body.client_name) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 

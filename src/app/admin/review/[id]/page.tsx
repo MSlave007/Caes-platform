@@ -1,6 +1,8 @@
 'use client'
 
 import { use, useEffect, useMemo, useState } from 'react'
+import StatusControl from '@/components/admin/StatusControl'
+import type { EstadoId } from '@/lib/caes/status'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -379,6 +381,19 @@ export default function AdminReviewDetail({
                     {error}
                 </p>
             )}
+
+            {/* --------------------------------------- ciclo di vita */}
+            {p ? (
+                <div className="mt-8">
+                    <StatusControl
+                        current={p.status}
+                        onChange={async (next: EstadoId) => {
+                            await patch({ status: next })
+                            setP((prev) => (prev ? { ...prev, status: next } : prev))
+                        }}
+                    />
+                </div>
+            ) : null}
 
             {/* ------------------------------------------------- decisione */}
             <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-4 border-t border-[var(--caes-line)] bg-[var(--caes-paper)] py-6">

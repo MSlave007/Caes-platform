@@ -9,14 +9,18 @@ import { DOCUMENTS } from '@/lib/documents'
 import { AHORRO_MINIMO_PCT, eur } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
 
+import { PISTA, posicionPista, esperaAlInstalador, estado } from '@/lib/caes/status'
+
 const EASE = [0.16, 1, 0.3, 1] as const
 
-/** I quattro momenti di un espediente, come li vive l'installatore. */
-const TIMELINE = [
-    { id: 'submitted', label: 'Enviado', body: 'Has mandado la documentación.' },
-    { id: 'in_review', label: 'En revisión', body: 'La agencia está comprobando los documentos.' },
-    { id: 'approved', label: 'Aprobado', body: 'Certificado emitido y reparto fijado.' },
-]
+/**
+ * Le cinque tappe come le vive l'installatore.
+ *
+ * Prima erano tre e si fermavano ad «Aprobado», che è circa metà del
+ * processo: tutto quello che gli interessa davvero — firme, tramitazione,
+ * incasso — restava invisibile. Vedi src/lib/caes/status.ts
+ */
+const TIMELINE = PISTA
 
 /**
  * Dettaglio dell'espediente, lato installatore.
@@ -70,13 +74,9 @@ export default function InstallerProjectDetail({
 
     const st = normalize(p.status)
     const rejected = st === 'rejected'
-    const currentStep = rejected
-        ? -1
-        : st === 'approved'
-            ? 2
-            : st === 'in_review'
-                ? 1
-                : 0
+    const currentStep = rejected ? -1 : posicionPista(st)
+    const tuTurno = esperaAlInstalador(st)
+    const detalle = estado(st)
 
     const specs = DOCUMENTS[p.source === 'client' ? 'client' : 'installer']
     const uploaded = new Set((p.docs ?? []).map((d) => d.id))
@@ -131,6 +131,20 @@ export default function InstallerProjectDetail({
                                 )}
                             </div>
                         ) : (
+                            <>
+                                {/* Se la palla è sua deve saltare all'occhio:
+                                    è l'avviso che evita la telefonata. */}
+                                {tuTurno ? (
+                                    <div className="mt-6 rounded-[8px] border border-[#D8B26A] bg-[#FBF5E8] px-4 py-3.5">
+                                        <p className="text-[14px] font-semibold text-[#7A5A1C]">
+                                            Te toca a ti: {detalle.label.toLowerCase()}
+                                        </p>
+                                        <p className="mt-1 text-[13px] leading-[1.5] text-[#8A6A2C]">
+                                            {detalle.hint}
+                                        </p>
+                                    </div>
+                                ) : null}
+
                             <ol className="relative mt-7 flex flex-col">
                                 <span
                                     aria-hidden
@@ -176,6 +190,7 @@ export default function InstallerProjectDetail({
                                     )
                                 })}
                             </ol>
+                            </>
                         )}
                     </section>
 

@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Home, Loader2, Wrench } from 'lucide-react'
 import ProjectRow from '@/components/admin/ProjectRow'
 import { normalize } from '@/components/platform/StatusChip'
+import { ESTADOS, FLUJO, estado } from '@/lib/caes/status'
 import { AHORRO_MINIMO_PCT, eur } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
 
@@ -25,7 +26,7 @@ export default function AdminDashboard() {
 
     const m = useMemo(() => {
         const st = (p: Project) => normalize(p.status)
-        const pending = projects.filter((p) => ['submitted', 'in_review'].includes(st(p)))
+        const pending = projects.filter((p) => ['submitted', 'under_review'].includes(st(p)))
         const approved = projects.filter((p) => st(p) === 'approved')
 
         // Margine già maturato: solo sugli espedienti approvati, dove la
@@ -157,6 +158,47 @@ export default function AdminDashboard() {
                         </p>
                     </Link>
                 ))}
+            </div>
+
+            {/* -------------------------------------------- ciclo di vita */}
+            <div>
+                <div className="flex items-baseline justify-between gap-4">
+                    <h2 className="text-[17px] font-semibold tracking-[-0.024em]">
+                        En qué punto están
+                    </h2>
+                    <span className="font-mono text-[9.5px] uppercase tracking-[.13em] text-[var(--caes-faint)]">
+                        Todo el ciclo, no solo la revisión
+                    </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-[10px] border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-4 lg:grid-cols-8">
+                    {FLUJO.filter((id) => id !== 'draft').map((id) => {
+                        const e = estado(id)
+                        const n = projects.filter((p) => normalize(p.status) === id).length
+                        return (
+                            <div key={id} className="bg-[var(--caes-paper)] px-4 py-4">
+                                <div className="font-mono tabular text-[22px] font-medium tracking-[-0.03em] text-[var(--caes-ink)]">
+                                    {n}
+                                </div>
+                                <div className="mt-1 text-[12.5px] leading-[1.3] text-[var(--caes-mut)]">
+                                    {e.label}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+
+                {/* le eccezioni stanno a parte: non sono una tappa del percorso */}
+                <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2">
+                    {ESTADOS.filter((e) => e.excepcion).map((e) => (
+                        <span key={e.id} className="text-[13px] text-[var(--caes-mut)]">
+                            {e.label}{' '}
+                            <b className="font-mono tabular font-medium text-[var(--caes-ink)]">
+                                {projects.filter((p) => normalize(p.status) === e.id).length}
+                            </b>
+                        </span>
+                    ))}
+                </div>
             </div>
 
             {/* ------------------------------------------------ coda breve */}

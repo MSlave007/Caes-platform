@@ -56,7 +56,7 @@ export default function AdminReviewQueue() {
             if (source !== 'all' && p.source !== source) return false
 
             const st = normalize(p.status)
-            if (status === 'pending' && !['submitted', 'in_review'].includes(st))
+            if (status === 'pending' && !['submitted', 'under_review'].includes(st))
                 return false
             if (status === 'approved' && st !== 'approved') return false
             if (status === 'rejected' && st !== 'rejected') return false
@@ -72,7 +72,7 @@ export default function AdminReviewQueue() {
     }, [projects, source, status, q])
 
     const pending = projects.filter((p) =>
-        ['submitted', 'in_review'].includes(normalize(p.status))
+        ['submitted', 'under_review'].includes(normalize(p.status))
     ).length
 
     return (
