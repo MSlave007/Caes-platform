@@ -93,6 +93,12 @@ export function redactar(a: AvisoEstado, d: Destinatario) {
         rejected: `El expediente de ${a.clienteNombre} no sigue adelante.\n\n${a.motivo ?? 'Sin motivo indicado.'}`,
     }
 
+    // Il nome del destinatario, quando lo abbiamo: una riga scritta a
+    // una persona si legge diversamente da una circolare.
+    const saludo = d.nombre ? `${d.nombre},
+
+` : ''
+
     const asunto = asuntos[a.estado] ?? `${ref} · ${e.label}`
     const cuerpo = cuerpos[a.estado] ?? e.hint
 
@@ -100,7 +106,7 @@ export function redactar(a: AvisoEstado, d: Destinatario) {
         asunto,
         // Niente HTML per ora: un messaggio di tre righe non lo richiede, e
         // il testo semplice non finisce nello spam né si rompe sui telefoni.
-        texto: `${cuerpo}\n\nVer el expediente: ${a.enlace}\n\nCAES`,
+        texto: `${saludo}${cuerpo}\n\nVer el expediente: ${a.enlace}\n\nCAES`,
     }
 }
 

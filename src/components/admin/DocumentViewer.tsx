@@ -27,13 +27,11 @@ export default function DocumentViewer({ path, nombre, onClose }: Props) {
 
     useEffect(() => {
         let vivo = true
-        setUrl(null)
-        setError(null)
 
-        if (!path) {
-            setError('Este documento no está archivado. Se subió en modo demostración.')
-            return
-        }
+        // Nessun reset qui: il genitore monta un visore per documento
+        // (key={s.id}), quindi lo stato nasce gia pulito. E il caso "senza
+        // percorso" si deduce in render, non e uno stato da impostare.
+        if (!path) return
 
         fetch(`/api/documents/url?path=${encodeURIComponent(path)}`)
             .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
@@ -50,6 +48,10 @@ export default function DocumentViewer({ path, nombre, onClose }: Props) {
     }, [path])
 
     const esPdf = (path ?? '').toLowerCase().endsWith('.pdf')
+    // Dedotto, non messo nello stato: senza percorso non c'e niente da aprire.
+    const mensaje = !path
+        ? 'Este documento no está archivado. Se subió en modo demostración.'
+        : error
 
     return (
         <div className="flex h-full flex-col overflow-hidden rounded-[10px] border border-[var(--caes-line)] bg-[var(--caes-panel)]">
@@ -81,10 +83,10 @@ export default function DocumentViewer({ path, nombre, onClose }: Props) {
             </div>
 
             <div className="flex min-h-[340px] flex-1 items-center justify-center bg-[var(--caes-band)]">
-                {error ? (
+                {mensaje ? (
                     <p className="flex max-w-[44ch] items-start gap-2.5 px-6 text-[13.5px] leading-[1.5] text-[var(--caes-mut)]">
                         <AlertTriangle className="mt-[2px] h-4 w-4 shrink-0 text-[#C4863F]" />
-                        {error}
+                        {mensaje}
                     </p>
                 ) : !url ? (
                     <Loader2 className="h-5 w-5 animate-spin text-[var(--caes-faint)]" />

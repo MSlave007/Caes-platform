@@ -2,8 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from 'react'
 import StatusControl from '@/components/admin/StatusControl'
-import DocumentViewer from '@/components/admin/DocumentViewer'
-import ExtractedFields from '@/components/admin/ExtractedFields'
+import DocumentReview from '@/components/admin/DocumentReview'
 import {
     CAMPOS,
     faltanParaFormula,
@@ -17,7 +16,6 @@ import {
     AlertTriangle,
     ArrowLeft,
     Check,
-    FileText,
     Home,
     Loader2,
     Wrench,
@@ -52,9 +50,6 @@ export default function AdminReviewDetail({
     const [agencyPct, setAgencyPct] = useState(65)
     const [verified, setVerified] = useState<Record<string, boolean>>({})
 
-    /** Documento aperto nel visore, a sinistra. */
-    const [docAbierto, setDocAbierto] = useState<string | null>(null)
-
     /**
      * I dati estratti dai documenti.
      *
@@ -81,9 +76,6 @@ export default function AdminReviewDetail({
 
     const faltan = faltanParaFormula(extraccion)
 
-    /** Etichetta leggibile di uno slot documento, da entrambi i ruoli. */
-    const etiquetaDocumento = (id: string) =>
-        [...DOCUMENTS.installer, ...DOCUMENTS.client].find((d) => d.id === id)?.label ?? id
 
     useEffect(() => {
         fetch(`/api/projects/${id}`)
@@ -254,106 +246,45 @@ export default function AdminReviewDetail({
                 </motion.div>
             )}
 
-            {/* Documenti a sinistra, dati estratti a destra. Il riparto sta
-                sotto: e una decisione che si prende DOPO aver verificato,
-                non mentre si verifica. */}
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
-                <div className="flex flex-col gap-6">
-                {/* ------------------------------------------- documenti */}
-                <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
-                    <div className="flex items-baseline justify-between gap-4">
-                        <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
-                            Documentación
-                        </h2>
-                        <span className="font-mono text-[11.5px] text-[var(--caes-faint)]">
+            {/* Documenti e dati estratti in una lista sola: i dati stanno
+                dentro il documento da cui escono, cosi il collegamento non
+                va ricostruito a mente. Il riparto resta sotto. */}
+            <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
+                <div className="flex flex-wrap items-baseline justify-between gap-4">
+                    <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+                        Documentación y datos
+                    </h2>
+                    <span className="flex items-center gap-4 font-mono text-[11.5px] text-[var(--caes-faint)]">
+                        <span>
                             {Object.values(verified).filter(Boolean).length} / {uploaded.size}{' '}
                             verificados
                         </span>
-                    </div>
-
-                    <ul className="mt-6 flex flex-col gap-2.5">
-                        {specs.map((s) => {
-                            const has = uploaded.has(s.id)
-                            const ok = verified[s.id]
-                            return (
-                                <li
-                                    key={s.id}
-                                    className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${!has
-                                            ? 'border-dashed border-[var(--caes-line)] opacity-60'
-                                            : ok
-                                                ? 'border-[var(--caes-green)]/35 bg-[var(--caes-green)]/[.04]'
-                                                : 'border-[var(--caes-line)]'
-                                        }`}
-                                >
-                                    <FileText
-                                        className="h-4 w-4 shrink-0 text-[var(--caes-faint)]"
-                                        strokeWidth={1.7}
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[14px] font-medium">
-                                            {s.label}
-                                        </p>
-                                        <p className="text-[12px] text-[var(--caes-faint)]">
-                                            {has
-                                                ? 'Subido'
-                                                : s.required
-                                                    ? 'Falta · obligatorio'
-                                                    : 'No aportado · opcional'}
-                                        </p>
-                                    </div>
-
-                                    {has && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setVerified((v) => ({ ...v, [s.id]: !v[s.id] }))
-                                            }
-                                            className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-[12.5px] transition-colors ${ok
-                                                    ? 'bg-[var(--caes-green)] font-medium text-white'
-                                                    : 'border border-[var(--caes-line)] text-[var(--caes-mut)] hover:border-[var(--caes-ink)]/30 hover:text-[var(--caes-ink)]'
-                                                }`}
-                                        >
-                                            <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
-                                            {ok ? 'Verificado' : 'Verificar'}
-                                        </button>
-                                    )}
-                                </li>
-                            )
-                        })}
-                    </ul>
-                </section>
-
-                    {docAbierto ? (
-                        <DocumentViewer
-                            path={(p?.docs ?? []).find((d) => d.id === docAbierto)?.path}
-                            nombre={etiquetaDocumento(docAbierto)}
-                            onClose={() => setDocAbierto(null)}
-                        />
-                    ) : null}
-                </div>
-
-                {/* ------------------------------------ dati estratti */}
-                <section className="flex flex-col gap-4">
-                    <div className="flex items-baseline justify-between gap-4">
-                        <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
-                            Datos extraídos
-                        </h2>
-                        <span className="font-mono text-[11.5px] text-[var(--caes-faint)]">
+                        <span className={faltan.length === 0 ? 'text-[var(--caes-green)]' : undefined}>
                             {faltan.length === 0
-                                ? 'todo confirmado'
+                                ? 'fórmula completa'
                                 : `faltan ${faltan.length} de la fórmula`}
                         </span>
-                    </div>
-                    <ExtractedFields
+                    </span>
+                </div>
+
+                <div className="mt-6">
+                    <DocumentReview
+                        specs={specs}
+                        subidos={(p?.docs ?? []).map((d) => ({
+                            id: d.id,
+                            name: d.name,
+                            path: d.path,
+                        }))}
+                        verified={verified}
+                        onVerificar={(id) =>
+                            setVerified((v) => ({ ...v, [id]: !v[id] }))
+                        }
                         extraccion={extraccion}
-                        documentoAbierto={docAbierto}
-                        onAbrirDocumento={setDocAbierto}
                         onCambiar={cambiarCampo}
                         onConfirmar={confirmarCampo}
-                        etiquetaDocumento={etiquetaDocumento}
                     />
-                </section>
-            </div>
+                </div>
+            </section>
 
             {/* Il riparto, sotto: si decide dopo aver verificato. */}
                 {/* ------------------------------------------- ripartizione */}
