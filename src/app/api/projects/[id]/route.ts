@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabaseServer'
 import { mockDb } from '@/lib/mockDb'
 import { quienLlama, negado } from '@/lib/auth/guard'
+import { enviar, debeAvisar } from '@/lib/notify/email'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -49,7 +50,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         // Ripiego sull'archivio in memoria: accetta qualsiasi campo, non solo
         // lo stato, perché in approvazione si fissano anche risparmio e margine.
         const updated = mockDb.updateProject(id, body)
-        if (updated) return NextResponse.json({ data: updated })
+        if (updated) {
+            // La notifica non deve mai far fallire il salvataggio: enviar()
+            // non solleva eccezioni e restituisce false se non parte.
+            if (body.status && debeAvisar(body.status)) {
+                void enviar(
+                    {
+                        expedienteId: updated.id,
+                        clienteNombre: updated.client_name,
+                        estado: body.status,
+                        motivo: body.admin_feedback,
+                        enlace: `/installer/project/${updated.id}`,
+                    },
+                    { email: '', rol: 'installer' } // DA COLLEGARE: email dal profilo
+                )
+            }
+            return NextResponse.json({ data: updated })
+        }
         return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 

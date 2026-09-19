@@ -6,6 +6,7 @@ import {
     ArrowRight,
     Camera,
     Check,
+    AlertTriangle,
     FileText,
     Loader2,
     Paperclip,
@@ -17,7 +18,17 @@ import { DOCUMENTS, requiredCount, type DocSpec, type Role } from '@/lib/documen
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
-export type Uploaded = { name: string; size: number; state: 'reading' | 'done' }
+export type Uploaded = {
+    name: string
+    size: number
+    state: 'reading' | 'done' | 'error'
+    /** Percorso nel deposito. Vuoto finché il caricamento non è finito. */
+    path?: string
+    /** Messaggio da mostrare quando lo stato è 'error'. */
+    error?: string
+    /** Vero quando il file NON è stato davvero archiviato (demo). */
+    demo?: boolean
+}
 export type FileMap = Record<string, Uploaded>
 
 /**
@@ -53,14 +64,57 @@ export default function DocumentChecklist({
     const total = requiredCount(role)
     const complete = done === total
 
-    const handleFile = (id: string, f: File) => {
+    /**
+     * Carica davvero il file.
+     *
+     * Prima qui c'era un setTimeout di 1,1 secondi che faceva sembrare
+     * riuscito un caricamento che non avveniva: il file restava nel
+     * browser e in revisione non c'era niente da aprire.
+     *
+     * Il server restituisce solo il PERCORSO, non un indirizzo: per
+     * guardare il documento si chiede poi un indirizzo firmato a scadenza.
+     */
+    const handleFile = async (id: string, f: File) => {
         setFiles((p) => ({ ...p, [id]: { name: f.name, size: f.size, state: 'reading' } }))
-        // Finestra di lettura simulata: qui andrà la chiamata a /api/extract.
-        window.setTimeout(() => {
+
+        try {
+            const fd = new FormData()
+            fd.append('file', f)
+            const res = await fetch('/api/upload', { method: 'POST', body: fd })
+            const json = await res.json()
+
+            if (!res.ok) throw new Error(json?.error ?? 'No se ha podido subir')
+
             setFiles((p) =>
-                p[id] ? { ...p, [id]: { ...p[id], state: 'done' } } : p
+                p[id]
+                    ? {
+                        ...p,
+                        [id]: {
+                            ...p[id],
+                            state: 'done',
+                            path: json.path,
+                            // Il server non è riuscito ad archiviare davvero.
+                            // Va detto: un "hecho" che non ha salvato niente
+                            // è peggio di un errore.
+                            demo: Boolean(json.mock),
+                        },
+                    }
+                    : p
             )
-        }, 1100)
+        } catch (e) {
+            setFiles((p) =>
+                p[id]
+                    ? {
+                        ...p,
+                        [id]: {
+                            ...p[id],
+                            state: 'error',
+                            error: e instanceof Error ? e.message : 'Error al subir',
+                        },
+                    }
+                    : p
+            )
+        }
     }
 
     const remove = (id: string) =>
@@ -205,11 +259,15 @@ function DocRow({
                 <span
                     className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${filled
                             ? 'bg-[var(--caes-green)] text-white'
-                            : 'bg-[var(--caes-band)] text-[var(--caes-mut)]'
+                            : file?.state === 'error'
+                                ? 'bg-[#C4643F]/15 text-[#9B4526]'
+                                : 'bg-[var(--caes-band)] text-[var(--caes-mut)]'
                         }`}
                 >
                     {file?.state === 'reading' ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : file?.state === 'error' ? (
+                        <AlertTriangle className="h-4 w-4" strokeWidth={2} />
                     ) : filled ? (
                         <Check className="h-4 w-4" strokeWidth={3} />
                     ) : spec.onSite ? (
@@ -227,6 +285,16 @@ function DocRow({
                         {!spec.required && (
                             <span className="rounded-full bg-[var(--caes-band)] px-2.5 py-1 text-[11px] text-[var(--caes-mut)]">
                                 Opcional
+                            </span>
+                        )}
+                        {filled && file?.demo && (
+                            <span className="rounded-full border border-dashed border-[#C3A45C] px-2.5 py-1 text-[11px] text-[#8A6A2C]">
+                                Sin archivar · demo
+                            </span>
+                        )}
+                        {file?.state === 'error' && (
+                            <span className="w-full text-[13px] text-[#9B4526]">
+                                {file.error ?? 'No se ha podido subir'}
                             </span>
                         )}
                         {spec.extracted && (

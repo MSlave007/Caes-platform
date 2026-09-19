@@ -1,4 +1,14 @@
-# Piano — collegare installatore e gestione
+# Piano — prossimi passi
+
+> **Aggiornato il 19 settembre 2026.** Il collegamento installatore ⇄
+> gestione descritto qui sotto **è stato fatto**, e con esso il ciclo di
+> vita degli stati e una tornata di sicurezza. Quello che resta aperto è
+> in fondo, sotto «Dove siamo adesso». Il resto del documento è tenuto
+> come traccia di com'era.
+
+---
+
+# (storico) Collegare installatore e gestione
 
 Scritto il 18 settembre 2026, a fine sessione. Serve a riprendere domani
 senza dover ricostruire niente.
@@ -163,3 +173,81 @@ sito**:
 Vanno allineati alla RES060 o tolti, prima che qualcuno li usi per
 parlare con un installatore. Il playbook invece resta valido: i fatti
 normativi e le leve non dipendono dalla formula.
+
+
+---
+
+# Dove siamo adesso — 19 settembre 2026
+
+## Fatto
+
+- **Il giro si chiude**: il modulo installatore invia, la pratica compare
+  in coda, si verifica, si approva. Provato per intero nel browser.
+- **Archivio dimostrativo su file** (`.caes-demo.json`): sopravvive alle
+  ricompilazioni ed è condiviso fra le rotte, cosa che l'array in memoria
+  non faceva.
+- **Ciclo di vita degli stati**, ridotto a quelli che sapete davvero:
+  `Enviado → Aprobado → CAE emitido → Cobrado`, più *Cambios solicitados*
+  e *Rechazado*. Visibile su entrambi i lati, con filtri.
+- **Sicurezza**: vedi `docs/SICUREZZA.md`. Sei buchi chiusi, fra cui
+  l'area agenzia che si apriva senza login.
+- **Caricamento documenti collegato** a `/api/upload`, con lista bianca
+  di tipi e tetto di 15 MB. Gli indirizzi dei documenti sono ora firmati
+  e a scadenza (`/api/documents/url`), non più pubblici e permanenti.
+- **Notifiche email**: struttura pronta in `src/lib/notify/email.ts` e
+  agganciata al cambio di stato. Non manda niente: manca il fornitore.
+
+## Aperto, in ordine di urgenza
+
+### 1. Chiudere il bucket `documents` — due minuti, nessun codice
+
+È **pubblico**: ho scaricato un file senza nessuna chiave. Dal pannello
+Supabase, togliere *Public bucket* e mettere le policy per utenti
+autenticati. Il codice è già pronto per il bucket privato.
+
+### 2. Rigenerare `SUPABASE_SECRET_KEY`
+
+Quella in `.env.local` risponde *«Unregistered API key»*. Serve per il
+punto 1 via API e per qualsiasi operazione con privilegi. Non è usata nel
+codice, quindi non sta trapelando.
+
+### 3. Il caricamento vero non funziona ancora
+
+La chiave pubblica **legge ma non scrive** nel deposito: l'inserimento
+viene respinto dalle regole di accesso. Quindi oggi il caricamento cade
+sul ripiego dimostrativo — che ora lo dichiara, con l'etichetta
+*«Sin archivar · demo»*, invece di far finta di aver salvato.
+
+Si sblocca con il punto 2, oppure con login attivo più una policy di
+`insert` per utenti autenticati su `storage.objects`.
+
+### 4. Separazione dei ruoli
+
+`getUserRole()` esiste e non è chiamata da nessuna parte: un account
+installatore autenticato può aprire `/admin/settings`. Chiuso l'accesso
+anonimo, è il buco più largo rimasto. Va nel middleware.
+
+### 5. Visore dei documenti in revisione
+
+Il pezzo che serviva — gli indirizzi firmati — c'è. Manca il pannello a
+due colonne: documento a sinistra, dati a destra.
+
+### 6. Estrazione AI
+
+`/api/extract` restituisce ancora un Ariston scritto a mano. Serve una
+chiave Anthropic in `.env.local` (**mai** `NEXT_PUBLIC_`). Le decisioni da
+prendere prima di scrivere il codice sono in `docs/SICUREZZA.md`, in
+fondo: tetto alle chiamate, niente documenti nei log, e l'estratto
+trattato come proposta da confermare campo per campo, non come dato.
+
+### 7. La tabella `leads` non esiste
+
+`GET /rest/v1/leads` risponde 404. La raccolta contatti dal calcolatore
+pubblico fallisce in silenzio. O si crea la tabella, o si toglie la
+funzione.
+
+### 8. Notifiche: scegliere il fornitore
+
+Resend, Postmark, SES. Poi `EMAIL_API_KEY` lato server e l'indirizzo del
+destinatario preso dal profilo — oggi il richiamo parte ma si ferma lì,
+e lo si vede nei log.
