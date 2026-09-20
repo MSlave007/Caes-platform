@@ -177,6 +177,52 @@
 }
 
 .tabular { font-variant-numeric: tabular-nums; }
+/* ------------------------------------------------------------------ *
+ *  Scala tipografica del simulatore
+ *
+ *  Il pannello era tutto in monospazio: etichette, cifre e prosa. A
+ *  corpo piccolo e a opacita' bassa il mono su fondo scuro si legge
+ *  male, e senza un secondo carattere non c'era nessun salto fra un
+ *  livello e l'altro — tutto aveva la stessa voce. Qui il mono torna a
+ *  fare quello che sa fare, micro-etichette e stringhe tecniche, e la
+ *  prosa passa al sans.
+ * ------------------------------------------------------------------ */
+
+/* Il numero di testa. Sans tabellare e non monospazio: a settanta pixel
+   il mono legge come un terminale, mentre questo deve leggersi come
+   denaro. Il gradiente ha un fallback pieno, perche' se background-clip
+   non passasse il testo resterebbe invisibile. */
+.num-hero {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--caes-lime);
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .num-hero {
+    background-image: linear-gradient(
+      118deg,
+      #eaff9b 0%,
+      #c7f04a 44%,
+      #a5da2c 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+/* I due numeri di secondo livello: stesso carattere del primo, cosi' si
+   leggono come la sua scomposizione e non come un'altra famiglia di
+   dati. */
+.num-mid {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  line-height: 1.05;
+}
+
 
 /* Slider della fattura: il default di sistema stona su una pagina premium. */
 .caes-range {
@@ -280,4 +326,108 @@
 .earn-range:focus-visible::-moz-range-thumb {
   outline: 2px solid var(--caes-green);
   outline-offset: 2px;
+}
+
+/* Lo stesso cursore sul pannello scuro del simulatore: la pista scompare
+   sul verde e il pollice nero diventa invisibile, quindi si ribaltano. */
+.earn-range--dark::-webkit-slider-runnable-track {
+  background: rgba(221, 233, 225, 0.18);
+}
+.earn-range--dark::-webkit-slider-thumb {
+  background: var(--caes-lime);
+}
+.earn-range--dark::-moz-range-track {
+  background: rgba(221, 233, 225, 0.18);
+}
+.earn-range--dark::-moz-range-thumb {
+  background: var(--caes-lime);
+}
+.earn-range--dark:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--caes-lime);
+}
+.earn-range--dark:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--caes-lime);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Stampa
+ *
+ *  Il PDF dei documenti del fascicolo si ottiene stampando l'anteprima:
+ *  cosi' quello che si scarica e' esattamente quello che si e' visto, e
+ *  non c'e' un secondo generatore che puo' divergere da quello che
+ *  mostra lo schermo.
+ *
+ *  `visibility` invece di `display`: nasconde tutto tenendo il flusso,
+ *  cosi' il documento resta dov'e' invece di saltare in cima e portarsi
+ *  dietro meta' impaginazione.
+ * ------------------------------------------------------------------ */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    #documento-imprimible,
+    #documento-imprimible * {
+        visibility: visible;
+    }
+
+    #documento-imprimible {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+    }
+
+    @page {
+        margin: 18mm 16mm;
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Buchi dei documenti
+ *
+ *  Un buco vuoto nell'anteprima non e' una stringa vuota: e' scritto
+ *  cosa dovrebbe esserci. Serve il CSS perche' l'elemento e'
+ *  contentEditable e un figlio React dentro romperebbe il cursore a ogni
+ *  tasto — il testo li' dentro lo scrive il DOM, non React.
+ * ------------------------------------------------------------------ */
+[data-hueco] {
+    cursor: text;
+    border-radius: 3px;
+    outline: 1px dashed transparent;
+    outline-offset: 2px;
+    transition:
+        outline-color 0.12s ease,
+        box-shadow 0.12s ease;
+}
+
+/*  Il tratteggio al passaggio del mouse usa `outline` e non `border`:
+    il bordo occuperebbe spazio e farebbe ballare tutta la riga
+    giustificata ogni volta che il mouse ci passa sopra. L'outline sta
+    fuori dal flusso e non sposta niente.  */
+[data-hueco]:hover {
+    outline-color: currentColor;
+    box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.04);
+}
+
+[data-hueco]:focus {
+    outline: 2px solid var(--caes-ink);
+    outline-offset: 2px;
+    box-shadow: inset 0 0 0 999px rgb(0 0 0 / 0.05);
+}
+
+[data-hueco]:empty::before {
+    content: attr(data-vacio);
+    opacity: 0.85;
+    font-size: 0.92em;
+}
+
+@media print {
+    [data-hueco] {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    [data-hueco]:empty::before {
+        content: '';
+    }
 }
