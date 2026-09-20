@@ -75,44 +75,49 @@ function Documentos() {
     const [restored, setRestored] = useState(false)
 
     /* ---------------------------------------------- ripresa della bozza
-       Lo stato si imposta dentro l'effetto apposta: la bozza sta in
-       localStorage, che sul server non esiste. Leggerla durante il render
-       darebbe un HTML diverso fra server e browser — l'idratazione
-       salterebbe. Quindi prima si renderizza vuoto, poi si riempie. */
-    /* eslint-disable react-hooks/set-state-in-effect */
+       Lo stato si imposta dentro l'effetto apposta: la bozza arriva dal
+       server (e dalla copia locale), che durante il render non si possono
+       leggere. Prima si renderizza vuoto, poi si riempie. */
     useEffect(() => {
-        const d: Draft | null = pedido ? loadDraft(pedido) : null
-        if (!d) {
-            // Nuova: l'id si crea subito, così il primo salvataggio
-            // automatico ha già dove andare.
-            setId(nuevoId())
-            return
-        }
-        setId(d.id)
-        setNombre(d.nombre)
-        setRole(d.role)
-        setStep(d.step)
-        setMaxReached(d.step)
-        setNotas(d.notas ?? '')
-        setSavedAt(timeAgo(d.savedAt))
+        let vivo = true
+        const cargar = async () => {
+            const d: Draft | null = pedido ? await loadDraft(pedido) : null
+            if (!vivo) return
+            if (!d) {
+                // Nuova: l'id si crea subito, così il primo salvataggio
+                // automatico ha già dove andare.
+                setId(nuevoId())
+                return
+            }
+            setId(d.id)
+            setNombre(d.nombre)
+            setRole(d.role)
+            setStep(d.step)
+            setMaxReached(d.step)
+            setNotas(d.notas ?? '')
+            setSavedAt(timeAgo(d.savedAt))
         // I riferimenti tornano con il percorso: un file archiviato resta
         // apribile anche riprendendo la bozza da un altro momento.
-        setFiles(
-            Object.fromEntries(
-                Object.entries(d.files).map(([k, v]) => [
-                    k,
-                    v.map((f) => ({
-                        name: f.name,
-                        size: f.size,
-                        state: 'done' as const,
-                        path: f.storagePath,
-                    })),
-                ])
+            setFiles(
+                Object.fromEntries(
+                    Object.entries(d.files).map(([k, v]) => [
+                        k,
+                        v.map((f) => ({
+                            name: f.name,
+                            size: f.size,
+                            state: 'done' as const,
+                            path: f.storagePath,
+                        })),
+                    ])
+                )
             )
-        )
-        setRestored(true)
+            setRestored(true)
+        }
+        void cargar()
+        return () => {
+            vivo = false
+        }
     }, [pedido])
-    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Lo stato più fresco, senza rimettere `persist` in piedi a ogni tasto
     // scritto nel nome: il salvataggio automatico si riaggancerebbe.
@@ -123,12 +128,31 @@ function Documentos() {
         ahora.current = { id, nombre, role, step, files, notas }
     })
 
+    /**
+     * Scrive la bozza. Il risultato ha tre esiti, non due: arrivata
+     * all'account, salvata solo qui, o niente. Il secondo non e un errore
+     * ma non e nemmeno «guardato»: chi cambia dispositivo deve saperlo
+     * adesso, non quando non la trova.
+     */
+    const guardar = useCallback(
+        async (d: Parameters<typeof saveDraft>[0]) => {
+            const ok = await saveDraft(d)
+            if (!ok) {
+                setSave('error')
+                return
+            }
+            setSavedAt(timeAgo(ok.savedAt))
+            setSave(ok.sincronizado ? 'saved' : 'local')
+        },
+        []
+    )
+
     const persist = useCallback(
         (next?: Partial<{ role: Role; step: number; files: FileMap; nombre: string }>) => {
             const v = ahora.current
             if (!v.id) return
             setSave('saving')
-            const ok = saveDraft({
+            void guardar({
                 id: v.id,
                 nombre: next?.nombre ?? v.nombre,
                 role: next?.role ?? v.role,
@@ -151,16 +175,8 @@ function Documentos() {
                         .filter(([, arr]) => (arr as unknown[]).length > 0)
                 ),
             })
-            window.setTimeout(() => {
-                if (ok) {
-                    setSavedAt(timeAgo(ok.savedAt))
-                    setSave('saved')
-                } else {
-                    setSave('error')
-                }
-            }, 300)
         },
-        []
+        [guardar]
     )
 
     // Salvataggio automatico a ogni file completato: il lavoro fatto non si
@@ -187,7 +203,7 @@ function Documentos() {
     }
 
     const startOver = () => {
-        if (id) deleteDraft(id)
+        if (id) void deleteDraft(id)
         setId(nuevoId())
         setNombre('')
         setFiles({})

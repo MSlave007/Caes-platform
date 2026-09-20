@@ -34,16 +34,20 @@ export default function InstallerDashboard() {
     const [borradores, setBorradores] = useState<Draft[]>([])
     const supabase = createClient()
 
-    // Le bozze non passano dal server: stanno in questo browser. Si leggono
-    // dopo il montaggio, altrimenti l'HTML del server e quello del browser
-    // non coincidono.
+    // Le bozze arrivano dall'account (e dalla copia in questo browser, che
+    // copre il cantiere senza campo). Si leggono dopo il montaggio: durante
+    // il render non si puo ne chiamare l'API ne toccare localStorage.
     useEffect(() => {
-        setBorradores(listDrafts())
+        let vivo = true
+        void listDrafts().then((d) => vivo && setBorradores(d))
+        return () => {
+            vivo = false
+        }
     }, [])
 
-    const borrar = (id: string) => {
-        deleteDraft(id)
-        setBorradores(listDrafts())
+    const borrar = async (id: string) => {
+        await deleteDraft(id)
+        setBorradores(await listDrafts())
     }
 
     useEffect(() => {
@@ -159,7 +163,9 @@ export default function InstallerDashboard() {
                             Sin terminar
                         </h2>
                         <p className="text-[13px] text-[var(--caes-mut)]">
-                            Guardados en este navegador, no en tu cuenta.
+                            {borradores.every((b) => b.sincronizado)
+                                ? 'Guardados en tu cuenta. Los retomas desde cualquier dispositivo.'
+                                : 'Alguno está solo en este dispositivo. Se sube en cuanto haya conexión.'}
                         </p>
                     </div>
 
@@ -196,7 +202,7 @@ export default function InstallerDashboard() {
 
                                 <button
                                     type="button"
-                                    onClick={() => borrar(b.id)}
+                                    onClick={() => void borrar(b.id)}
                                     aria-label={`Eliminar ${b.nombre}`}
                                     className="rounded-lg p-2 text-[var(--caes-faint)] transition-colors hover:bg-[var(--caes-band)] hover:text-[var(--caes-ink)]"
                                 >

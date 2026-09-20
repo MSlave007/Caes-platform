@@ -12,7 +12,12 @@ export type StepDef = {
     caption: string
 }
 
-export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+/**
+ * `local` non è un errore: la bozza è al sicuro in questo browser ma non
+ * è ancora arrivata all'account. Va distinto da `saved`, altrimenti chi
+ * cambia dispositivo scopre solo lì che non c'era.
+ */
+export type SaveState = 'idle' | 'saving' | 'saved' | 'local' | 'error'
 
 /**
  * Cornice del percorso: passi navigabili in alto, stato del salvataggio a
@@ -135,10 +140,12 @@ export default function WizardShell({
                         className="text-[12.5px] text-[var(--caes-faint)]"
                     >
                         {save === 'error'
-                            ? 'No se ha podido guardar en este navegador.'
-                            : savedAt
-                                ? `Guardado ${savedAt}. Puedes cerrar y seguir cuando quieras.`
-                                : 'Nada guardado todavía.'}
+                            ? 'No se ha podido guardar.'
+                            : save === 'local'
+                                ? 'Guardado en este dispositivo. Lo subimos a tu cuenta en cuanto haya conexión.'
+                                : savedAt
+                                    ? `Guardado en tu cuenta ${savedAt}. Puedes cerrar y seguir desde donde quieras.`
+                                    : 'Nada guardado todavía.'}
                     </motion.span>
                 </div>
             </nav>
