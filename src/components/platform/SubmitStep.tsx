@@ -48,7 +48,7 @@ const label = 'block font-mono text-[9.5px] uppercase tracking-[.14em] text-[var
 const field =
     'mt-1.5 w-full rounded-[6px] border border-[var(--caes-line)] bg-white px-3.5 py-2.5 text-[15px] text-[var(--caes-ink)] outline-none transition-colors focus:border-[var(--caes-green)]'
 
-export default function SubmitStep({ docs }: { docs: Doc[] }) {
+export default function SubmitStep({ docs, notas }: { docs: Doc[]; notas?: string }) {
     const router = useRouter()
 
     const [cliente, setCliente] = useState('')
@@ -96,6 +96,9 @@ export default function SubmitStep({ docs }: { docs: Doc[] }) {
                     make: marca.trim(),
                     model: modelo.trim(),
                     power_kw: 0,
+                    // Quello che ha scritto a mano l'installatore: va in
+                    // revisione insieme ai documenti, non si perde qui.
+                    notas: notas?.trim() || undefined,
                     docs,
                 }),
             })

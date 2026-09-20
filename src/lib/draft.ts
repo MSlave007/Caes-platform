@@ -15,7 +15,14 @@ import type { Role } from './documents'
  * una sostituzione di `load`/`save` e nient'altro.
  */
 
-export const DRAFT_KEY = 'caes:draft:v1'
+/**
+ * v2: i file di un documento sono un ELENCO, non uno solo (le tre foto
+ * dell'impianto stanno in un riquadro solo). La chiave e cambiata apposta:
+ * una bozza v1 ha la forma vecchia e, letta come v2, crasherebbe alla
+ * prima `.filter` su un oggetto. Meglio ripartire puliti che rompersi.
+ */
+export const DRAFT_KEY = 'caes:draft:v2'
+export const DRAFT_KEY_V1 = 'caes:draft:v1'
 
 export type DraftFile = {
     name: string
@@ -27,7 +34,9 @@ export type DraftFile = {
 export type Draft = {
     role: Role
     step: number
-    files: Record<string, DraftFile>
+    files: Record<string, DraftFile[]>
+    /** Quello che l'installatore ha scritto a mano. Lo legge chi revisiona. */
+    notas?: string
     /** ISO 8601 */
     savedAt: string
 }
@@ -39,7 +48,14 @@ export function loadDraft(): Draft | null {
         if (!raw) return null
         const d = JSON.parse(raw) as Draft
         if (!d || typeof d !== 'object' || !d.savedAt) return null
-        return d
+        // Difesa: una bozza scritta a mano o rimasta a meta non deve
+        // far saltare la pagina al primo `.map`.
+        return {
+            ...d,
+            files: Object.fromEntries(
+                Object.entries(d.files ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v : [v]])
+            ),
+        }
     } catch {
         // Modalità privata, spazio esaurito, dati corrotti: si riparte pulito.
         return null
@@ -61,6 +77,7 @@ export function clearDraft() {
     if (typeof window === 'undefined') return
     try {
         window.localStorage.removeItem(DRAFT_KEY)
+        window.localStorage.removeItem(DRAFT_KEY_V1)
     } catch {
         /* niente da fare */
     }

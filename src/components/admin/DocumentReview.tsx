@@ -204,8 +204,20 @@ export default function DocumentReview({
     onConfirmar,
 }: Props) {
     const [abierto, setAbierto] = useState<string | null>(null)
+    // Quale dei file dello slot aperto si sta guardando. Un riquadro puo
+    // contenerne piu di uno: le tre foto dell'impianto sono un gesto solo
+    // in cantiere, ma qui si guardano una per una.
+    const [cual, setCual] = useState(0)
 
-    const mapa = new Map(subidos.map((d) => [d.id, d]))
+    const abrir = (id: string | null) => {
+        setAbierto(id)
+        setCual(0)
+    }
+
+    // Raggruppati, non indicizzati: con una Map a chiave unica il secondo
+    // file di uno slot spariva senza dirlo a nessuno.
+    const mapa = new Map<string, typeof subidos>()
+    for (const d of subidos) mapa.set(d.id, [...(mapa.get(d.id) ?? []), d])
 
     const conDatos = specs
         .filter((s) => camposDe(s.id).length > 0)
@@ -213,8 +225,8 @@ export default function DocumentReview({
     const sinDatos = specs.filter((s) => camposDe(s.id).length === 0)
 
     const fila = (s: DocSpec) => {
-        const doc = mapa.get(s.id)
-        const has = Boolean(doc)
+        const docs = mapa.get(s.id) ?? []
+        const has = docs.length > 0
         const ok = verified[s.id]
         const campos = camposDe(s.id)
         const pendientes = campos.filter(
@@ -237,7 +249,7 @@ export default function DocumentReview({
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                     <button
                         type="button"
-                        onClick={() => setAbierto(esAbierto ? null : s.id)}
+                        onClick={() => abrir(esAbierto ? null : s.id)}
                         disabled={!has}
                         className="flex min-w-0 flex-1 items-center gap-3.5 text-left disabled:cursor-default"
                     >
@@ -273,7 +285,7 @@ export default function DocumentReview({
                             >
                                 {s.label}
                             </span>
-                            {!has && (
+                            {!has ? (
                                 <span
                                     className={`text-[12px] ${s.required ? 'text-[#8A5B0B]' : 'text-[var(--caes-faint)]'
                                         }`}
@@ -282,7 +294,11 @@ export default function DocumentReview({
                                         ? 'Falta · sin él no se puede aprobar'
                                         : 'No aportado · opcional'}
                                 </span>
-                            )}
+                            ) : docs.length > 1 ? (
+                                <span className="text-[12px] text-[var(--caes-faint)]">
+                                    {docs.length} archivos
+                                </span>
+                            ) : null}
                         </span>
                     </button>
 
@@ -318,13 +334,34 @@ export default function DocumentReview({
                 {/* Aperto: documento e suoi campi affiancati, tutta la larghezza */}
                 {esAbierto && has && (
                     <div className="grid gap-5 border-t border-[var(--caes-line-2)] bg-[var(--caes-band)]/40 p-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-                        <div className="min-h-[300px]">
-                            <DocumentViewer
-                                key={s.id}
-                                path={doc?.path}
-                                nombre={s.label}
-                                onClose={() => setAbierto(null)}
-                            />
+                        <div className="flex min-h-[300px] flex-col gap-2.5">
+                            {/* Piu file nello stesso riquadro: si sceglie
+                                quale guardare, senza chiudere e riaprire. */}
+                            {docs.length > 1 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {docs.map((d, i) => (
+                                        <button
+                                            key={`${d.name}-${i}`}
+                                            type="button"
+                                            onClick={() => setCual(i)}
+                                            className={`max-w-[190px] truncate rounded-full border px-3 py-1.5 text-[12px] transition-colors ${i === cual
+                                                    ? 'border-[var(--caes-ink)] bg-[var(--caes-ink)] text-[var(--caes-paper)]'
+                                                    : 'border-[var(--caes-line)] text-[var(--caes-mut)] hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]'
+                                                }`}
+                                        >
+                                            {d.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="min-h-0 flex-1">
+                                <DocumentViewer
+                                    key={`${s.id}-${cual}`}
+                                    path={docs[cual]?.path}
+                                    nombre={docs[cual]?.name ?? s.label}
+                                    onClose={() => abrir(null)}
+                                />
+                            </div>
                         </div>
 
                         <div className="flex flex-col">

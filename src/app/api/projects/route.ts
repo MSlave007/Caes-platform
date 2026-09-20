@@ -113,6 +113,12 @@ export async function POST(request: Request) {
                 make: body.make ?? '',
                 model: body.model ?? '',
                 power_kw: Number(body.power_kw) || 0,
+                // Nota libera dell'installatore. Tagliata: e un campo di
+                // testo aperto che finisce in una pagina di revisione.
+                notas:
+                    typeof body.notas === 'string' && body.notas.trim()
+                        ? body.notas.trim().slice(0, 2000)
+                        : undefined,
                 docs: Array.isArray(body.docs) ? body.docs : [],
                 files: Array.isArray(body.files) ? body.files : [],
             })

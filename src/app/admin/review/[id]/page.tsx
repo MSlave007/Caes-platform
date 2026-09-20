@@ -98,8 +98,17 @@ export default function AdminReviewDetail({
         [p]
     )
 
-    const uploaded = new Set((p?.docs ?? []).map((d) => d.id))
-    const missing = specs.filter((s) => s.required && !uploaded.has(s.id))
+    // Quanti file sono arrivati per ogni riquadro. Un conteggio, non un
+    // insieme: alcuni riquadri ne chiedono tre (le foto dell'impianto), e
+    // con due il fascicolo e incompleto anche se lo slot risulta «pieno».
+    const cuantos = (p?.docs ?? []).reduce<Record<string, number>>((a, d) => {
+        a[d.id] = (a[d.id] ?? 0) + 1
+        return a
+    }, {})
+    const uploaded = new Set(Object.keys(cuantos))
+    const missing = specs.filter(
+        (s) => s.required && (cuantos[s.id] ?? 0) < (s.minFiles ?? 1)
+    )
     const allVerified = specs
         .filter((s) => s.required && uploaded.has(s.id))
         .every((s) => verified[s.id])
@@ -238,12 +247,33 @@ export default function AdminReviewDetail({
                         )}
                         {missing.length > 0 && (
                             <p className={belowMinimum ? 'mt-2' : ''}>
-                                Faltan {missing.length} documentos obligatorios:{' '}
-                                {missing.map((m) => m.label).join(', ')}.
+                                Falta documentación obligatoria:{' '}
+                                {missing
+                                    .map((m) => {
+                                        const n = m.minFiles ?? 1
+                                        return n > 1
+                                            ? `${m.label} (${cuantos[m.id] ?? 0} de ${n})`
+                                            : m.label
+                                    })
+                                    .join(', ')}
+                                .
                             </p>
                         )}
                     </div>
                 </motion.div>
+            )}
+
+            {/* Quello che l'installatore ha scritto a mano. Sta sopra ai
+                documenti apposta: di solito spiega perche uno manca. */}
+            {p?.notas && (
+                <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
+                    <h2 className="font-mono text-[9.5px] uppercase tracking-[.14em] text-[var(--caes-faint)]">
+                        Nota del instalador
+                    </h2>
+                    <p className="mt-3 max-w-[70ch] whitespace-pre-wrap text-[14.5px] leading-[1.6] text-[var(--caes-ink)]">
+                        {p.notas}
+                    </p>
+                </section>
             )}
 
             {/* Documenti e dati estratti in una lista sola: i dati stanno

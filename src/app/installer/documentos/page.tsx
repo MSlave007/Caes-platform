@@ -32,6 +32,7 @@ const STEPS: StepDef[] = [
 export default function DocumentosPage() {
     const [role, setRole] = useState<Role>('installer')
     const [files, setFiles] = useState<FileMap>({})
+    const [notas, setNotas] = useState('')
     const [step, setStep] = useState(0)
     const [maxReached, setMaxReached] = useState(0)
     const [save, setSave] = useState<SaveState>('idle')
@@ -46,13 +47,19 @@ export default function DocumentosPage() {
         setStep(d.step)
         setMaxReached(d.step)
         setSavedAt(timeAgo(d.savedAt))
-        // I riferimenti tornano già completi: quando Storage sarà collegato,
-        // torneranno anche i file veri dietro a questi nomi.
+        setNotas(d.notas ?? '')
+        // I riferimenti tornano con il percorso: un file archiviato resta
+        // apribile anche se la bozza si riprende da un altro dispositivo.
         setFiles(
             Object.fromEntries(
                 Object.entries(d.files).map(([k, v]) => [
                     k,
-                    { name: v.name, size: v.size, state: 'done' as const },
+                    v.map((f) => ({
+                        name: f.name,
+                        size: f.size,
+                        state: 'done' as const,
+                        path: f.storagePath,
+                    })),
                 ])
             )
         )
@@ -60,15 +67,27 @@ export default function DocumentosPage() {
     }, [])
 
     const persist = useCallback(
-        (next?: { role?: Role; step?: number; files?: FileMap }) => {
+        (next?: { role?: Role; step?: number; files?: FileMap; notas?: string }) => {
             setSave('saving')
             const payload = {
                 role: next?.role ?? role,
                 step: next?.step ?? step,
+                notas: next?.notas ?? notas,
                 files: Object.fromEntries(
                     Object.entries(next?.files ?? files)
-                        .filter(([, v]) => v.state === 'done')
-                        .map(([k, v]) => [k, { name: v.name, size: v.size }])
+                        .map(([k, v]) => [
+                            k,
+                            v
+                                .filter((f) => f.state === 'done')
+                                .map((f) => ({
+                                    name: f.name,
+                                    size: f.size,
+                                    storagePath: f.path,
+                                })),
+                        ])
+                        // Uno slot rimasto senza file riusciti non va salvato:
+                        // riaprendo la bozza sembrerebbe pieno e vuoto insieme.
+                        .filter(([, v]) => (v as unknown[]).length > 0)
                 ),
             }
             const ok = saveDraft(payload)
@@ -81,13 +100,15 @@ export default function DocumentosPage() {
                 }
             }, 350)
         },
-        [role, step, files]
+        [role, step, files, notas]
     )
 
     // Salvataggio automatico a ogni file completato: il lavoro fatto non si
     // perde perché qualcuno ha chiuso la scheda senza premere niente.
     useEffect(() => {
-        const anyDone = Object.values(files).some((f) => f.state === 'done')
+        const anyDone = Object.values(files).some((v) =>
+            v.some((f) => f.state === 'done')
+        )
         if (!anyDone) return
         const t = window.setTimeout(() => persist(), 900)
         return () => window.clearTimeout(t)
@@ -109,6 +130,7 @@ export default function DocumentosPage() {
     const startOver = () => {
         clearDraft()
         setFiles({})
+        setNotas('')
         setStep(0)
         setMaxReached(0)
         setSavedAt(undefined)
@@ -174,6 +196,8 @@ export default function DocumentosPage() {
                             }}
                             files={files}
                             onFilesChange={setFiles}
+                            notas={notas}
+                            onNotasChange={setNotas}
                             onContinue={advance}
                         />
                     )}
@@ -194,16 +218,19 @@ export default function DocumentosPage() {
 
                     {step === 3 && (
                         <SubmitStep
-                            docs={Object.entries(files)
-                                .filter(([, v]) => v.state === 'done')
-                                .map(([id, v]) => ({
-                                    id,
-                                    name: v.name,
-                                    verified: false,
-                                    // Senza il percorso, in revisione non c'e
-                                    // niente da aprire.
-                                    path: v.path,
-                                }))}
+                            notas={notas}
+                            docs={Object.entries(files).flatMap(([id, v]) =>
+                                v
+                                    .filter((f) => f.state === 'done')
+                                    .map((f) => ({
+                                        id,
+                                        name: f.name,
+                                        verified: false,
+                                        // Senza il percorso, in revisione non
+                                        // c'e niente da aprire.
+                                        path: f.path,
+                                    }))
+                            )}
                         />
                     )}
                 </WizardShell>

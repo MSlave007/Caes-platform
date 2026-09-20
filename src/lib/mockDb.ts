@@ -54,6 +54,8 @@ export type Project = {
     model: string
     power_kw: number
     docs: ProjectDoc[]
+    /** Note libere dell'installatore, scritte al caricamento. */
+    notas?: string
     files: unknown[]
 }
 
