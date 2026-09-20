@@ -16,6 +16,7 @@ import {
     AlertTriangle,
     ArrowLeft,
     Check,
+    FileText,
     Home,
     Loader2,
     Wrench,
@@ -73,6 +74,24 @@ export default function AdminReviewDetail({
             ...prev,
             [id]: { ...prev[id], estado: prev[id]?.valor ? 'confirmado' : 'vacio' },
         }))
+
+    /**
+     * Conferma in blocco.
+     *
+     * Un solo aggiornamento di stato invece di N: con dodici campi, N
+     * chiamate a `confirmarCampo` sono dodici render e un pannello che
+     * sfarfalla. Vale anche come garanzia: o si confermano tutti o
+     * nessuno, senza stati intermedi visibili.
+     */
+    const confirmarVarios = (ids: string[]) =>
+        setExtraccion((prev) => {
+            const siguiente = { ...prev }
+            for (const id of ids) {
+                if (!siguiente[id]?.valor) continue
+                siguiente[id] = { ...siguiente[id], estado: 'confirmado' }
+            }
+            return siguiente
+        })
 
     const faltan = faltanParaFormula(extraccion)
 
@@ -343,13 +362,26 @@ export default function AdminReviewDetail({
 
     return (
         <div className="flex flex-col gap-9">
-            <Link
-                href="/admin/review"
-                className="group inline-flex w-fit items-center gap-2.5 text-[13px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
-            >
-                <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
-                Volver a la cola
-            </Link>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <Link
+                    href="/admin/review"
+                    className="group inline-flex w-fit items-center gap-2.5 text-[13px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
+                >
+                    <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
+                    Volver a la cola
+                </Link>
+
+                {/* I documenti che escono da questo fascicolo. Stanno in
+                    una schermata a parte: sono il passo dopo, non un
+                    pezzo della revisione. */}
+                <Link
+                    href={`/admin/review/${id}/documentos`}
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-4 py-1.5 text-[13px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]"
+                >
+                    <FileText className="h-3.5 w-3.5" />
+                    Ver los documentos
+                </Link>
+            </div>
 
             {/* ------------------------------------------------ intestazione */}
             <div className="flex flex-wrap items-start justify-between gap-6">
@@ -459,6 +491,7 @@ export default function AdminReviewDetail({
                         extraccion={extraccion}
                         onCambiar={cambiarCampo}
                         onConfirmar={confirmarCampo}
+                        onConfirmarVarios={confirmarVarios}
                         onSubir={subirDocumento}
                         subiendo={subiendo}
                         onLeer={leerDocumento}

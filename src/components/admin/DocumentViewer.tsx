@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2, AlertTriangle, ExternalLink, X } from 'lucide-react'
+import { Loader2, AlertTriangle, ExternalLink, Maximize2, Minimize2, X } from 'lucide-react'
 
 /**
  * Visore di un documento del fascicolo.
@@ -12,6 +12,20 @@ import { Loader2, AlertTriangle, ExternalLink, X } from 'lucide-react'
  * L'indirizzo non è permanente: lo si chiede a /api/documents/url, che
  * controlla chi sta chiedendo e ne firma uno valido cinque minuti. Se
  * scade mentre il pannello è aperto, si richiede.
+ *
+ * ── PERCHÉ IL PDF ADESSO SI LEGGE ─────────────────────────────────────
+ *
+ * Il visore PDF di Chrome apre di suo la colonna delle miniature. Dentro
+ * un riquadro largo mezza pagina quella colonna si mangiava un terzo
+ * dello spazio, e la fattura restava un francobollo: per leggere un NIF
+ * bisognava scaricare il file. Il documento lo si guarda per verificarlo,
+ * quindi se non si legge il pannello non serve a niente.
+ *
+ * Due cose lo sistemano. `#navpanes=0` chiude le miniature — la barra con
+ * zoom e numero di pagina resta, che quella serve — e `view=FitH` apre
+ * alla larghezza della pagina invece che a una scala arbitraria. Il resto
+ * lo fa l'altezza: il riquadro è alto quanto una pagina vera, e con
+ * «Ampliar» prende tutto lo schermo.
  */
 
 type Props = {
@@ -19,9 +33,28 @@ type Props = {
     path?: string | null
     nombre: string
     onClose: () => void
+    /** Sta occupando tutto lo schermo. */
+    ampliado?: boolean
+    /** Assente quando ingrandire non ha senso (è già a tutto schermo). */
+    onAmpliar?: () => void
 }
 
-export default function DocumentViewer({ path, nombre, onClose }: Props) {
+/**
+ * Parametri per il visore incorporato.
+ *
+ * Valgono per Chrome ed Edge, che sono quelli che si usano qui. Firefox
+ * li ignora e apre come sa: non si rompe niente, si perde solo il
+ * miglioramento.
+ */
+const VISOR = '#navpanes=0&view=FitH&pagemode=none'
+
+export default function DocumentViewer({
+    path,
+    nombre,
+    onClose,
+    ampliado,
+    onAmpliar,
+}: Props) {
     const [url, setUrl] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
 
@@ -54,12 +87,26 @@ export default function DocumentViewer({ path, nombre, onClose }: Props) {
         : error
 
     return (
-        <div className="flex h-full flex-col overflow-hidden rounded-[10px] border border-[var(--caes-line)] bg-[var(--caes-panel)]">
-            <div className="flex items-center justify-between gap-4 border-b border-[var(--caes-line-2)] px-5 py-3.5">
-                <span className="truncate text-[14px] font-medium text-[var(--caes-ink)]">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[10px] border border-[var(--caes-line)] bg-[var(--caes-panel)]">
+            <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--caes-line-2)] px-4 py-2.5">
+                <span className="truncate text-[13.5px] font-medium text-[var(--caes-ink)]">
                     {nombre}
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-0.5">
+                    {onAmpliar && (
+                        <button
+                            type="button"
+                            onClick={onAmpliar}
+                            title={ampliado ? 'Reducir' : 'Ampliar a pantalla completa'}
+                            className="rounded-full p-2 text-[var(--caes-mut)] transition-colors hover:bg-[var(--caes-band)] hover:text-[var(--caes-ink)]"
+                        >
+                            {ampliado ? (
+                                <Minimize2 className="h-4 w-4" />
+                            ) : (
+                                <Maximize2 className="h-4 w-4" />
+                            )}
+                        </button>
+                    )}
                     {url ? (
                         <a
                             href={url}
@@ -82,19 +129,22 @@ export default function DocumentViewer({ path, nombre, onClose }: Props) {
                 </div>
             </div>
 
-            <div className="flex min-h-[340px] flex-1 items-center justify-center bg-[var(--caes-band)]">
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-[var(--caes-band)]">
                 {mensaje ? (
-                    <p className="flex max-w-[44ch] items-start gap-2.5 px-6 text-[13.5px] leading-[1.5] text-[var(--caes-mut)]">
+                    <p className="flex max-w-[44ch] items-start gap-2.5 px-6 py-10 text-[13.5px] leading-[1.5] text-[var(--caes-mut)]">
                         <AlertTriangle className="mt-[2px] h-4 w-4 shrink-0 text-[#C4863F]" />
                         {mensaje}
                     </p>
                 ) : !url ? (
                     <Loader2 className="h-5 w-5 animate-spin text-[var(--caes-faint)]" />
                 ) : esPdf ? (
-                    <iframe src={url} title={nombre} className="h-full w-full" />
+                    <iframe src={`${url}${VISOR}`} title={nombre} className="h-full w-full" />
                 ) : (
+                    // Le foto di targhette si guardano da vicino: qui si
+                    // apre alla larghezza piena e si scorre, invece di
+                    // rimpicciolire tutto per farlo stare nel riquadro.
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={url} alt={nombre} className="max-h-full max-w-full object-contain" />
+                    <img src={url} alt={nombre} className="w-full max-w-none object-contain" />
                 )}
             </div>
         </div>
