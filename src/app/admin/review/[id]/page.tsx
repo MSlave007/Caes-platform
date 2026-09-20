@@ -290,6 +290,10 @@ export default function AdminReviewDetail({
         .filter((s) => s.required && uploaded.has(s.id))
         .every((s) => verified[s.id])
 
+    // Nullo vuol dire «non ancora calcolato», non «zero». In tutti e due
+    // i casi non si approva — e il verso giusto in cui sbagliare — ma
+    // vanno detti in modo diverso a chi legge.
+    const sinCalcular = typeof p?.savings_pct !== 'number'
     const belowMinimum = (p?.savings_pct ?? 0) < AHORRO_MINIMO_PCT
     const canApprove = missing.length === 0 && allVerified && !belowMinimum
 
@@ -428,12 +432,20 @@ export default function AdminReviewDetail({
                     <AlertTriangle className="mt-[2px] h-[18px] w-[18px] shrink-0 text-[#8A5B0B]" />
                     <div className="text-[14px] leading-[1.6] text-[#7A4A12]">
                         {belowMinimum && (
-                            <p>
-                                El ahorro verificado es del{' '}
-                                <b>{p.savings_pct.toLocaleString('es-ES')} %</b>, por debajo
-                                del {AHORRO_MINIMO_PCT} % que exige la norma. Este expediente
-                                no es elegible.
-                            </p>
+                            sinCalcular ? (
+                                <p>
+                                    El ahorro todavía no está calculado, así que no se
+                                    puede saber si supera el {AHORRO_MINIMO_PCT} % que
+                                    exige la norma. Hasta entonces no se aprueba.
+                                </p>
+                            ) : (
+                                <p>
+                                    El ahorro verificado es del{' '}
+                                    <b>{p.savings_pct.toLocaleString('es-ES')} %</b>, por
+                                    debajo del {AHORRO_MINIMO_PCT} % que exige la norma.
+                                    Este expediente no es elegible.
+                                </p>
+                            )
                         )}
                         {missing.length > 0 && (
                             <p className={belowMinimum ? 'mt-2' : ''}>

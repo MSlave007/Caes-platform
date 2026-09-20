@@ -58,11 +58,34 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
     }
 
-    // NOTA — separazione dei ruoli ancora da fare.
-    // `getUserRole()` esiste in src/lib/auth/roleDetection.ts ma non è
-    // chiamata da nessuna parte: oggi un account installatore autenticato
-    // può aprire /admin/settings. Il controllo va messo qui, leggendo il
-    // ruolo dal profilo, appena la tabella `profiles` è popolata.
+    // ── IL RUOLO ──────────────────────────────────────────────────────
+    //
+    // Chiuso l'accesso anonimo, restava il buco piu largo: un account
+    // installatore autenticato poteva aprire /admin/settings e vedere i
+    // margini dell'agenzia e i contatti dei privati. Essere entrati non
+    // vuol dire poter entrare ovunque.
+    //
+    // Il ruolo si legge dal profilo, non dai cookie e non da quello che
+    // dice il browser. La query si fa SOLO per /admin: aggiungerne una a
+    // ogni pagina del sito per un controllo che riguarda una zona sola
+    // sarebbe un pedaggio inutile.
+    if (user && path.startsWith('/admin') && !esModoDemo()) {
+        const { data: perfil } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+        // Ripiego al ruolo che puo meno. Se il profilo manca o la query
+        // fallisce, si resta fuori: un ripiego che concede e un buco che
+        // si apre da solo il giorno in cui qualcosa si rompe.
+        if (perfil?.role !== 'admin') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/sin-acceso'
+            url.search = ''
+            return NextResponse.redirect(url)
+        }
+    }
 
     return supabaseResponse
 }

@@ -22,6 +22,19 @@
  *
  * Chi accende CAES_DEMO_MODE su un dominio pubblico sta dichiarando che
  * quei dati sono finti. Non va fatto su dati veri di clienti.
+ *
+ * ── I RUOLI ───────────────────────────────────────────────────────────
+ *
+ * Due, e fanno cose diverse:
+ *
+ *   installer → i propri espedienti e le proprie bozze
+ *   admin     → la coda di revisione, i margini, i contatti
+ *
+ * Il ruolo si legge dal profilo, non da quello che dice il browser. E il
+ * valore di ripiego è SEMPRE `installer`: se il profilo manca, se la
+ * query fallisce, se il campo è vuoto, si ottiene il ruolo che può meno.
+ * Un ripiego che concede è un buco che si apre da solo il giorno in cui
+ * qualcosa si rompe.
  */
 
 import { createClient } from '@/utils/supabase/server'
@@ -29,9 +42,13 @@ import { esModoDemo } from './demoMode'
 
 export { esModoDemo }
 
+export type Rol = 'admin' | 'installer'
+
 export type Sesion = {
     /** L'utente autenticato, se c'è. */
     userId: string | null
+    /** Il ruolo letto dal profilo. `null` solo in modalità dimostrativa. */
+    rol: Rol | null
     /** Vero quando si sta passando senza sessione grazie alla demo. */
     demo: boolean
 }
@@ -49,12 +66,41 @@ export async function quienLlama(): Promise<Sesion | null> {
             data: { user },
         } = await supabase.auth.getUser()
 
-        if (user) return { userId: user.id, demo: false }
+        if (user) {
+            const { data } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single()
+
+            return {
+                userId: user.id,
+                rol: data?.role === 'admin' ? 'admin' : 'installer',
+                demo: false,
+            }
+        }
     } catch {
         // Supabase irraggiungibile: in demo si prosegue, altrimenti si nega.
     }
 
-    return esModoDemo() ? { userId: null, demo: true } : null
+    return esModoDemo() ? { userId: null, rol: null, demo: true } : null
+}
+
+/**
+ * Come sopra, ma solo per l'agenzia.
+ *
+ * Serve alle rotte che maneggiano roba di tutti: la coda di revisione, i
+ * margini, i contatti dei privati. Un installatore autenticato è un
+ * utente legittimo e resta comunque fuori da qui.
+ *
+ * In modalità dimostrativa passa, come tutto il resto: è la stessa scelta
+ * dichiarata sopra, non un'eccezione nascosta.
+ */
+export async function soloAgencia(): Promise<Sesion | null> {
+    const quien = await quienLlama()
+    if (!quien) return null
+    if (quien.demo) return quien
+    return quien.rol === 'admin' ? quien : null
 }
 
 /** Risposta unica per chi non ha diritto di stare qui. */
@@ -62,5 +108,16 @@ export function negado() {
     return Response.json(
         { error: 'No autorizado. Inicia sesión.' },
         { status: 401 }
+    )
+}
+
+/**
+ * Diverso da `negado`: qui la sessione c'è ed è valida, manca il ruolo.
+ * 401 direbbe «rifai il login», e rifarlo non cambierebbe niente.
+ */
+export function prohibido() {
+    return Response.json(
+        { error: 'Esta zona es de la agencia.' },
+        { status: 403 }
     )
 }

@@ -14,7 +14,17 @@ import type { Project } from '@/lib/mockDb'
  * già un installatore assegnato o va trovato.
  */
 export default function ProjectRow({ p }: { p: Project }) {
-    const below = p.savings_pct < AHORRO_MINIMO_PCT
+    /**
+     * Il risparmio puo non esserci ancora.
+     *
+     * Un espediente appena aperto non e stato calcolato: `savings_pct` e
+     * nullo, e qui si andava in errore formattando un valore che non
+     * c'era. «Sconosciuto» e «sotto il minimo» sono cose diverse, e
+     * trattarle uguale metterebbe un'etichetta «Bajo» su pratiche che
+     * nessuno ha ancora guardato.
+     */
+    const pct = typeof p.savings_pct === 'number' ? p.savings_pct : null
+    const below = pct !== null && pct < AHORRO_MINIMO_PCT
 
     return (
         <Link
@@ -58,7 +68,9 @@ export default function ProjectRow({ p }: { p: Project }) {
                 <span
                     className={`font-mono tabular text-[13.5px] ${below ? 'text-[#9B4526]' : 'text-[var(--caes-mut)]'}`}
                 >
-                    {p.savings_pct.toLocaleString('es-ES', { maximumFractionDigits: 1 })} %
+                    {pct === null
+                        ? '— %'
+                        : `${pct.toLocaleString('es-ES', { maximumFractionDigits: 1 })} %`}
                 </span>
                 {below && (
                     <span

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabaseServer'
 import { mockDb } from '@/lib/mockDb'
-import { quienLlama, negado } from '@/lib/auth/guard'
+import { quienLlama, soloAgencia, negado, prohibido } from '@/lib/auth/guard'
 import { enviar, debeAvisar } from '@/lib/notify/email'
 import { NextResponse } from 'next/server'
 
@@ -31,8 +31,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    // Solo l'agenzia. Prima bastava una sessione qualsiasi, e le regole di
+    // riga lasciano all'installatore la modifica dei PROPRI espedienti:
+    // messe insieme, le due cose gli permettevano di approvarsi la pratica
+    // da solo, azzerare la quota dell'agenzia e riscriversi il risparmio
+    // riconosciuto. Chi fa il lavoro non e chi lo verifica.
     const quien = await quienLlama()
     if (!quien) return negado()
+    if (!(await soloAgencia())) return prohibido()
 
     const id = (await params).id
     const body = await request.json()

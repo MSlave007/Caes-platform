@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { mockDb } from '@/lib/mockDb'
 import { quienLlama, negado } from '@/lib/auth/guard'
+import { createAdminClient } from '@/lib/supabaseAdmin'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -19,8 +20,17 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: projects })
     }
 
-    // REAL SUPABASE FETCH (Future proofing)
-    const { data, error } = await supabase
+    // Chi vede cosa.
+    //
+    // L'installatore passa dal cliente con la sua sessione, e le regole di
+    // riga gli danno i propri espedienti e basta. L'agenzia ha bisogno di
+    // vederli tutti — e` il suo lavoro — e per farlo serve la chiave di
+    // servizio, che salta le regole di riga. E` legittimo solo perche' il
+    // ruolo e` gia stato verificato una riga sopra: il controllo lo fa il
+    // nostro codice, non il database.
+    const lector = quien.rol === 'admin' ? createAdminClient() ?? supabase : supabase
+
+    const { data, error } = await lector
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false })

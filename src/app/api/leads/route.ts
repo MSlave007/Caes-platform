@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { quienLlama, negado } from '@/lib/auth/guard'
+import { quienLlama, soloAgencia, negado, prohibido } from '@/lib/auth/guard'
 import { createClient } from '@/utils/supabase/server'
 import { mockLeads, type Lead } from '@/lib/mockLeads'
 
@@ -66,10 +66,13 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-    // Dati personali: nome, telefono, email. Prima questa rotta rispondeva
-    // a chiunque conoscesse l'indirizzo.
+    // Nomi, telefoni ed email di privati. Prima rispondeva a chiunque
+    // conoscesse l'indirizzo; poi a chiunque avesse fatto login, che e
+    // meglio ma non basta — un installatore non ha motivo di avere la
+    // lista dei contatti di tutti.
     const quien = await quienLlama()
     if (!quien) return negado()
+    if (!(await soloAgencia())) return prohibido()
 
     try {
         const supabase = await createClient()
