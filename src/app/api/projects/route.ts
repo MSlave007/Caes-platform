@@ -119,6 +119,10 @@ export async function POST(request: Request) {
                     typeof body.notas === 'string' && body.notas.trim()
                         ? body.notas.trim().slice(0, 2000)
                         : undefined,
+                nombre:
+                    typeof body.nombre === 'string' && body.nombre.trim()
+                        ? body.nombre.trim().slice(0, 120)
+                        : undefined,
                 docs: Array.isArray(body.docs) ? body.docs : [],
                 files: Array.isArray(body.files) ? body.files : [],
             })

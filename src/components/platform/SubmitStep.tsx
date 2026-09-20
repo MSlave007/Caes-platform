@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, AlertTriangle, Check } from 'lucide-react'
-import { clearDraft } from '@/lib/draft'
+import { deleteDraft } from '@/lib/draft'
 import {
     estimate,
     eur,
@@ -48,7 +48,19 @@ const label = 'block font-mono text-[9.5px] uppercase tracking-[.14em] text-[var
 const field =
     'mt-1.5 w-full rounded-[6px] border border-[var(--caes-line)] bg-white px-3.5 py-2.5 text-[15px] text-[var(--caes-ink)] outline-none transition-colors focus:border-[var(--caes-green)]'
 
-export default function SubmitStep({ docs, notas }: { docs: Doc[]; notas?: string }) {
+export default function SubmitStep({
+    docs,
+    notas,
+    nombre,
+    draftId,
+}: {
+    docs: Doc[]
+    notas?: string
+    /** Il nome dato alla bozza. Se il cliente non e stato ancora scritto,
+     *  e l'unica cosa che identifica la pratica. */
+    nombre?: string
+    draftId?: string
+}) {
     const router = useRouter()
 
     const [cliente, setCliente] = useState('')
@@ -99,6 +111,7 @@ export default function SubmitStep({ docs, notas }: { docs: Doc[]; notas?: strin
                     // Quello che ha scritto a mano l'installatore: va in
                     // revisione insieme ai documenti, non si perde qui.
                     notas: notas?.trim() || undefined,
+                    nombre: nombre?.trim() || undefined,
                     docs,
                 }),
             })
@@ -106,7 +119,7 @@ export default function SubmitStep({ docs, notas }: { docs: Doc[]; notas?: strin
             if (!res.ok) throw new Error(json?.error ?? 'No se ha podido enviar')
             // Senza questo la bozza resta e alla riapertura il modulo
             // ripropone una pratica già inviata.
-            clearDraft()
+            if (draftId) deleteDraft(draftId)
             router.push('/installer/dashboard')
         } catch (e) {
             setError(e instanceof Error ? e.message : 'No se ha podido enviar')

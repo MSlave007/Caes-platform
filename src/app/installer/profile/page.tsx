@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Loader2 } from 'lucide-react'
+import { AlertTriangle, Check, Loader2, Paperclip, Trash2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { Field, PrimaryButton, inputClass } from '@/components/auth/AuthShell'
 import { COMISION_MAXIMA_PCT, eur } from '@/lib/caes/estimate'
+import { DOCUMENTOS_PERFIL } from '@/lib/documents'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -15,6 +16,9 @@ type Profile = {
     company_id: string
     address: string
     default_commission: number
+    /** Percorso nel deposito del DNI. Vedi DOCUMENTOS_PERFIL. */
+    dni_path: string | null
+    dni_nombre: string | null
 }
 
 const EMPTY: Profile = {
@@ -23,6 +27,8 @@ const EMPTY: Profile = {
     company_id: '',
     address: '',
     default_commission: 25,
+    dni_path: null,
+    dni_nombre: null,
 }
 
 /**
@@ -40,6 +46,9 @@ export default function InstallerProfilePage() {
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [subiendo, setSubiendo] = useState(false)
+    const [errorDni, setErrorDni] = useState<string | null>(null)
+    const dniInput = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         const load = async () => {
@@ -50,7 +59,9 @@ export default function InstallerProfilePage() {
 
                 const { data } = await supabase
                     .from('profiles')
-                    .select('full_name, phone, company_id, address, default_commission')
+                    .select(
+                        'full_name, phone, company_id, address, default_commission, dni_path, dni_nombre'
+                    )
                     .eq('id', auth.user.id)
                     .single()
 
@@ -92,6 +103,50 @@ export default function InstallerProfilePage() {
         } finally {
             setSaving(false)
         }
+    }
+
+    /**
+     * Il DNI si salva da solo, con una chiamata sua.
+     *
+     * Se stesse nella stessa `update` del resto, una colonna mancante
+     * farebbe fallire anche il salvataggio del nome e della commissione.
+     * Un pezzo che non funziona deve rompere solo se stesso.
+     */
+    const subirDni = async (f: File) => {
+        setSubiendo(true)
+        setErrorDni(null)
+        try {
+            const fd = new FormData()
+            fd.append('file', f)
+            const res = await fetch('/api/upload', { method: 'POST', body: fd })
+            const json = await res.json()
+            if (!res.ok) throw new Error(json?.error ?? 'No se ha podido subir')
+
+            setP((v) => ({ ...v, dni_path: json.path, dni_nombre: f.name }))
+
+            const { data: auth } = await supabase.auth.getUser()
+            if (!auth.user) return
+            const { error: e } = await supabase
+                .from('profiles')
+                .update({ dni_path: json.path, dni_nombre: f.name })
+                .eq('id', auth.user.id)
+            if (e) throw e
+        } catch (err) {
+            setErrorDni(err instanceof Error ? err.message : 'No se ha podido guardar')
+        } finally {
+            setSubiendo(false)
+        }
+    }
+
+    const quitarDni = async () => {
+        setP((v) => ({ ...v, dni_path: null, dni_nombre: null }))
+        setErrorDni(null)
+        const { data: auth } = await supabase.auth.getUser()
+        if (!auth.user) return
+        await supabase
+            .from('profiles')
+            .update({ dni_path: null, dni_nombre: null })
+            .eq('id', auth.user.id)
     }
 
     // Riferimento vivo: cosa significa quella percentuale su un caso tipo.
@@ -167,6 +222,90 @@ export default function InstallerProfilePage() {
                             </Field>
                         </div>
                     </div>
+                </section>
+
+                {/* ------------------------------------------ verificazione
+
+                    Il DNI stava nell'elenco documenti di OGNI espediente:
+                    vuol dire richiederlo a ogni cantiere quando ce l'abbiamo
+                    gia e non cambia. Sta qui, si carica una volta, e da li
+                    in poi nessuno lo chiede piu. */}
+                <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
+                    <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+                        Tu verificación
+                    </h2>
+                    {DOCUMENTOS_PERFIL.map((d) => (
+                        <div key={d.id} className="mt-6">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <span className="text-[14.5px] font-medium text-[var(--caes-ink)]">
+                                    {d.label}
+                                </span>
+                                {p.dni_path ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--caes-green)]/12 px-2.5 py-1 text-[11.5px] text-[var(--caes-green)]">
+                                        <Check className="h-3 w-3" strokeWidth={3} />
+                                        Aportado
+                                    </span>
+                                ) : (
+                                    <span className="rounded-full border border-dashed border-[#C4863F] px-2.5 py-1 text-[11.5px] text-[#8A5B0B]">
+                                        Pendiente
+                                    </span>
+                                )}
+                            </div>
+                            <p className="mt-2 max-w-[56ch] text-[13.5px] leading-[1.55] text-[var(--caes-mut)]">
+                                {d.why}
+                            </p>
+
+                            {p.dni_path ? (
+                                <div className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--caes-line-2)] bg-[var(--caes-paper)] px-4 py-3">
+                                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-[var(--caes-faint)]" />
+                                    <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--caes-ink)]">
+                                        {p.dni_nombre ?? d.label}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={quitarDni}
+                                        aria-label="Quitar"
+                                        className="shrink-0 rounded-lg p-1.5 text-[var(--caes-faint)] transition-colors hover:bg-[var(--caes-band)] hover:text-[var(--caes-ink)]"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    disabled={subiendo}
+                                    onClick={() => dniInput.current?.click()}
+                                    className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--caes-ink)] px-4 py-2 text-[13.5px] font-medium text-[var(--caes-ink)] transition-colors hover:bg-[var(--caes-ink)] hover:text-[var(--caes-paper)] disabled:opacity-50"
+                                >
+                                    {subiendo ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                        <Paperclip className="h-3.5 w-3.5" />
+                                    )}
+                                    Elegir archivo
+                                </button>
+                            )}
+
+                            <input
+                                ref={dniInput}
+                                type="file"
+                                accept={d.accept}
+                                className="sr-only"
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0]
+                                    if (f) void subirDni(f)
+                                    e.target.value = ''
+                                }}
+                            />
+
+                            {errorDni && (
+                                <p className="mt-3 flex items-start gap-2 text-[13px] leading-[1.5] text-[#8A5B0B]">
+                                    <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+                                    {errorDni}
+                                </p>
+                            )}
+                        </div>
+                    ))}
                 </section>
 
                 {/* --------------------------------------------- commissione */}

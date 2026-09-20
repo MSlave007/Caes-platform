@@ -35,28 +35,77 @@
  * moltiplica il numero di certificati emessi.
  *
  * Fonte: MITECO, catálogo vigente de fichas, Ficha RES060.
+ *
+ * ── AGGIORNAMENTO DEL 20 SETTEMBRE 2026 ───────────────────────────────
+ *
+ * Tariffa portata a 130 €/MWh e ripartizione riscritta secondo il modello
+ * commerciale deciso: noi tratteniamo una quota FISSA del 30 %, e il 70 %
+ * che resta è il piatto che installatore e cliente finale si dividono.
+ *
+ * Il cursore muove solo la linea dentro quel 70 %: quello che non prende
+ * l'installatore non svanisce, va al cliente, e la somma dei due non
+ * cambia mai. È la ragione per cui il numero grande della landing è il
+ * piatto intero e non la fetta dell'installatore — il piatto è un fatto,
+ * la fetta è una sua decisione.
  */
 
-/** Tariffa CAES: € per kWh di energia finale risparmiata (= 86 €/MWh). */
-export const TARIFA_CAES_EUR_KWH = 0.086
+/** Tariffa CAES: € per kWh di energia finale risparmiata (= 130 €/MWh). */
+export const TARIFA_CAES_EUR_KWH = 0.13
 
 /** Come sopra, espressa in MWh: è così che la scrivono nel settore. */
-export const TARIFA_CAES_EUR_MWH = 86
+export const TARIFA_CAES_EUR_MWH = 130
 
 /** Risparmio minimo sulla linea base per qualificarsi, %. */
 export const AHORRO_MINIMO_PCT = 20
 
-/** Tetto della commissione installatore, % sul totale. */
+/**
+ * Tetto della commissione installatore, % sul totale.
+ *
+ * È il limite normativo citato in docs/REGULATIONS.md, non una scelta
+ * commerciale: sopra il 30 % l'accordo CAES non vale. Per questo il
+ * cursore si ferma qui e non arriva a 70, anche se il piatto è del 70 %.
+ */
 export const COMISION_MAXIMA_PCT = 30
 
-/** Quota che tratteniamo noi come agenzia, % sul totale. */
-export const MARGEN_AGENCIA_PCT = 25
+/**
+ * Quota FISSA che tratteniamo noi per la gestione dell'expediente, % sul
+ * valore del certificato. Non la muove il cursore: è il nostro prezzo, ed
+ * è l'unica delle tre quote che non si negozia.
+ */
+export const CUOTA_CAES_PCT = 30
 
 /**
- * Quota che l'installatore trattiene di solito, % sul totale.
- * DA CONFERMARE — va tarata su quanto trattengono davvero i vostri.
+ * Il piatto: quello che resta da ripartire fra installatore e cliente
+ * finale, % sul totale. È il protagonista del simulatore — l'installatore
+ * decide dove passa la linea, ma il piatto è sempre questo.
  */
-export const COMISION_TIPICA_PCT = 15
+export const POOL_REPARTIBLE_PCT = 100 - CUOTA_CAES_PCT
+
+/**
+ * Quanto del PIATTO tiene l'installatore per default, in % del piatto
+ * stesso (0–100, non sul totale).
+ *
+ * È l'unità di misura giusta per la conversazione commerciale: il piatto
+ * è quello che l'installatore e il suo cliente hanno da dividersi, e la
+ * domanda è «di questo, quanto ne tengo io». Ragionare in percentuale sul
+ * totale obbligherebbe a tenere a mente la nostra quota, che a loro non
+ * interessa e che comunque non possono muovere.
+ */
+export const REPARTO_INSTALADOR_DEFECTO_PCT = 30
+
+/** La stessa cosa espressa sul totale: è quello che maneggia il motore. */
+export const COMISION_INSTALADOR_DEFECTO =
+    (REPARTO_INSTALADOR_DEFECTO_PCT * POOL_REPARTIBLE_PCT) / 100
+
+/** Conseguenza della riga sopra: quanto resta al cliente per default, %. */
+export const CUOTA_CLIENTE_DEFECTO_PCT =
+    POOL_REPARTIBLE_PCT - COMISION_INSTALADOR_DEFECTO
+
+/** Da % del piatto a % del totale, e ritorno. */
+export const repartoATotal = (pctPiatto: number) =>
+    (pctPiatto * POOL_REPARTIBLE_PCT) / 100
+export const totalAReparto = (pctTotal: number) =>
+    POOL_REPARTIBLE_PCT > 0 ? (pctTotal * 100) / POOL_REPARTIBLE_PCT : 0
 
 /** Validità del certificato emesso, anni. */
 export const VALIDEZ_ANOS = 10
@@ -78,6 +127,10 @@ export const RENDIMIENTO_CALDERA_DEFECTO = 0.92
  * fascicolo. Questi sono valori di riferimento per il parco esistente
  * (edifici pre-CTE, che sono quelli che si ristrutturano) e servono solo
  * a dare una stima prima di avere il certificato in mano.
+ *
+ * D3 è la zona di riferimento del simulatore ed è tarata a 130: è il caso
+ * base su cui si ragiona. Le altre zone restano come stavano, e chi sta
+ * altrove sceglie la sua dal menu.
  */
 export const DEMANDA_CALEFACCION_POR_ZONA: Record<string, number> = {
     A3: 25,
@@ -85,7 +138,7 @@ export const DEMANDA_CALEFACCION_POR_ZONA: Record<string, number> = {
     C1: 70,
     C3: 90,
     D2: 105,
-    D3: 120,
+    D3: 130,
     E1: 145,
 }
 
@@ -137,10 +190,21 @@ export type EstimateInput = {
     scop?: number
     /** SCOP in ACS della pompa installata. */
     scopDhw?: number
-    /** Quota trattenuta dall'installatore, % del totale (0–30) */
+    /** Quota trattenuta dall'installatore, % del totale */
     comisionInstaladorPct?: number
-    /** Quota trattenuta dall'agenzia, % del totale */
-    margenAgenciaPct?: number
+    /** Quota fissa che tratteniamo noi, % del totale */
+    cuotaCaesPct?: number
+    /**
+     * Tetto alla quota dell'installatore, % del totale.
+     *
+     * Di default è il limite normativo (30 %), ed è quello che deve valere
+     * quando si firma davvero: la piattaforma non passa niente e resta
+     * vincolata. Il simulatore della landing passa invece il piatto
+     * intero, perché lì l'installatore sta esplorando come dividere con il
+     * cliente e bloccarlo a metà corsa nasconderebbe il ragionamento.
+     * Sopra il tetto normativo la schermata lo avvisa.
+     */
+    topeComisionPct?: number
 }
 
 export type EstimateResult = {
@@ -162,12 +226,27 @@ export type EstimateResult = {
     cumpleMinimo: boolean
     /** Valore CAES totale generato, € */
     valorTotal: number
+    /**
+     * Il piatto: quello che resta dopo la nostra quota, e che installatore
+     * e cliente si dividono. Non dipende da dove cade il cursore.
+     */
+    poolRepartible: number
     /** Quota dell'installatore, € */
     parteInstalador: number
-    /** Quota dell'agenzia, € */
-    parteAgencia: number
-    /** Quello che arriva al cliente sul conto, una tantum, € */
+    /** La nostra quota di gestione, € */
+    parteCaes: number
+    /** Quello che arriva al cliente, una tantum, € */
     parteCliente: number
+    /** Dove è caduta la linea, in punti percentuali sul totale */
+    comisionPct: number
+    /** Il complemento della riga sopra dentro il piatto, punti sul totale */
+    clientePct: number
+    /** La stessa linea letta sul piatto: 0–100, è quella che vede l'utente */
+    repartoInstaladorPct: number
+    /** Complemento della riga sopra sul piatto, 0–100 */
+    repartoClientePct: number
+    /** true se si è passato il tetto normativo del 30 % sul totale */
+    superaTopeLegal: boolean
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -179,8 +258,9 @@ export function estimate({
     demandaAcsKwh,
     scop = SCOP_CALEFACCION,
     scopDhw = SCOP_ACS,
-    comisionInstaladorPct = 25,
-    margenAgenciaPct = MARGEN_AGENCIA_PCT,
+    comisionInstaladorPct = COMISION_INSTALADOR_DEFECTO,
+    cuotaCaesPct = CUOTA_CAES_PCT,
+    topeComisionPct = COMISION_MAXIMA_PCT,
 }: EstimateInput): EstimateResult {
     const dcal = DEMANDA_CALEFACCION_POR_ZONA[zona] ?? DEMANDA_CALEFACCION_POR_ZONA.C3
     const eta = RENDIMIENTO_EQUIPO_SUSTITUIDO[sustituido] ?? RENDIMIENTO_CALDERA_DEFECTO
@@ -201,10 +281,20 @@ export function estimate({
 
     const valorTotal = kwhAhorrados * TARIFA_CAES_EUR_KWH
 
-    const comision = Math.min(comisionInstaladorPct, COMISION_MAXIMA_PCT)
-    const parteInstalador = valorTotal * (comision / 100)
-    const parteAgencia = valorTotal * (margenAgenciaPct / 100)
-    const parteCliente = Math.max(0, valorTotal - parteInstalador - parteAgencia)
+    // Il piatto è quello che resta dopo la nostra quota. Dentro il piatto il
+    // cursore decide solo dove passa la linea: quello che non prende
+    // l'installatore va al cliente, non a noi.
+    const poolPct = Math.max(0, 100 - cuotaCaesPct)
+    const comisionPct = Math.min(
+        Math.max(0, comisionInstaladorPct),
+        Math.min(topeComisionPct, poolPct)
+    )
+    const clientePct = poolPct - comisionPct
+
+    // La stessa linea, letta sul piatto invece che sul totale: è l'unità in
+    // cui il simulatore parla all'installatore.
+    const repartoInstaladorPct =
+        poolPct > 0 ? Math.round((comisionPct * 100) / poolPct) : 0
 
     return {
         demandaCalefaccion: Math.round(demandaCalefaccion),
@@ -217,9 +307,15 @@ export function estimate({
         ahorroPct: round2(ahorroPct),
         cumpleMinimo: ahorroPct >= AHORRO_MINIMO_PCT,
         valorTotal: round2(valorTotal),
-        parteInstalador: round2(parteInstalador),
-        parteAgencia: round2(parteAgencia),
-        parteCliente: round2(parteCliente),
+        poolRepartible: round2(valorTotal * (poolPct / 100)),
+        parteInstalador: round2(valorTotal * (comisionPct / 100)),
+        parteCaes: round2(valorTotal * (cuotaCaesPct / 100)),
+        parteCliente: round2(valorTotal * (clientePct / 100)),
+        comisionPct,
+        clientePct,
+        repartoInstaladorPct,
+        repartoClientePct: 100 - repartoInstaladorPct,
+        superaTopeLegal: comisionPct > COMISION_MAXIMA_PCT,
     }
 }
 

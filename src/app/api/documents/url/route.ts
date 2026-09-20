@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabaseServer'
+import { BUCKET, SIN_DEPOSITO, createAdminClient, explicar } from '@/lib/supabaseAdmin'
 import { quienLlama, negado } from '@/lib/auth/guard'
 
 /**
@@ -36,14 +36,24 @@ export async function GET(request: Request) {
     }
 
     try {
-        const supabase = await createClient()
+        // Con la chiave pubblica l'RLS del bucket rifiuta anche la firma:
+        // si passa da quella segreta, dopo aver verificato chi chiede.
+        const supabase = createAdminClient()
+        if (!supabase) {
+            return NextResponse.json({ error: SIN_DEPOSITO }, { status: 503 })
+        }
+
         const { data, error } = await supabase.storage
-            .from('documents')
+            .from(BUCKET)
             .createSignedUrl(path, VALIDEZ_SEGUNDOS)
 
         if (error || !data?.signedUrl) {
             return NextResponse.json(
-                { error: error?.message ?? 'No se ha podido firmar el enlace' },
+                {
+                    error: error
+                        ? explicar(error.message)
+                        : 'No se ha podido firmar el enlace',
+                },
                 { status: 404 }
             )
         }

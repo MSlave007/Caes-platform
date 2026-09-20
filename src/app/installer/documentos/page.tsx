@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, RotateCcw } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { ArrowLeft, Loader2, RotateCcw } from 'lucide-react'
 import DocumentChecklist, {
     type FileMap,
 } from '@/components/platform/DocumentChecklist'
@@ -13,7 +14,14 @@ import WizardShell, {
     type StepDef,
 } from '@/components/platform/WizardShell'
 import type { Role } from '@/lib/documents'
-import { clearDraft, loadDraft, saveDraft, timeAgo } from '@/lib/draft'
+import {
+    deleteDraft,
+    loadDraft,
+    nuevoId,
+    saveDraft,
+    timeAgo,
+    type Draft,
+} from '@/lib/draft'
 
 const STEPS: StepDef[] = [
     { id: 'docs', label: 'Documentos', caption: 'Lo que hay que subir' },
@@ -25,11 +33,38 @@ const STEPS: StepDef[] = [
 /**
  * Percorso di creazione dell'espediente.
  *
+ * ── UNA BOZZA PER VOLTA, MA NON UNA SOLA ──────────────────────────────
+ *
+ * L'indirizzo porta `?b=<id>`: si riprende quella bozza. Senza, se ne
+ * apre una nuova. È quello che permette di avere tre cantieri aperti
+ * insieme senza che il secondo cancelli il primo — vedi src/lib/draft.ts.
+ *
  * Il selettore instalador / cliente qui è visibile per confrontare i due
  * elenchi. In produzione il ruolo arriva dal profilo e sparisce: nessuno
  * deve poter scegliere di che tipo di utente è.
  */
 export default function DocumentosPage() {
+    return (
+        <Suspense fallback={<Cargando />}>
+            <Documentos />
+        </Suspense>
+    )
+}
+
+function Cargando() {
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-[var(--caes-paper)]">
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--caes-faint)]" />
+        </div>
+    )
+}
+
+function Documentos() {
+    const params = useSearchParams()
+    const pedido = params.get('b')
+
+    const [id, setId] = useState<string | null>(null)
+    const [nombre, setNombre] = useState('')
     const [role, setRole] = useState<Role>('installer')
     const [files, setFiles] = useState<FileMap>({})
     const [notas, setNotas] = useState('')
@@ -39,17 +74,29 @@ export default function DocumentosPage() {
     const [savedAt, setSavedAt] = useState<string | undefined>()
     const [restored, setRestored] = useState(false)
 
-    /* ---------------------------------------------- ripresa della bozza */
+    /* ---------------------------------------------- ripresa della bozza
+       Lo stato si imposta dentro l'effetto apposta: la bozza sta in
+       localStorage, che sul server non esiste. Leggerla durante il render
+       darebbe un HTML diverso fra server e browser — l'idratazione
+       salterebbe. Quindi prima si renderizza vuoto, poi si riempie. */
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
-        const d = loadDraft()
-        if (!d) return
+        const d: Draft | null = pedido ? loadDraft(pedido) : null
+        if (!d) {
+            // Nuova: l'id si crea subito, così il primo salvataggio
+            // automatico ha già dove andare.
+            setId(nuevoId())
+            return
+        }
+        setId(d.id)
+        setNombre(d.nombre)
         setRole(d.role)
         setStep(d.step)
         setMaxReached(d.step)
-        setSavedAt(timeAgo(d.savedAt))
         setNotas(d.notas ?? '')
+        setSavedAt(timeAgo(d.savedAt))
         // I riferimenti tornano con il percorso: un file archiviato resta
-        // apribile anche se la bozza si riprende da un altro dispositivo.
+        // apribile anche riprendendo la bozza da un altro momento.
         setFiles(
             Object.fromEntries(
                 Object.entries(d.files).map(([k, v]) => [
@@ -64,20 +111,34 @@ export default function DocumentosPage() {
             )
         )
         setRestored(true)
-    }, [])
+    }, [pedido])
+    /* eslint-enable react-hooks/set-state-in-effect */
+
+    // Lo stato più fresco, senza rimettere `persist` in piedi a ogni tasto
+    // scritto nel nome: il salvataggio automatico si riaggancerebbe.
+    const ahora = useRef({ id, nombre, role, step, files, notas })
+    // Aggiornato DOPO il render, non durante: scrivere in un ref mentre si
+    // renderizza e una di quelle cose che funzionano finche non funzionano.
+    useEffect(() => {
+        ahora.current = { id, nombre, role, step, files, notas }
+    })
 
     const persist = useCallback(
-        (next?: { role?: Role; step?: number; files?: FileMap; notas?: string }) => {
+        (next?: Partial<{ role: Role; step: number; files: FileMap; nombre: string }>) => {
+            const v = ahora.current
+            if (!v.id) return
             setSave('saving')
-            const payload = {
-                role: next?.role ?? role,
-                step: next?.step ?? step,
-                notas: next?.notas ?? notas,
+            const ok = saveDraft({
+                id: v.id,
+                nombre: next?.nombre ?? v.nombre,
+                role: next?.role ?? v.role,
+                step: next?.step ?? v.step,
+                notas: v.notas,
                 files: Object.fromEntries(
-                    Object.entries(next?.files ?? files)
-                        .map(([k, v]) => [
+                    Object.entries(next?.files ?? v.files)
+                        .map(([k, arr]) => [
                             k,
-                            v
+                            arr
                                 .filter((f) => f.state === 'done')
                                 .map((f) => ({
                                     name: f.name,
@@ -87,10 +148,9 @@ export default function DocumentosPage() {
                         ])
                         // Uno slot rimasto senza file riusciti non va salvato:
                         // riaprendo la bozza sembrerebbe pieno e vuoto insieme.
-                        .filter(([, v]) => (v as unknown[]).length > 0)
+                        .filter(([, arr]) => (arr as unknown[]).length > 0)
                 ),
-            }
-            const ok = saveDraft(payload)
+            })
             window.setTimeout(() => {
                 if (ok) {
                     setSavedAt(timeAgo(ok.savedAt))
@@ -98,9 +158,9 @@ export default function DocumentosPage() {
                 } else {
                     setSave('error')
                 }
-            }, 350)
+            }, 300)
         },
-        [role, step, files, notas]
+        []
     )
 
     // Salvataggio automatico a ogni file completato: il lavoro fatto non si
@@ -112,8 +172,7 @@ export default function DocumentosPage() {
         if (!anyDone) return
         const t = window.setTimeout(() => persist(), 900)
         return () => window.clearTimeout(t)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [files])
+    }, [files, persist])
 
     const goTo = (i: number) => {
         setStep(i)
@@ -128,7 +187,9 @@ export default function DocumentosPage() {
     }
 
     const startOver = () => {
-        clearDraft()
+        if (id) deleteDraft(id)
+        setId(nuevoId())
+        setNombre('')
         setFiles({})
         setNotas('')
         setStep(0)
@@ -162,7 +223,7 @@ export default function DocumentosPage() {
 
             <main className="px-6 py-12 sm:px-10">
                 {restored && (
-                    <div className="mx-auto mb-8 flex w-full max-w-[820px] flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--caes-green)]/35 bg-[var(--caes-green)]/[.05] px-5 py-3.5">
+                    <div className="mx-auto mb-8 flex w-full max-w-[1060px] flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--caes-green)]/35 bg-[var(--caes-green)]/[.05] px-5 py-3.5">
                         <p className="text-[13.5px] text-[var(--caes-ink)]">
                             Hemos recuperado tu borrador. Sigues donde lo dejaste.
                         </p>
@@ -178,13 +239,18 @@ export default function DocumentosPage() {
                 )}
 
                 <WizardShell
+                    ancho={step === 0}
                     steps={STEPS}
                     current={step}
                     maxReached={maxReached}
                     onGoTo={goTo}
                     save={save}
                     savedAt={savedAt}
-                    onSave={() => persist()}
+                    nombre={nombre}
+                    onNombreChange={(v) => {
+                        setNombre(v)
+                        setSave('idle')
+                    }}
                 >
                     {step === 0 && (
                         <DocumentChecklist
@@ -199,6 +265,8 @@ export default function DocumentosPage() {
                             notas={notas}
                             onNotasChange={setNotas}
                             onContinue={advance}
+                            onSave={() => persist()}
+                            save={save}
                         />
                     )}
 
@@ -219,11 +287,13 @@ export default function DocumentosPage() {
                     {step === 3 && (
                         <SubmitStep
                             notas={notas}
-                            docs={Object.entries(files).flatMap(([id, v]) =>
+                            nombre={nombre}
+                            draftId={id ?? undefined}
+                            docs={Object.entries(files).flatMap(([slot, v]) =>
                                 v
                                     .filter((f) => f.state === 'done')
                                     .map((f) => ({
-                                        id,
+                                        id: slot,
                                         name: f.name,
                                         verified: false,
                                         // Senza il percorso, in revisione non

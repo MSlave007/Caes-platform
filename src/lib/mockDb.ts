@@ -56,6 +56,8 @@ export type Project = {
     docs: ProjectDoc[]
     /** Note libere dell'installatore, scritte al caricamento. */
     notas?: string
+    /** Come l'ha chiamato chi l'ha aperto, quando il cliente non c'era ancora. */
+    nombre?: string
     files: unknown[]
 }
 

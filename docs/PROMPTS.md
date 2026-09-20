@@ -68,7 +68,7 @@ Calculate:
 3. Calculate savings:
    - `savings_kwh = old_kwh_year - new_kwh_year`
    - `savings_percent = (savings_kwh / old_kwh_year) × 100`
-   - `savings_eur = savings_kwh × 0.086` (fixed BOE rate)
+   - `savings_eur = savings_kwh × 0.130` (tarifa vigente, TARIFA_CAES_EUR_KWH)
 
 4. Check eligibility:
    - `is_eligible = savings_percent >= 20`
@@ -87,7 +87,7 @@ Return JSON:
 ```
 
 **CRITICAL:**
-- Use 0.086 € per kWh (NON-NEGOTIABLE, per BOE)
+- Use 0.130 € per kWh de ahorro anual (tarifa vigente, ver TARIFA_CAES_EUR_KWH)
 - 20% threshold is minimum for eligibility
 - Include your reasoning for new_kwh calculation
 - If missing critical data, note it in "reasoning"

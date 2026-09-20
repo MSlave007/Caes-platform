@@ -30,6 +30,14 @@
  * dappertutto. Ma si mostra sotto ogni documento che dovrebbe contenerlo,
  * così chi rivede sa cosa cercare in ciascuna carta invece di indovinarlo.
  *
+ * ── QUELLO CHE SI CONTROLLA E BASTA ───────────────────────────────────
+ *
+ * Non tutto quello che si legge va confermato. Certi valori esistono solo
+ * per essere confrontati con un altro — la domanda del certificato dopo
+ * contro quella del certificato prima — e chiederne la spunta sarebbe
+ * lavoro finto. Quelli hanno `control: true` e vivono in COMPROBACIONES,
+ * in fondo al file: si confrontano da soli e parlano solo se non tornano.
+ *
  * ── SULLA PROVENIENZA ─────────────────────────────────────────────────
  *
  * Tre campi della formula — superficie, domanda di riscaldamento e
@@ -61,6 +69,12 @@ export type CampoDef = {
     opciones?: { id: string; label: string }[]
     /** Riga di aiuto: dove guardare nel documento. */
     ayuda?: string
+    /**
+     * Non si conferma: si legge e basta, per confrontarlo con un altro
+     * campo. Non entra nel conteggio dei dati da rivedere — chiedere di
+     * spuntare un valore che serve solo a un paragone è lavoro finto.
+     */
+    control?: boolean
 }
 
 /**
@@ -96,6 +110,48 @@ export const CAMPOS: CampoDef[] = [
         unidad: 'kWh/año',
         destino: 'formula',
         ayuda: 'Agua caliente sanitaria, el segundo término de la fórmula.',
+    },
+
+    // ── Certificado energético posterior: niente da confermare ──
+    //
+    // Da questo non si prende niente per il fascicolo. La domanda di un
+    // edificio dipende dall'involucro — muri, finestre, isolamento — non
+    // dall'apparecchio che ci sta dentro: cambiare la caldaia con una
+    // pompa di calore cambia il CONSUMO e la lettera, non la DOMANDA.
+    // Quindi nei due certificati DCAL, DACS e superficie devono uscire
+    // identici.
+    //
+    // Se non lo sono, o il certificatore ha toccato qualcos'altro, o i due
+    // certificati non parlano della stessa casa. In tutti e due i casi la
+    // cifra della RES060 poggia su un numero che non regge, e va guardato
+    // prima di firmare. Questi tre campi servono solo a quel paragone:
+    // `control: true`, quindi si leggono e non si spuntano.
+    {
+        id: 'superficie_despues',
+        label: 'Superficie útil',
+        documento: 'cee-despues',
+        tipo: 'numero',
+        unidad: 'm²',
+        destino: 'documentos',
+        control: true,
+    },
+    {
+        id: 'dcal_despues',
+        label: 'Demanda de calefacción',
+        documento: 'cee-despues',
+        tipo: 'numero',
+        unidad: 'kWh/m²·año',
+        destino: 'documentos',
+        control: true,
+    },
+    {
+        id: 'dacs_despues',
+        label: 'Demanda de ACS',
+        documento: 'cee-despues',
+        tipo: 'numero',
+        unidad: 'kWh/año',
+        destino: 'documentos',
+        control: true,
     },
 
     // ── Ficha técnica: i rendimenti della pompa ──
@@ -172,18 +228,21 @@ export const CAMPOS: CampoDef[] = [
     {
         id: 'codigo_modelo',
         label: 'Código de modelo',
-        documento: ['factura', 'ficha', 'equipo-nuevo'],
+        documento: ['factura', 'ficha'],
         tipo: 'texto',
         destino: 'documentos',
         ayuda: 'La referencia del fabricante que identifica la variante exacta. Es lo que se contrasta con el catálogo, no el nombre comercial.',
     },
     {
+        // Solo dall'etichetta. Sulla fattura, quando c'è, è un numero di
+        // riga d'ordine che assomiglia a un numero di serie e non lo è:
+        // mandare a cercarlo li fa solo sbagliare.
         id: 'num_serie',
         label: 'Número de serie',
-        documento: ['equipo-nuevo', 'factura'],
+        documento: 'equipo-nuevo',
         tipo: 'texto',
         destino: 'documentos',
-        ayuda: 'El de la etiqueta y el de la factura tienen que ser el mismo.',
+        ayuda: 'El de la placa del equipo instalado.',
     },
 
     // ── Factura: l'importo su cui si calcola la detrazione ──
@@ -239,21 +298,26 @@ export const CAMPOS: CampoDef[] = [
     {
         id: 'direccion_actuacion',
         label: 'Dirección de la actuación',
-        documento: ['factura', 'titularidad', 'cee-antes'],
+        documento: ['factura', 'titularidad'],
         tipo: 'texto',
         destino: 'documentos',
-        ayuda: 'Dónde se ha instalado el equipo. Tiene que coincidir con la del certificado energético.',
+        ayuda: 'Dónde se ha instalado el equipo.',
     },
     {
         id: 'cp',
         label: 'Código postal',
-        documento: ['factura', 'titularidad', 'cee-antes'],
+        documento: ['factura', 'titularidad'],
         tipo: 'texto',
         destino: 'documentos',
         ayuda: 'De aquí sale la zona climática, que fija el SCOP mínimo exigible.',
     },
 
-    // ── RITE: la data che fa decorrere i tre anni ──
+    // ── RITE: solo la data di fine opera ──
+    //
+    // Il numero di registro stava qui e non serviva a niente: non entra
+    // nel calcolo e non lo chiede nessun documento da firmare. Quello che
+    // conta è la data, perché da lì decorrono i tre anni per presentare
+    // l'actuación.
     {
         id: 'fecha_fin_obra',
         label: 'Fecha de fin de obra',
@@ -261,13 +325,6 @@ export const CAMPOS: CampoDef[] = [
         tipo: 'fecha',
         destino: 'ambos',
         ayuda: 'Desde aquí cuentan los 3 años para presentar la actuación.',
-    },
-    {
-        id: 'num_registro_rite',
-        label: 'Nº de registro RITE',
-        documento: 'rite',
-        tipo: 'texto',
-        destino: 'documentos',
     },
 
     // ── Identità dell'installatore: serve per le firme ──
@@ -330,6 +387,125 @@ export function campo(id: string): CampoDef | undefined {
  */
 export function otrasFuentes(c: CampoDef, documentoId: string): string[] {
     return documentosDe(c).filter((d) => d !== documentoId)
+}
+
+/* ==================================================================== *
+ *  CONTROLLI INCROCIATI
+ * ==================================================================== */
+
+/**
+ * Un confronto fra due campi che devono dire la stessa cosa.
+ *
+ * ── PERCHÉ NON SONO CAMPI DA SPUNTARE ─────────────────────────────────
+ *
+ * Un errore di questo tipo — la domanda che cambia fra un certificato e
+ * l'altro, la data della fattura dopo la fine dei lavori — non si vede
+ * guardando un documento alla volta. Si vede solo mettendo due carte una
+ * accanto all'altra, ed è esattamente la cosa che a mano non si fa mai:
+ * si aprono otto PDF, si spunta, si va avanti.
+ *
+ * Quindi non chiediamo a nessuno di controllare. Si controlla da sé, e
+ * parla solo quando c'è qualcosa che non torna.
+ */
+export type Comprobacion = {
+    id: string
+    /** Cosa si sta confrontando, detto in una riga. */
+    titulo: string
+    /** Perché è un problema. Si legge solo quando l'allarme scatta. */
+    porque: string
+    campos: [string, string]
+    /** Come si confrontano i due valori. */
+    modo: 'igual' | 'no_posterior'
+    /** Scarto tollerato, per i numeri. Gli arrotondamenti non sono errori. */
+    tolerancia?: number
+}
+
+export const COMPROBACIONES: Comprobacion[] = [
+    {
+        id: 'dcal-coincide',
+        titulo: 'La demanda de calefacción no coincide entre los dos certificados',
+        porque: 'La demanda depende del edificio, no del equipo: cambiar la caldera no la cambia. Si los dos certificados dan cifras distintas, o se ha tocado algo más en la obra o no son de la misma vivienda — y la demanda anterior es la que multiplica la superficie en el cálculo.',
+        campos: ['dcal', 'dcal_despues'],
+        modo: 'igual',
+        tolerancia: 0.5,
+    },
+    {
+        id: 'dacs-coincide',
+        titulo: 'La demanda de ACS no coincide entre los dos certificados',
+        porque: 'Igual que la de calefacción: depende de la vivienda y de quién la habita, no del equipo instalado. Una diferencia aquí mueve el segundo término de la fórmula.',
+        campos: ['dacs', 'dacs_despues'],
+        modo: 'igual',
+        tolerancia: 1,
+    },
+    {
+        id: 'superficie-coincide',
+        titulo: 'La superficie útil no coincide entre los dos certificados',
+        porque: 'La superficie no cambia con una instalación. Si cambia, lo más probable es que uno de los dos certificados sea de otra vivienda — y es el error más caro de los tres, porque la superficie multiplica toda la demanda de calefacción.',
+        campos: ['superficie_m2', 'superficie_despues'],
+        modo: 'igual',
+        tolerancia: 0.5,
+    },
+    {
+        id: 'fecha-factura-fin-obra',
+        titulo: 'La factura es posterior al fin de obra',
+        porque: 'No es imposible, pero conviene mirarlo: si la factura se emitió después de certificar el fin de obra, alguna de las dos fechas suele estar mal copiada.',
+        campos: ['fecha_factura', 'fecha_fin_obra'],
+        modo: 'no_posterior',
+    },
+]
+
+export type EstadoAviso = 'ok' | 'alarma' | 'pendiente'
+
+export type Aviso = {
+    comprobacion: Comprobacion
+    estado: EstadoAviso
+    /** I due valori confrontati, per mostrarli affiancati. */
+    valores: [string, string]
+}
+
+const num = (v: unknown) => {
+    if (v === null || v === undefined || v === '') return null
+    const n = Number(String(v).replace(',', '.'))
+    return Number.isFinite(n) ? n : null
+}
+
+function evaluar(c: Comprobacion, e: Extraccion): EstadoAviso {
+    const [a, b] = c.campos.map((id) => e[id]?.valor ?? null)
+    if (a === null || a === '' || b === null || b === '') return 'pendiente'
+
+    if (c.modo === 'no_posterior') {
+        const fa = Date.parse(String(a))
+        const fb = Date.parse(String(b))
+        if (Number.isNaN(fa) || Number.isNaN(fb)) return 'pendiente'
+        return fa > fb ? 'alarma' : 'ok'
+    }
+
+    const na = num(a)
+    const nb = num(b)
+    // Non numerici: si confrontano come testo, normalizzato.
+    if (na === null || nb === null) {
+        const limpiar = (v: unknown) =>
+            String(v).trim().toLowerCase().replace(/\s+/g, ' ')
+        return limpiar(a) === limpiar(b) ? 'ok' : 'alarma'
+    }
+    return Math.abs(na - nb) <= (c.tolerancia ?? 0) ? 'ok' : 'alarma'
+}
+
+/**
+ * Tutti i controlli, con il loro esito.
+ *
+ * `pendiente` non è un problema: vuol dire che una delle due carte non è
+ * ancora arrivata. Diventa un'informazione solo quando ci sono entrambe.
+ */
+export function avisos(e: Extraccion): Aviso[] {
+    return COMPROBACIONES.map((c) => ({
+        comprobacion: c,
+        estado: evaluar(c, e),
+        valores: [
+            String(e[c.campos[0]]?.valor ?? '—'),
+            String(e[c.campos[1]]?.valor ?? '—'),
+        ] as [string, string],
+    }))
 }
 
 /**

@@ -5,7 +5,8 @@
 ### Energy Savings Qualification
 - **Minimum Savings:** 20% of baseline consumption (non-negotiable)
 - **Formula:** Savings % = (Old_kWh - New_kWh) / Old_kWh × 100
-- **Standard Rate:** 0.086 € per MJ/H (fixed, per BOE directive)
+- **Standard Rate:** 130 €/MWh = 0,130 € per kWh de energía final ahorrada al año
+  - La unidad es el kWh de AHORRO ANUAL de energía final, no MJ ni potencia. Una versión anterior de este documento decía «0.086 € per MJ/H»: era un error de unidad y de importe.
 
 ### Installer Commission Caps
 - **Maximum:** 30% of total calculated savings (cannot exceed)

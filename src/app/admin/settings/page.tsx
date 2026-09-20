@@ -6,8 +6,7 @@ import { Check, Lock } from 'lucide-react'
 import { Field, PrimaryButton, inputClass } from '@/components/auth/AuthShell'
 import {
     AHORRO_MINIMO_PCT,
-    COMISION_MAXIMA_PCT,
-    MARGEN_AGENCIA_PCT,
+    COMISION_MAXIMA_PCT,    CUOTA_CAES_PCT,
     TARIFA_CAES_EUR_MWH,
     VALIDEZ_ANOS,
     eur,
@@ -24,7 +23,7 @@ const EASE = [0.16, 1, 0.3, 1] as const
  * sbaglio qualcosa che poi invalida un espediente.
  */
 export default function AdminSettings() {
-    const [agencyPct, setAgencyPct] = useState(MARGEN_AGENCIA_PCT)
+    const [agencyPct, setAgencyPct] = useState(CUOTA_CAES_PCT)
     const [delegate, setDelegate] = useState('')
     const [reviewDays, setReviewDays] = useState(5)
     const [saved, setSaved] = useState(false)

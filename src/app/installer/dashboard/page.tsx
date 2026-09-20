@@ -3,10 +3,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, Loader2, Plus, Search } from 'lucide-react'
+import { ArrowRight, Loader2, Plus, Search, Trash2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
 import { COMISION_MAXIMA_PCT, eur } from '@/lib/caes/estimate'
+import {
+    contarArchivos,
+    deleteDraft,
+    listDrafts,
+    timeAgo,
+    type Draft,
+} from '@/lib/draft'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -24,7 +31,20 @@ export default function InstallerDashboard() {
     const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
+    const [borradores, setBorradores] = useState<Draft[]>([])
     const supabase = createClient()
+
+    // Le bozze non passano dal server: stanno in questo browser. Si leggono
+    // dopo il montaggio, altrimenti l'HTML del server e quello del browser
+    // non coincidono.
+    useEffect(() => {
+        setBorradores(listDrafts())
+    }, [])
+
+    const borrar = (id: string) => {
+        deleteDraft(id)
+        setBorradores(listDrafts())
+    }
 
     useEffect(() => {
         const load = async () => {
@@ -125,6 +145,68 @@ export default function InstallerDashboard() {
                     </motion.div>
                 ))}
             </div>
+
+            {/* ----------------------------------------------------- bozze
+
+                Stanno sopra gli espedienti inviati e non in fondo: sono
+                l'unica cosa in questa pagina su cui c'e ancora da fare
+                qualcosa. Un espediente inviato si guarda; una bozza si
+                finisce, ed e li che si perde tempo se non si ritrova. */}
+            {borradores.length > 0 && (
+                <div>
+                    <div className="flex flex-wrap items-baseline justify-between gap-3">
+                        <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+                            Sin terminar
+                        </h2>
+                        <p className="text-[13px] text-[var(--caes-mut)]">
+                            Guardados en este navegador, no en tu cuenta.
+                        </p>
+                    </div>
+
+                    <ul className="mt-5 flex flex-col gap-2.5">
+                        {borradores.map((b, i) => (
+                            <motion.li
+                                key={b.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.45, delay: Math.min(i, 6) * 0.04, ease: EASE }}
+                                className="group flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-dashed border-[var(--caes-line)] bg-[var(--caes-panel)] px-5 py-4 transition-colors hover:border-[var(--caes-ink)]/30"
+                            >
+                                <Link
+                                    href={`/installer/documentos?b=${b.id}`}
+                                    className="min-w-0 flex-1"
+                                >
+                                    <span className="block truncate text-[15px] font-medium tracking-[-0.018em]">
+                                        {b.nombre}
+                                    </span>
+                                    <span className="text-[12.5px] text-[var(--caes-mut)]">
+                                        {contarArchivos(b)}{' '}
+                                        {contarArchivos(b) === 1 ? 'archivo' : 'archivos'} ·
+                                        guardado {timeAgo(b.savedAt)}
+                                    </span>
+                                </Link>
+
+                                <Link
+                                    href={`/installer/documentos?b=${b.id}`}
+                                    className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-4 py-2 text-[13px] text-[var(--caes-ink)] transition-colors hover:border-[var(--caes-ink)] hover:bg-[var(--caes-band)]"
+                                >
+                                    Seguir
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    onClick={() => borrar(b.id)}
+                                    aria-label={`Eliminar ${b.nombre}`}
+                                    className="rounded-lg p-2 text-[var(--caes-faint)] transition-colors hover:bg-[var(--caes-band)] hover:text-[var(--caes-ink)]"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            </motion.li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             {/* ------------------------------------------------------ ricerca */}
             <div>

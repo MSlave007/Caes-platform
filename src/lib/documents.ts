@@ -38,6 +38,15 @@ export type DocSpec = {
     minFiles?: number
     /** Cosa devono mostrare, una riga per file. */
     checklist?: string[]
+    /**
+     * Occupa tutta la riga della griglia invece di mezza.
+     *
+     * Non e una decorazione: serve alle schede che portano dentro una
+     * lista (le tre foto) e fa si che le altre restino appaiate a due a
+     * due senza buchi. Le coppie che ne escono sono quelle giuste —
+     * i due RITE insieme, i due certificati energetici insieme.
+     */
+    ancho?: boolean
 }
 
 export const DOCUMENTS: Record<Role, DocSpec[]> = {
@@ -46,10 +55,14 @@ export const DOCUMENTS: Record<Role, DocSpec[]> = {
         {
             id: 'factura',
             label: 'Factura de la instalación',
-            why: 'La factura completa, no solo la del aparato: tiene que verse también la mano de obra. Es el documento que más trabajo ahorra: de aquí salen marca, modelo, código, potencia, el importe que el cliente se deduce y, porque va a su nombre, sus datos — NIF o NIE, teléfono y dirección de la actuación.',
+            // Il dettaglio di cosa ne esce non sta piu qui: la scheda lo
+            // elenca da sola leggendo extraction.ts, e ripeterlo a mano
+            // voleva dire tenerlo allineato per sempre.
+            why: 'Completa, con la mano de obra: no solo la del aparato. Va a nombre del cliente, así que es la que más trabajo ahorra.',
             required: true,
             accept: 'application/pdf,image/*',
             extracted: true,
+            ancho: true,
         },
         {
             // Le tre foto dell'impianto nuovo stanno in un riquadro solo:
@@ -64,6 +77,7 @@ export const DOCUMENTS: Record<Role, DocSpec[]> = {
             extracted: true,
             multiple: true,
             minFiles: 3,
+            ancho: true,
             checklist: [
                 'La bomba de calor, entera',
                 'La etiqueta del fabricante, legible sin ampliar',
@@ -84,7 +98,7 @@ export const DOCUMENTS: Record<Role, DocSpec[]> = {
         {
             id: 'equipo-anterior',
             label: 'Fotos del equipo sustituido',
-            why: 'Mejor tenerlas, pero no bloquean el envío. Si se lee la etiqueta sacamos el rendimiento real; si no, se aplica el valor por defecto y el certificado vale menos.',
+            why: 'Mejor tenerlas. Si se lee la etiqueta sacamos el rendimiento real; si no, el certificado vale menos.',
             required: false,
             accept: 'image/*',
             onSite: true,
@@ -134,13 +148,6 @@ export const DOCUMENTS: Record<Role, DocSpec[]> = {
             extracted: true,
         },
         {
-            id: 'dni-instalador',
-            label: 'DNI del instalador',
-            why: 'Del profesional que firma el certificado.',
-            required: true,
-            accept: 'image/*,application/pdf',
-        },
-        {
             // Sfogo: tutto quello che non rientra negli slot ma serve.
             id: 'extras',
             label: 'Otras fotos o documentos',
@@ -148,6 +155,7 @@ export const DOCUMENTS: Record<Role, DocSpec[]> = {
             required: false,
             accept: 'application/pdf,image/*',
             multiple: true,
+            ancho: true,
         },
     ],
 
@@ -192,6 +200,26 @@ export const DOCUMENTS: Record<Role, DocSpec[]> = {
     ],
 }
 
+/**
+ * Documenti dell'ACCOUNT, non dell'espediente.
+ *
+ * Si caricano una volta, in fase di verifica, e valgono per tutte le
+ * installazioni. Il DNI dell'installatore stava nell'elenco di ogni
+ * pratica: vuol dire chiederglielo daccapo a ogni cantiere, quando ce
+ * l'abbiamo gia e non cambia. Un dato che gia abbiamo non si richiede —
+ * ogni campo in piu e un motivo in piu per lasciare a meta.
+ */
+export const DOCUMENTOS_PERFIL: DocSpec[] = [
+    {
+        id: 'dni-instalador',
+        label: 'DNI o NIE',
+        why: 'Del profesional que firma los certificados. Se pide una sola vez: vale para todos tus expedientes.',
+        required: true,
+        accept: 'image/*,application/pdf',
+        extracted: true,
+    },
+]
+
 export function requiredCount(role: Role) {
     return DOCUMENTS[role].filter((d) => d.required).length
 }
@@ -210,5 +238,8 @@ export function docLabel(id: string): string {
         const found = DOCUMENTS[role].find((d) => d.id === id)
         if (found) return found.label
     }
-    return id
+    // Anche fra quelli del profilo: il NIF dell'installatore esce da li,
+    // e in revisione va comunque nominato.
+    const perfil = DOCUMENTOS_PERFIL.find((d) => d.id === id)
+    return perfil ? perfil.label : id
 }

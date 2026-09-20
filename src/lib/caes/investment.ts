@@ -17,11 +17,7 @@
  * controlliamo.
  */
 
-import {
-    TARIFA_CAES_EUR_KWH,
-    COMISION_TIPICA_PCT,
-    MARGEN_AGENCIA_PCT,
-} from './estimate'
+import { TARIFA_CAES_EUR_KWH, CUOTA_CLIENTE_DEFECTO_PCT } from './estimate'
 import {
     PRECIO_KWH,
     RENDIMIENTO_ACTUAL,
@@ -70,7 +66,7 @@ export const HORQUILLA = 0.18
 export const DEDUCCION_RENTA_PCT = 30
 
 /** Quota del certificato che arriva al cliente: il residuo. */
-const QUOTA_CLIENTE = (100 - COMISION_TIPICA_PCT - MARGEN_AGENCIA_PCT) / 100
+const QUOTA_CLIENTE = CUOTA_CLIENTE_DEFECTO_PCT / 100
 
 export type InvestmentInput = {
     sistema: SistemaActual

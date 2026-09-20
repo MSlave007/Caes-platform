@@ -76,6 +76,164 @@ export default function AdminReviewDetail({
 
     const faltan = faltanParaFormula(extraccion)
 
+    /* ------------------------------------------------ carte e lettura */
+
+    const [subiendo, setSubiendo] = useState<string | null>(null)
+    const [leyendo, setLeyendo] = useState<string | null>(null)
+    const [borrando, setBorrando] = useState<string | null>(null)
+    const [errorDoc, setErrorDoc] = useState<string | null>(null)
+
+    /**
+     * Caricare un documento dalla revisione.
+     *
+     * Non tutto arriva dal portale: una carta su tre la mandano per
+     * WhatsApp o la lasciano su un Drive. Finora quella finiva in un
+     * limbo — il fascicolo restava «incompleto» e l'unico modo di
+     * sbloccarlo era richiamare l'installatore e sperare che ricaricasse.
+     *
+     * Il file caricato da qui è identico a uno caricato da lui: stesso
+     * deposito, stesso slot, stessa verifica da fare. Quello che cambia è
+     * che il documento risulta NON verificato, come qualsiasi altro:
+     * averlo caricato di persona non è una ragione per non guardarlo.
+     */
+    const subirDocumento = async (docId: string, files: FileList) => {
+        setSubiendo(docId)
+        setErrorDoc(null)
+        try {
+            const nuevos: NonNullable<Project['docs']> = []
+
+            for (const file of Array.from(files)) {
+                const fd = new FormData()
+                fd.append('file', file)
+                const res = await fetch('/api/upload', { method: 'POST', body: fd })
+                const j = await res.json()
+                if (!res.ok) throw new Error(j.error ?? 'No se ha podido subir el archivo')
+                nuevos.push({ id: docId, name: file.name, verified: false, path: j.path })
+            }
+
+            const docs = [...(p?.docs ?? []), ...nuevos]
+            await patch({ docs })
+            setP((prev) => (prev ? { ...prev, docs } : prev))
+        } catch (e) {
+            setErrorDoc(e instanceof Error ? e.message : 'Error al subir el archivo')
+        } finally {
+            setSubiendo(null)
+        }
+    }
+
+    /**
+     * Togliere un file caricato per sbaglio.
+     *
+     * Due passi che vanno fatti in quest'ordine: prima si toglie dal
+     * fascicolo, poi si cancella dal deposito. Se il secondo fallisce
+     * resta un file orfano nel deposito, che non fa danno a nessuno;
+     * facendoli al contrario resterebbe un riferimento a un file che non
+     * c'è più — cioè esattamente l'«Object not found» da cui siamo
+     * partiti.
+     */
+    const borrarDocumento = async (docId: string, indice: number) => {
+        const todos = p?.docs ?? []
+        // L'indice arriva dal pannello ed è relativo ai file DI QUELLO
+        // SLOT, non all'elenco intero.
+        const delSlot = todos.filter((d) => d.id === docId)
+        const objetivo = delSlot[indice]
+        if (!objetivo) return
+
+        setBorrando(docId)
+        setErrorDoc(null)
+        try {
+            let quitado = false
+            const docs = todos.filter((d) => {
+                if (quitado || d !== objetivo) return true
+                quitado = true
+                return false
+            })
+
+            await patch({ docs })
+            setP((prev) => (prev ? { ...prev, docs } : prev))
+
+            // Niente file nello slot: la spunta di verifica non ha più
+            // niente a cui riferirsi e va tolta, o resta una conferma su
+            // un documento che non esiste.
+            if (!docs.some((d) => d.id === docId)) {
+                setVerified((v) => ({ ...v, [docId]: false }))
+            }
+
+            if (objetivo.path) {
+                const res = await fetch(
+                    `/api/upload?path=${encodeURIComponent(objetivo.path)}`,
+                    { method: 'DELETE' }
+                )
+                if (!res.ok) {
+                    const j = await res.json().catch(() => ({}))
+                    setErrorDoc(
+                        `Quitado del expediente, pero el archivo sigue en el almacén: ${j.details ?? j.error ?? 'error'}`
+                    )
+                }
+            }
+        } catch (e) {
+            setErrorDoc(e instanceof Error ? e.message : 'Error al borrar el archivo')
+        } finally {
+            setBorrando(null)
+        }
+    }
+
+    /**
+     * Mandare un documento al modello.
+     *
+     * Quello che torna NON si conferma da solo: entra come proposta, con
+     * la sua confidenza, e chi rivede lo spunta guardando il documento. Un
+     * campo già confermato a mano non viene sovrascritto — se qualcuno ci
+     * ha messo la faccia, la lettura automatica non gliela toglie.
+     */
+    const leerDocumento = async (docId: string, indice = 0) => {
+        const doc = (p?.docs ?? []).filter((d) => d.id === docId)[indice]
+        if (!doc?.path) {
+            setErrorDoc(
+                doc
+                    ? 'Este archivo no está en el almacén: se subió en modo demostración.'
+                    : 'No hay ningún archivo en este apartado.'
+            )
+            return
+        }
+
+        setLeyendo(docId)
+        setErrorDoc(null)
+        try {
+            const res = await fetch('/api/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ documento: docId, path: doc.path }),
+            })
+            const j = await res.json()
+            if (!res.ok) throw new Error(j.details ?? j.error ?? 'No se ha podido leer')
+
+            const datos = j.datos as Record<
+                string,
+                { valor: string | null; confianza: number }
+            >
+
+            setExtraccion((prev) => {
+                const siguiente = { ...prev }
+                for (const [id, leido] of Object.entries(datos)) {
+                    const actual = prev[id]
+                    if (actual && ['confirmado', 'corregido'].includes(actual.estado)) continue
+                    if (leido.valor === null || leido.valor === '') continue
+                    siguiente[id] = {
+                        valor: leido.valor,
+                        estado: 'extraido',
+                        confianza: leido.confianza,
+                    }
+                }
+                return siguiente
+            })
+        } catch (e) {
+            setErrorDoc(e instanceof Error ? e.message : 'Error al leer el documento')
+        } finally {
+            setLeyendo(null)
+        }
+    }
+
 
     useEffect(() => {
         fetch(`/api/projects/${id}`)
@@ -301,7 +459,19 @@ export default function AdminReviewDetail({
                         extraccion={extraccion}
                         onCambiar={cambiarCampo}
                         onConfirmar={confirmarCampo}
+                        onSubir={subirDocumento}
+                        subiendo={subiendo}
+                        onLeer={leerDocumento}
+                        leyendo={leyendo}
+                        onBorrar={borrarDocumento}
+                        borrando={borrando}
                     />
+                    {errorDoc && (
+                        <p className="mt-3 flex items-center gap-2 text-[13px] text-[#8A5B0B]">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            {errorDoc}
+                        </p>
+                    )}
                 </div>
             </section>
 

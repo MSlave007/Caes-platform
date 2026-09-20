@@ -20,11 +20,7 @@
  * QUOTA_CLIENTE_CAES qui sotto è il posto dove metterla.
  */
 
-import {
-    TARIFA_CAES_EUR_KWH,
-    COMISION_TIPICA_PCT,
-    MARGEN_AGENCIA_PCT,
-} from './estimate'
+import { TARIFA_CAES_EUR_KWH, CUOTA_CLIENTE_DEFECTO_PCT } from './estimate'
 
 /** DA CONFERMARE — prezzi medi dell'energia in Spagna, €/kWh. */
 export const PRECIO_KWH = {
@@ -83,8 +79,7 @@ export const ORE_ANUALES_ZONA: Record<Zona, number> = {
  * trattengono installatore e agenzia. Nel processo reale è un pagamento
  * una tantum dello Stato sul suo conto, non uno sconto sull'installazione.
  */
-export const QUOTA_CLIENTE_CAES =
-    (100 - COMISION_TIPICA_PCT - MARGEN_AGENCIA_PCT) / 100
+export const QUOTA_CLIENTE_CAES = CUOTA_CLIENTE_DEFECTO_PCT / 100
 
 /** Orizzonte usato nella cifra grande: coincide con la validità del certificato. */
 export const HORIZONTE_ANOS = 10

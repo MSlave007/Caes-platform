@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, useReducedMotion } from 'framer-motion'
-import { Check, Cloud, CloudOff, Loader2, Lock } from 'lucide-react'
+import { Check, Lock } from 'lucide-react'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -29,8 +29,10 @@ export default function WizardShell({
     onGoTo,
     save,
     savedAt,
-    onSave,
+    nombre,
+    onNombreChange,
     children,
+    ancho,
 }: {
     steps: StepDef[]
     current: number
@@ -39,13 +41,41 @@ export default function WizardShell({
     onGoTo: (i: number) => void
     save: SaveState
     savedAt?: string
-    onSave: () => void
+    /** Il nome dell'espediente. Vive qui perché vale per tutti i passi. */
+    nombre?: string
+    onNombreChange?: (v: string) => void
     children: React.ReactNode
+    /** Il passo dei documenti e una griglia a due colonne: gli servono
+     *  piu di 820px, agli altri no. */
+    ancho?: boolean
 }) {
     const reduce = useReducedMotion()
 
     return (
-        <div className="mx-auto w-full max-w-[820px]">
+        <div className={`mx-auto w-full ${ancho ? 'max-w-[1060px]' : 'max-w-[820px]'}`}>
+            {/* ---------------------------------------------------- il nome
+                Sta in cima e non dentro un passo: e il nome della pratica,
+                non un dato del primo modulo. Chi ha tre cantieri aperti
+                distingue le bozze solo da qui — il cliente non c'e ancora,
+                perche i suoi dati escono dalla fattura, che arriva dopo. */}
+            {onNombreChange && (
+                <div className="mb-6">
+                    <label
+                        htmlFor="nombre-expediente"
+                        className="label-mono block text-[var(--caes-faint)]"
+                    >
+                        Nombre del expediente
+                    </label>
+                    <input
+                        id="nombre-expediente"
+                        value={nombre ?? ''}
+                        onChange={(e) => onNombreChange(e.target.value)}
+                        placeholder="Calle Mayor 4, 3ºB"
+                        className="mt-2 w-full max-w-[34ch] border-b border-transparent bg-transparent pb-1.5 text-[22px] font-semibold tracking-[-0.026em] text-[var(--caes-ink)] outline-none transition-colors placeholder:font-normal placeholder:text-[var(--caes-faint)] hover:border-[var(--caes-line)] focus:border-[var(--caes-ink)]"
+                    />
+                </div>
+            )}
+
             {/* ------------------------------------------------------ passi */}
             <nav aria-label="Pasos" className="border-b border-[var(--caes-line)] pb-6">
                 <ol className="flex flex-wrap items-center gap-x-2 gap-y-3">
@@ -93,24 +123,10 @@ export default function WizardShell({
                     })}
                 </ol>
 
-                {/* stato del salvataggio */}
+                {/* Stato del salvataggio. Il PULSANTE non sta piu qui: qui
+                    scorre via appena si comincia a caricare, ed e proprio
+                    mentre si scorre che serve. Sta nella barra in fondo. */}
                 <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <button
-                        type="button"
-                        onClick={onSave}
-                        disabled={save === 'saving'}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-4 py-2 text-[13px] text-[var(--caes-ink)] transition-colors hover:border-[var(--caes-ink)]/40 hover:bg-[var(--caes-band)] disabled:opacity-50"
-                    >
-                        {save === 'saving' ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : save === 'error' ? (
-                            <CloudOff className="h-3.5 w-3.5 text-amber-700" />
-                        ) : (
-                            <Cloud className="h-3.5 w-3.5" />
-                        )}
-                        Guardar borrador
-                    </button>
-
                     <motion.span
                         key={savedAt ?? save}
                         initial={reduce ? false : { opacity: 0, y: 4 }}

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { ArrowUpDown, Download, Loader2, Search } from 'lucide-react'
 import ProjectRow from '@/components/admin/ProjectRow'
 import { normalize } from '@/components/platform/StatusChip'
-import { eur, MARGEN_AGENCIA_PCT } from '@/lib/caes/estimate'
+import { eur, CUOTA_CAES_PCT } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
 
 const EASE = [0.16, 1, 0.3, 1] as const
@@ -54,7 +54,7 @@ export default function AdminProjects() {
         const approved = projects.filter((p) => normalize(p.status) === 'approved')
         const certified = approved.reduce((a, p) => a + p.savings_eur, 0)
         const ours = approved.reduce(
-            (a, p) => a + p.savings_eur * ((p.agency_pct ?? MARGEN_AGENCIA_PCT) / 100),
+            (a, p) => a + p.savings_eur * ((p.agency_pct ?? CUOTA_CAES_PCT) / 100),
             0
         )
         return { certified, ours, approved: approved.length }

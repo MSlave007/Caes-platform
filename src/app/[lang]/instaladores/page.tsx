@@ -1,7 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowRight, Check } from 'lucide-react'
+import {
+    ArrowRight,
+    Check,
+    Camera,
+    ScanText,
+    ShieldCheck,
+    FileSignature,
+} from 'lucide-react'
 import SimulatorBar from '@/components/landing/SimulatorBar'
 import InstallerEarnings from '@/components/landing/InstallerEarnings'
 import {
@@ -10,6 +17,14 @@ import {
     getDictionary,
     type Locale,
 } from '@/lib/i18n/landing'
+
+/**
+ * Un'icona per passo, nello stesso ordine delle stringhe del dizionario.
+ * Senza, i quattro passi erano quattro colonne di testo identiche fra loro:
+ * niente diceva all'occhio dove guardare, e la sezione si leggeva come un
+ * indice invece che come una sequenza.
+ */
+const HOW_ICONS = [Camera, ScanText, ShieldCheck, FileSignature] as const
 import { eur } from '@/lib/caes/estimate'
 
 export function generateStaticParams() {
@@ -332,32 +347,80 @@ export default async function InstalladoresPage({
                 className="scroll-mt-24 border-t border-[var(--caes-line)]"
             >
                 <div className="mx-auto max-w-[1440px] px-6 py-20 sm:px-10 lg:px-16">
-                    <p className="label-mono text-[var(--caes-mut)]">{d.how.eyebrow}</p>
-                    <h2 className="mt-4 max-w-[18ch] text-[clamp(26px,3.4vw,38px)] font-semibold leading-[1.08] tracking-[-0.032em] text-balance">
-                        {d.how.title}
-                    </h2>
-                    <p className="mt-4 max-w-[58ch] text-[15.5px] text-[var(--caes-mut)]">
-                        {d.how.sub}
-                    </p>
+                    {/* Intestazione su due colonne: il sottotitolo sale
+                        accanto al titolo invece di allungare la sezione. */}
+                    <div className="grid gap-x-16 gap-y-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:items-end">
+                        <div>
+                            <p className="label-mono text-[var(--caes-mut)]">
+                                {d.how.eyebrow}
+                            </p>
+                            <h2 className="mt-4 max-w-[18ch] text-[clamp(26px,3.4vw,38px)] font-semibold leading-[1.08] tracking-[-0.032em] text-balance">
+                                {d.how.title}
+                            </h2>
+                        </div>
+                        <p className="max-w-[46ch] text-[15.5px] leading-[1.6] text-[var(--caes-mut)] lg:pb-1.5">
+                            {d.how.sub}
+                        </p>
+                    </div>
 
-                    <ol className="mt-14 grid gap-0 border-t border-[var(--caes-line)] md:grid-cols-4">
-                        {d.how.steps.map((s) => (
-                            <li
-                                key={s.n}
-                                className="relative border-b border-[var(--caes-line)] py-7 pr-8 md:border-b-0 md:border-r md:last:border-r-0"
-                            >
-                                <span className="absolute -top-px left-0 h-px w-10 bg-[var(--caes-green)]" />
-                                <span className="font-mono text-[11px] tracking-[.14em] text-[var(--caes-green)]">
-                                    {s.n}
-                                </span>
-                                <h3 className="mt-3 text-[16px] font-semibold tracking-[-0.018em]">
-                                    {s.title}
-                                </h3>
-                                <p className="mt-2.5 max-w-[36ch] text-[13.5px] leading-[1.55] text-[var(--caes-mut)]">
-                                    {s.body}
-                                </p>
-                            </li>
-                        ))}
+                    {/* I quattro passi. L'ultimo è scuro: è il punto d'arrivo
+                        della sequenza, e dà alla fascia un peso su cui posarsi
+                        invece di finire nel vuoto. */}
+                    <ol className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {d.how.steps.map((s, i) => {
+                            const Icon = HOW_ICONS[i] ?? Camera
+                            const last = i === d.how.steps.length - 1
+                            return (
+                                <li
+                                    key={s.n}
+                                    className={
+                                        last
+                                            ? 'flex flex-col rounded-2xl bg-[var(--caes-deep)] p-7 text-[#DDE9E1]'
+                                            : 'flex flex-col rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7 transition-shadow duration-300 hover:shadow-[0_18px_40px_-24px_rgba(6,35,26,.35)]'
+                                    }
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <span
+                                            className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border ${
+                                                last
+                                                    ? 'border-white/[.12] bg-white/[.07]'
+                                                    : 'border-[var(--caes-line-2)] bg-[var(--caes-paper)]'
+                                            }`}
+                                        >
+                                            <Icon
+                                                className={`h-[19px] w-[19px] ${
+                                                    last
+                                                        ? 'text-[var(--caes-lime)]'
+                                                        : 'text-[var(--caes-green)]'
+                                                }`}
+                                                strokeWidth={1.6}
+                                            />
+                                        </span>
+                                        <span
+                                            className={`font-mono text-[11px] tracking-[.14em] ${
+                                                last
+                                                    ? 'text-[rgba(199,240,74,.65)]'
+                                                    : 'text-[var(--caes-faint)]'
+                                            }`}
+                                        >
+                                            {s.n}
+                                        </span>
+                                    </div>
+                                    <h3 className="mt-5 text-[16px] font-semibold leading-[1.3] tracking-[-0.018em]">
+                                        {s.title}
+                                    </h3>
+                                    <p
+                                        className={`mt-2.5 text-[13.5px] leading-[1.55] ${
+                                            last
+                                                ? 'text-[rgba(221,233,225,.55)]'
+                                                : 'text-[var(--caes-mut)]'
+                                        }`}
+                                    >
+                                        {s.body}
+                                    </p>
+                                </li>
+                            )
+                        })}
                     </ol>
                 </div>
             </section>
