@@ -128,14 +128,17 @@ export const RENDIMIENTO_CALDERA_DEFECTO = 0.92
  * (edifici pre-CTE, che sono quelli che si ristrutturano) e servono solo
  * a dare una stima prima di avere il certificato in mano.
  *
- * D3 è la zona di riferimento del simulatore ed è tarata a 130: è il caso
- * base su cui si ragiona. Le altre zone restano come stavano, e chi sta
- * altrove sceglie la sua dal menu.
+ * D3 è tarata a 130 ed è il caso su cui si è ragionato in calibrazione.
+ * C2 è Barcellona, aggiunta il 20 settembre 2026 perché è la zona di
+ * partenza del simulatore e non c'era: 80 sta fra C1 (70) e C3 (90),
+ * coerente con la progressione del resto della tabella. DA CONFERMARE
+ * come tutte le altre.
  */
 export const DEMANDA_CALEFACCION_POR_ZONA: Record<string, number> = {
     A3: 25,
     B3: 45,
     C1: 70,
+    C2: 80,
     C3: 90,
     D2: 105,
     D3: 130,
@@ -319,12 +322,21 @@ export function estimate({
     }
 }
 
-/** Formattazione in euro con le convenzioni spagnole (1.234,56 €). */
+/**
+ * Formattazione in euro con le convenzioni spagnole (1.234,56 €).
+ *
+ * useGrouping 'always' perché es-ES di suo NON raggruppa i numeri di
+ * quattro cifre: veniva fuori «9060,20 €» accanto a «21.140,20 €» nella
+ * stessa riga, e due cifre confrontabili sembravano di due grandezze
+ * diverse. In un pannello che esiste per far confrontare numeri, quella
+ * incoerenza si legge come un errore.
+ */
 export function eur(n: number, locale = 'es-ES') {
     return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: 'EUR',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
+        useGrouping: 'always',
     }).format(n)
 }

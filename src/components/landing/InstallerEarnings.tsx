@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, AlertTriangle } from 'lucide-react'
+import { ArrowRight, ArrowLeft, AlertTriangle, Pencil } from 'lucide-react'
 import {
     estimate,
     eur,
     DEMANDA_CALEFACCION_POR_ZONA,
     COMISION_MAXIMA_PCT,
-    CUOTA_CAES_PCT,
     POOL_REPARTIBLE_PCT,
     REPARTO_INSTALADOR_DEFECTO_PCT,
     repartoATotal,
@@ -23,35 +22,39 @@ import type { Dict, Locale } from '@/lib/i18n/landing'
  * l'installatore al telefono: «quanto ci guadagno, e quanto ho lasciato
  * indietro dal 2024».
  *
- * ── GERARCHIA E INGOMBRO ──────────────────────────────────────────────
+ * ── DUE PASSI, POI UN NUMERO ──────────────────────────────────────────
  *
- * Il pannello deve stare in una schermata: se per leggere il terzo numero
- * si deve scorrere, i numeri smettono di parlarsi fra loro ed è proprio il
- * confronto il punto di tutta la pagina. Da qui tre scelte.
+ * La versione precedente metteva cinque controlli e otto cifre nella
+ * stessa schermata. Chi arrivava non capiva cosa stesse guardando: non
+ * c'era un ordine di lettura, solo un cruscotto. Ora la pagina fa una
+ * domanda per volta.
  *
- * 1) I due totali stanno AFFIANCATI, non impilati: sono lo stesso denaro a
- *    due orizzonti (tre anni e un anno), e uno accanto all'altro si legge
- *    subito che il primo è il secondo moltiplicato per tre. La differenza
- *    di corpo dice qual è il protagonista.
+ *   passo 1  com'è l'installazione tipo — superficie, zona, cosa toglie
+ *   passo 2  quante ne fa in un anno
+ *   ↓
+ *   risultato  un numero grande, le sue due metà, e il cursore
  *
- * 2) Sotto, nella stessa cornice, le due metà del totale annuo: lui e i
- *    suoi clienti. Sono una scomposizione, quindi stanno più in basso e
- *    più in piccolo, ma restano leggibili — è il numero che porta in
- *    trattativa.
+ * Tutti e due i passi arrivano già compilati con il caso più comune, così
+ * chi non vuole pensarci preme due volte «avanti» e vede la cifra: il
+ * modulo è un invito a correggere, non un questionario da riempire.
  *
- * 3) La gerarchia la fa il FONDO, non il corpo del testo: sul verde scuro
- *    solo risultati, sul chiaro solo materiale di servizio. Così il
- *    materiale di servizio può stare in una riga sola senza sembrare un
- *    secondo gruppo di risultati.
+ * Dal risultato si torna indietro con «cambiar los datos», che conserva
+ * quello che aveva scelto.
+ *
+ * ── COSA STA DENTRO E COSA STA SOTTO ──────────────────────────────────
+ *
+ * Dentro il pannello ci sono solo le cifre che rispondono alla domanda:
+ * quanto c'è sul tavolo, quanto ne va a lui, quanto ai suoi clienti. Il
+ * valore del certificato, i kWh, le ore di papeleo e la validità NON sono
+ * risultati del simulatore: sono argomenti di vendita che si ricavano
+ * dagli stessi dati. Stanno fuori dal pannello, sotto, come benefici — e
+ * si aggiornano con gli input, perché sono conseguenze di quello che ha
+ * appena dichiarato.
  *
  * Il piatto NON si muove col cursore: il piatto è un fatto, la linea che
- * lo taglia è una decisione dell'installatore. È la ragione per cui non
- * mostriamo solo la sua fetta — chi guarda solo la fetta pensa che alzare
- * la commissione crei valore, mentre sposta soltanto denaro dal cliente
- * a sé.
- *
- * I tre anni di arretrato NON sono un cursore: sono il termine di legge
- * per presentare l'actuación dal fine lavori, uguale per tutti.
+ * lo taglia è una decisione dell'installatore. Chi guarda solo la propria
+ * fetta pensa che alzare la commissione crei valore, mentre sposta
+ * soltanto denaro dal cliente a sé.
  */
 
 /** Superfici tipiche: dall'appartamento alla villa. */
@@ -63,22 +66,18 @@ const ZONA_CIUDAD: Record<string, string> = {
     A3: 'Cádiz',
     B3: 'Valencia',
     C1: 'Bilbao',
+    C2: 'Barcelona',
     C3: 'Madrid',
     D2: 'Zaragoza',
     D3: 'Valladolid',
     E1: 'Burgos',
 }
 
-/**
- * Casa tipo: 220 m².
- *
- * L'aerotermia si mette su case grandi, e nella ficha RES060 è la
- * SUPERFICIE a fare il valore del certificato, non i kW installati.
- */
+/** Valori di partenza: il caso più comune, così due clic bastano. */
 const SUPERFICIE_TIPO = 220
-
-/** Zona di riferimento: è quella su cui è tarata la DCAL del motore. */
-const ZONA_TIPO = 'D3'
+const ZONA_TIPO = 'C2'
+const SUSTITUIDO_TIPO = 'caldera_gas'
+const INSTALACIONES_TIPO = 20
 
 /** Termine di legge per presentare l'actuación, anni dal fine lavori. */
 const ANOS_RECUPERABLES = 3
@@ -86,9 +85,13 @@ const ANOS_RECUPERABLES = 3
 /** Minuti dichiarati per pratica: è la promessa del titolo della pagina. */
 const MINUTOS_POR_EXPEDIENTE = 15
 
+const PASOS = 2
+
 type Props = { dict: Dict; locale: Locale }
 
-function Select({
+/* ────────────────────────────────────────────────── pezzi del modulo */
+
+function Field({
     label,
     value,
     onChange,
@@ -100,12 +103,12 @@ function Select({
     children: React.ReactNode
 }) {
     return (
-        <label className="min-w-0 flex-1 cursor-pointer border-b border-[var(--caes-line-2)] px-5 py-3 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
-            <span className="label-mono block text-[var(--caes-faint)]">{label}</span>
+        <label className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1 rounded-[8px] border border-[var(--caes-line)] bg-[var(--caes-paper)] px-4 py-3 transition-colors focus-within:border-[var(--caes-green)]">
+            <span className="label-mono text-[var(--caes-faint)]">{label}</span>
             <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="mt-0.5 w-full cursor-pointer appearance-none rounded-sm bg-transparent text-[15px] font-medium tracking-[-0.012em] text-[var(--caes-ink)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--caes-green)]/40"
+                className="w-full cursor-pointer appearance-none bg-transparent text-[16px] font-medium tracking-[-0.015em] text-[var(--caes-ink)] outline-none"
             >
                 {children}
             </select>
@@ -113,128 +116,109 @@ function Select({
     )
 }
 
-function Slider({
-    id,
-    label,
-    value,
-    min,
-    max,
-    onChange,
-    display,
-    hint,
+function Boton({
+    children,
+    onClick,
+    variant = 'primary',
 }: {
-    id: string
-    label: string
-    value: number
-    min: number
-    max: number
-    onChange: (n: number) => void
-    display: string
-    /** Riga minuscola sotto al cursore: dice cosa succede all'altra parte. */
-    hint?: string
+    children: React.ReactNode
+    onClick: () => void
+    variant?: 'primary' | 'ghost'
 }) {
     return (
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-5 py-3">
-            <label htmlFor={id} className="flex items-baseline justify-between gap-3">
-                <span className="label-mono whitespace-nowrap text-[var(--caes-faint)]">
-                    {label}
+        <button
+            type="button"
+            onClick={onClick}
+            className={
+                variant === 'primary'
+                    ? 'group inline-flex items-center gap-2 rounded-full bg-[var(--caes-ink)] px-6 py-3 text-[14.5px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90'
+                    : 'inline-flex items-center gap-2 rounded-full px-4 py-3 text-[14px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]'
+            }
+        >
+            {children}
+        </button>
+    )
+}
+
+/** Intestazione del passo: a che punto siamo, e cosa stiamo chiedendo. */
+function PasoHead({
+    n,
+    label,
+    question,
+    hint,
+}: {
+    n: number
+    label: string
+    question: string
+    hint: string
+}) {
+    return (
+        <div>
+            <div className="flex items-center gap-2.5">
+                <span className="label-mono text-[var(--caes-faint)]">{label}</span>
+                <span className="flex gap-1" aria-hidden>
+                    {Array.from({ length: PASOS }, (_, i) => (
+                        <i
+                            key={i}
+                            className={`block h-[5px] w-[5px] rounded-full ${
+                                i < n ? 'bg-[var(--caes-green)]' : 'bg-[var(--caes-line)]'
+                            }`}
+                        />
+                    ))}
                 </span>
-                <span className="whitespace-nowrap font-mono tabular text-[15px] font-medium tracking-[-0.02em] text-[var(--caes-ink)]">
-                    {display}
-                </span>
-            </label>
-            <input
-                id={id}
-                type="range"
-                min={min}
-                max={max}
-                step={1}
-                value={value}
-                onChange={(e) => onChange(Number(e.target.value))}
-                className="earn-range w-full cursor-pointer"
-            />
-            <span className="h-[11px] font-mono text-[10.5px] leading-none tracking-[.02em] text-[var(--caes-faint)]">
-                {hint ?? ''}
-            </span>
+            </div>
+            <h3 className="mt-3 text-[clamp(20px,2.2vw,25px)] font-semibold leading-[1.2] tracking-[-0.025em] text-[var(--caes-ink)]">
+                {question}
+            </h3>
+            <p className="mt-1.5 text-[13.5px] leading-[1.5] text-[var(--caes-mut)]">
+                {hint}
+            </p>
         </div>
     )
 }
 
-/**
- * Una delle due metà del totale annuo: sua e dei suoi clienti. Corpo
- * ridotto rispetto ai totali, ma non minuscolo — è la cifra che si porta
- * in trattativa.
- */
+/** Una delle due metà del piatto annuo, dentro il pannello scuro. */
 function Half({ label, value, sub }: { label: string; value: string; sub: string }) {
     return (
-        <div className="min-w-0 border-t border-white/[.08] px-6 py-4 first:border-t-0 sm:border-l sm:border-t-0 sm:px-7 sm:first:border-l-0 sm:first:pl-0">
-            <span className="label-mono text-[rgba(221,233,225,.45)]">{label}</span>
-            <div className="mt-1 font-mono tabular text-[clamp(22px,2.5vw,28px)] font-medium leading-[1.06] tracking-[-0.03em] text-[#DDE9E1]">
+        <div className="min-w-0 border-t border-white/[.1] px-6 py-5 first:border-t-0 sm:border-l sm:border-t-0 sm:px-8 sm:first:border-l-0 sm:first:pl-0">
+            <span className="label-mono text-[rgba(221,233,225,.62)]">{label}</span>
+            <div className="num-mid mt-1.5 text-[clamp(25px,2.9vw,34px)] text-[#E6F1E9]">
                 {value}
             </div>
-            <p className="mt-0.5 text-[11.5px] leading-[1.4] text-[rgba(221,233,225,.4)]">
+            <p className="mt-1.5 text-[13px] leading-[1.45] text-[rgba(221,233,225,.6)]">
                 {sub}
             </p>
         </div>
     )
 }
 
-/**
- * Casella di servizio, su fondo CHIARO: risponde a «da dove esce questo
- * numero». È il cambio di fondo a tenerla fuori dalla gara con i
- * risultati, quindi può stare stretta.
- */
-function Aside({
-    label,
-    children,
-    sub,
-}: {
-    label: string
-    children: React.ReactNode
-    sub?: string
-}) {
-    return (
-        <div className="min-w-0 border-t border-[var(--caes-line-2)] px-6 py-3.5 sm:border-l sm:border-t-0 sm:px-7 sm:first:border-l-0">
-            <span className="label-mono text-[var(--caes-faint)]">{label}</span>
-            <div className="mt-1.5">{children}</div>
-            {sub ? (
-                <p className="mt-1 text-[11px] leading-[1.4] text-[var(--caes-faint)]">
-                    {sub}
-                </p>
-            ) : null}
-        </div>
-    )
-}
-
-function AsideValue({ children }: { children: React.ReactNode }) {
-    return (
-        <span className="font-mono tabular text-[17px] font-medium tracking-[-0.025em] text-[var(--caes-ink)]">
-            {children}
-        </span>
-    )
-}
-
 function Aviso({ children }: { children: React.ReactNode }) {
     return (
-        <p className="mx-6 mb-4 flex items-start gap-2.5 rounded-[6px] border border-[rgba(255,196,84,.28)] bg-[rgba(255,196,84,.08)] px-3 py-2.5 text-[12.5px] leading-[1.45] text-[rgba(255,214,140,.92)] sm:mx-9">
+        <p className="mx-6 mb-5 flex items-start gap-2.5 rounded-[6px] border border-[rgba(255,196,84,.28)] bg-[rgba(255,196,84,.08)] px-3 py-2.5 text-[12.5px] leading-[1.45] text-[rgba(255,214,140,.92)] sm:mx-8">
             <AlertTriangle className="mt-[2px] h-3.5 w-3.5 shrink-0" />
             {children}
         </p>
     )
 }
 
+/* ─────────────────────────────────────────────────────────── componente */
+
 export default function InstallerEarnings({ dict, locale }: Props) {
     const t = dict.ganancias
+    const w = t.wizard
     const s = dict.simulator
 
-    const [instalaciones, setInstalaciones] = useState(24)
+    /** 1 e 2 sono i passi; 3 è il risultato. */
+    const [paso, setPaso] = useState(1)
+
+    const [superficie, setSuperficie] = useState(SUPERFICIE_TIPO)
+    const [zona, setZona] = useState(ZONA_TIPO)
+    const [sustituido, setSustituido] = useState<string>(SUSTITUIDO_TIPO)
+    const [instalaciones, setInstalaciones] = useState(INSTALACIONES_TIPO)
     // Il cursore parla in percentuale del PIATTO, non del totale: «di questi
     // 70 %, quanto ne tengo io». Il motore lavora sul totale, quindi la
     // conversione sta qui e in un posto solo.
     const [reparto, setReparto] = useState(REPARTO_INSTALADOR_DEFECTO_PCT)
-    const [superficie, setSuperficie] = useState(SUPERFICIE_TIPO)
-    const [zona, setZona] = useState(ZONA_TIPO)
-    const [sustituido, setSustituido] = useState<string>('caldera_gas')
 
     const r = useMemo(
         () =>
@@ -250,252 +234,297 @@ export default function InstallerEarnings({ dict, locale }: Props) {
         [superficie, zona, sustituido, reparto]
     )
 
-    // Per expediente
-    const porProyecto = r.parteInstalador
-    const porCliente = r.parteCliente
-
-    // All'anno: prima il totale, poi le sue due metà.
     const totalAlAno = r.poolRepartible * instalaciones
-    const alAno = porProyecto * instalaciones
+    const alAno = r.parteInstalador * instalaciones
+    // per differenza: le quote per expediente sono arrotondate al centesimo
+    // e su decine di pratiche la somma non tornerebbe col numero grande
     const clienteAlAno = totalAlAno - alAno
-
-    // Sui tre anni recuperabili. Le metà si ricavano per differenza dal
-    // totale: le quote per expediente sono arrotondate al centesimo e su
-    // decine di pratiche la somma non tornerebbe col numero grande.
     const mesaTotal = totalAlAno * ANOS_RECUPERABLES
-    const mesaMia = alAno * ANOS_RECUPERABLES
-    const mesaCliente = mesaTotal - mesaMia
 
     const horas = (instalaciones * MINUTOS_POR_EXPEDIENTE) / 60
-    const porHora = horas > 0 ? alAno / horas : 0
 
     const money = (n: number) => eur(n, dict.intlLocale)
+    // useGrouping come in eur(): stessa ragione, stesso pannello.
     const num = (n: number) =>
-        new Intl.NumberFormat(dict.intlLocale, { maximumFractionDigits: 0 }).format(n)
+        new Intl.NumberFormat(dict.intlLocale, {
+            maximumFractionDigits: 0,
+            useGrouping: 'always',
+        }).format(n)
+
+    const resumen = [
+        `${superficie} m²`,
+        `${zona} · ${ZONA_CIUDAD[zona] ?? zona}`,
+        s.substitutes[sustituido as keyof typeof s.substitutes],
+        `${num(instalaciones)} ${w.perYear}`,
+    ].join('  ·  ')
+
+    /** I benefici stanno FUORI dal simulatore, ma si nutrono dei suoi dati. */
+    const beneficios = t.beneficios.items.map((b) => ({
+        v: b.v
+            .replace('{cert}', money(r.valorTotal))
+            .replace('{h}', num(horas)),
+        k: b.k,
+        s: b.s
+            .replace('{kwh}', num(r.kwhAhorrados))
+            .replace('{min}', String(MINUTOS_POR_EXPEDIENTE)),
+    }))
+
+    // Il guscio non porta il fondo: due utility bg-* sullo stesso elemento
+    // si contendono la precedenza e vince quella che sta piu in basso nel
+    // CSS generato, non quella scritta dopo nella stringa.
+    const shell =
+        'overflow-hidden rounded-[12px] shadow-[0_2px_4px_rgba(6,35,26,.05),0_34px_60px_-30px_rgba(6,35,26,.4)]'
+    const shellClaro = `${shell} border border-[var(--caes-line)] bg-[var(--caes-panel)]`
+    const shellOscuro = `${shell} bg-[var(--caes-deep)] text-[#DDE9E1]`
 
     return (
-        <div className="overflow-hidden rounded-[12px] border border-[var(--caes-line)] bg-[var(--caes-panel)] shadow-[0_2px_4px_rgba(6,35,26,.05),0_34px_60px_-30px_rgba(6,35,26,.4)]">
-            {/* --------------------------------------- CONTROLLI, IN BARRA */}
-            <div className="flex flex-col border-b border-[var(--caes-line-2)] lg:flex-row">
-                <Select
-                    label={s.fields.superficie}
-                    value={superficie}
-                    onChange={(v) => setSuperficie(Number(v))}
-                >
-                    {SUPERFICIES.map((m) => (
-                        <option key={m} value={m}>
-                            {m} m²
-                        </option>
-                    ))}
-                </Select>
-                <Select label={s.fields.zona} value={zona} onChange={setZona}>
-                    {ZONAS.map((z) => (
-                        <option key={z} value={z}>
-                            {z} · {ZONA_CIUDAD[z] ?? z}
-                        </option>
-                    ))}
-                </Select>
-                <Select
-                    label={s.fields.sustituido}
-                    value={sustituido}
-                    onChange={setSustituido}
-                >
-                    {SUSTITUIDOS.map((k) => (
-                        <option key={k} value={k}>
-                            {s.substitutes[k]}
-                        </option>
-                    ))}
-                </Select>
-                <div className="flex flex-col border-t border-[var(--caes-line-2)] lg:w-[44%] lg:shrink-0 lg:flex-row lg:border-l lg:border-t-0">
-                    <Slider
-                        id="earn-inst"
-                        label={t.controls.instalaciones}
-                        value={instalaciones}
-                        min={1}
-                        max={40}
-                        onChange={setInstalaciones}
-                        display={num(instalaciones)}
+        <div>
+            {/* ═══════════════════════════════════ IL SIMULATORE ══════════ */}
+            {paso === 1 ? (
+                <div className={`${shellClaro} px-6 py-7 sm:px-8 sm:py-8`}>
+                    <PasoHead
+                        n={1}
+                        label={w.stepOf.replace('{n}', '1').replace('{total}', '2')}
+                        question={w.q1}
+                        hint={w.q1Hint}
                     />
-                    <Slider
-                        id="earn-com"
-                        label={t.controls.comision}
-                        value={reparto}
-                        min={0}
-                        max={100}
-                        onChange={setReparto}
-                        display={`${r.repartoInstaladorPct} %`}
-                        hint={t.controls.comisionHint.replace(
-                            '{pct}',
-                            String(r.repartoClientePct)
-                        )}
-                    />
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                        <Field
+                            label={s.fields.superficie}
+                            value={superficie}
+                            onChange={(v) => setSuperficie(Number(v))}
+                        >
+                            {SUPERFICIES.map((m) => (
+                                <option key={m} value={m}>
+                                    {m} m²
+                                </option>
+                            ))}
+                        </Field>
+                        <Field
+                            label={s.fields.zona}
+                            value={zona}
+                            onChange={setZona}
+                        >
+                            {ZONAS.map((z) => (
+                                <option key={z} value={z}>
+                                    {z} · {ZONA_CIUDAD[z] ?? z}
+                                </option>
+                            ))}
+                        </Field>
+                        <Field
+                            label={s.fields.sustituido}
+                            value={sustituido}
+                            onChange={setSustituido}
+                        >
+                            {SUSTITUIDOS.map((k) => (
+                                <option key={k} value={k}>
+                                    {s.substitutes[k]}
+                                </option>
+                            ))}
+                        </Field>
+                    </div>
+                    <div className="mt-7 flex justify-end">
+                        <Boton onClick={() => setPaso(2)}>
+                            {w.next}
+                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                        </Boton>
+                    </div>
                 </div>
-            </div>
+            ) : null}
 
-            {/* ══════════════════════════ FONDO SCURO: SOLO I RISULTATI ═══ */}
-            <div className="bg-[var(--caes-deep)] text-[#DDE9E1]">
-                {/* I DUE TOTALI, AFFIANCATI. Stesso denaro, due orizzonti:
-                    accostati si legge da soli che uno è il triplo dell'altro. */}
-                <div className="grid grid-cols-1 sm:grid-cols-[1.32fr_1fr]">
-                    <div className="min-w-0 px-6 pb-5 pt-6 sm:px-9">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                            <span className="label-mono text-[var(--caes-lime)]">
+            {paso === 2 ? (
+                <div className={`${shellClaro} px-6 py-7 sm:px-8 sm:py-8`}>
+                    <PasoHead
+                        n={2}
+                        label={w.stepOf.replace('{n}', '2').replace('{total}', '2')}
+                        question={w.q2}
+                        hint={w.q2Hint}
+                    />
+                    <div className="mt-7">
+                        <div className="font-mono tabular text-[clamp(40px,5vw,56px)] font-medium leading-[1] tracking-[-0.04em] text-[var(--caes-ink)]">
+                            {num(instalaciones)}
+                        </div>
+                        <input
+                            id="earn-inst"
+                            type="range"
+                            min={1}
+                            max={40}
+                            step={1}
+                            value={instalaciones}
+                            onChange={(e) => setInstalaciones(Number(e.target.value))}
+                            className="earn-range mt-4 w-full cursor-pointer"
+                            aria-label={t.controls.instalaciones}
+                        />
+                        <div className="mt-2 flex justify-between font-mono text-[11px] text-[var(--caes-faint)]">
+                            <span>1</span>
+                            <span>40</span>
+                        </div>
+                    </div>
+                    <div className="mt-7 flex items-center justify-between">
+                        <Boton variant="ghost" onClick={() => setPaso(1)}>
+                            <ArrowLeft className="h-4 w-4" />
+                            {w.back}
+                        </Boton>
+                        <Boton onClick={() => setPaso(3)}>
+                            {w.see}
+                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                        </Boton>
+                    </div>
+                </div>
+            ) : null}
+
+            {paso === 3 ? (
+                <div className={shellOscuro}>
+                    {/* ① IL NUMERO, e subito sotto una frase che dice cosa
+                           è. Prima c'era solo un'etichetta mono di dieci
+                           pixel sopra: chi arrivava vedeva una cifra e non
+                           sapeva di cosa. */}
+                    <div className="px-6 pb-7 pt-7 sm:px-9 sm:pb-8">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                            <span className="label-mono text-[rgba(199,240,74,.85)]">
                                 {t.results.headTable}
                             </span>
-                            <span className="rounded-full border border-[rgba(199,240,74,.22)] px-2 py-[3px] font-mono text-[9px] uppercase tracking-[.09em] text-[rgba(199,240,74,.7)]">
+                            <span className="rounded-full border border-[rgba(199,240,74,.3)] px-2.5 py-[3px] font-mono text-[9px] uppercase tracking-[.09em] text-[rgba(199,240,74,.8)]">
                                 {t.results.windowChip}
                             </span>
                         </div>
-                        <div className="mt-2 font-mono tabular text-[clamp(36px,5.2vw,62px)] font-medium leading-[1] tracking-[-0.045em] text-[var(--caes-lime)]">
+                        <div className="num-hero mt-3 text-[clamp(42px,6.4vw,76px)]">
                             {money(mesaTotal)}
                         </div>
-                        <p className="mt-2 font-mono text-[12px] leading-[1.5] tracking-[.01em] text-[rgba(221,233,225,.55)]">
-                            {t.results.headTableSub.replace(
-                                '{n}',
-                                num(instalaciones * ANOS_RECUPERABLES)
-                            )}
-                            {' · '}
-                            {t.results.headTableSplit
-                                .replace('{mine}', money(mesaMia))
-                                .replace('{client}', money(mesaCliente))}
+                        <p className="mt-4 max-w-[46ch] text-[clamp(15px,1.3vw,16.5px)] leading-[1.5] tracking-[-0.008em] text-[rgba(221,233,225,.82)]">
+                            {t.results.headTableSub
+                                .replace('{year}', money(totalAlAno))
+                                .replace('{n}', num(instalaciones * ANOS_RECUPERABLES))}
                         </p>
                     </div>
 
-                    <div className="min-w-0 border-t border-white/[.1] px-6 pb-5 pt-6 sm:border-l sm:border-t-0 sm:px-8">
-                        <span className="label-mono text-[rgba(221,233,225,.5)]">
-                            {t.results.headYearTotal}
-                        </span>
-                        <div className="mt-2 font-mono tabular text-[clamp(26px,3.2vw,36px)] font-medium leading-[1.04] tracking-[-0.038em] text-[#DDE9E1]">
-                            {money(totalAlAno)}
-                        </div>
-                        <p className="mt-2 font-mono text-[12px] leading-[1.5] tracking-[.01em] text-[rgba(221,233,225,.45)]">
-                            {t.results.headYearTotalSub
-                                .replace('{n}', num(instalaciones))
-                                .replace('{each}', money(r.poolRepartible))}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Le due metà del totale annuo. */}
-                <div className="grid grid-cols-1 border-t border-white/[.1] bg-white/[.03] sm:grid-cols-2 sm:px-9">
-                    <Half
-                        label={t.results.headYear}
-                        value={money(alAno)}
-                        sub={t.results.headYearSub.replace('{each}', money(porProyecto))}
-                    />
-                    <Half
-                        label={t.results.headClient}
-                        value={money(clienteAlAno)}
-                        sub={t.results.headClientSub.replace('{each}', money(porCliente))}
-                    />
-                </div>
-
-                <p className="bg-white/[.03] px-6 pb-4 text-[11.5px] leading-[1.45] text-[rgba(221,233,225,.34)] sm:px-9">
-                    {t.results.poolNote}
-                </p>
-
-                {r.superaTopeLegal ? (
-                    <div className="bg-white/[.03] pt-1">
-                        <Aviso>
-                            {t.results.capAviso.replace(
-                                '{tope}',
-                                String(COMISION_MAXIMA_PCT)
+                    {/* ② LE DUE METÀ, un gradino sotto */}
+                    <div className="grid grid-cols-1 border-t border-white/[.14] bg-white/[.035] sm:grid-cols-2 sm:px-9">
+                        <Half
+                            label={t.results.forYou}
+                            value={money(alAno)}
+                            sub={t.results.forYouSub.replace(
+                                '{each}',
+                                money(r.parteInstalador)
                             )}
-                        </Aviso>
+                        />
+                        <Half
+                            label={t.results.forClients}
+                            value={money(clienteAlAno)}
+                            sub={t.results.forClientsSub.replace(
+                                '{each}',
+                                money(r.parteCliente)
+                            )}
+                        />
                     </div>
-                ) : null}
-                {!r.cumpleMinimo ? (
-                    <div className="bg-white/[.03] pt-1">
-                        <Aviso>{t.belowMin}</Aviso>
-                    </div>
-                ) : null}
-            </div>
 
-            {/* ════════════════ FONDO CHIARO: MATERIALE DI SERVIZIO ═══════ */}
-            <div className="bg-[var(--caes-panel)] text-[var(--caes-ink)]">
-                <div className="grid grid-cols-1 sm:grid-cols-3">
-                    <Aside
-                        label={t.results.certValue}
-                        sub={t.results.certSub.replace('{kwh}', num(r.kwhAhorrados))}
-                    >
-                        <AsideValue>{money(r.valorTotal)}</AsideValue>
-                    </Aside>
-
-                    <Aside
-                        label={t.results.reparto}
-                        sub={t.results.repartoSub
-                            .replace('{pool}', money(r.poolRepartible))
-                            .replace('{pct}', String(r.repartoInstaladorPct))
-                            .replace('{cpct}', String(r.repartoClientePct))}
-                    >
-                        {/* barra impilata sul certificato intero: la gestione
-                            è fissa, la linea fra le altre due la muove il
-                            cursore */}
-                        <div className="flex h-[5px] w-full overflow-hidden rounded-full bg-[var(--caes-line-2)]">
-                            <div
-                                className="h-full bg-[var(--caes-line)]"
-                                style={{ width: `${CUOTA_CAES_PCT}%` }}
-                            />
-                            <div
-                                className="h-full bg-[var(--caes-green)]"
-                                style={{ width: `${r.comisionPct}%` }}
-                            />
-                            <div
-                                className="h-full bg-[var(--caes-lime)]"
-                                style={{ width: `${r.clientePct}%` }}
-                            />
-                        </div>
-                        <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-0.5 font-mono text-[10.5px] text-[var(--caes-mut)]">
-                            {[
-                                {
-                                    k: t.results.legendGestion,
-                                    v: r.parteCaes,
-                                    c: 'bg-[var(--caes-line)]',
-                                },
-                                {
-                                    k: t.results.legendYou,
-                                    v: porProyecto,
-                                    c: 'bg-[var(--caes-green)]',
-                                },
-                                {
-                                    k: t.results.legendClient,
-                                    v: porCliente,
-                                    c: 'bg-[var(--caes-lime)]',
-                                },
-                            ].map((x) => (
-                                <span key={x.k} className="whitespace-nowrap">
-                                    <i
-                                        className={`mr-1 inline-block h-[6px] w-[6px] rounded-full align-middle not-italic ${x.c}`}
-                                    />
-                                    {x.k} {money(x.v)}
+                    {/* ③ IL CURSORE, l'unica cosa da toccare qui */}
+                    <div className="border-t border-white/[.14] bg-white/[.035] px-6 pb-6 pt-5 sm:px-9">
+                        <div className="max-w-[440px]">
+                            <label
+                                htmlFor="earn-com"
+                                className="flex items-baseline justify-between gap-4"
+                            >
+                                <span className="label-mono text-[rgba(221,233,225,.62)]">
+                                    {t.controls.comision}
                                 </span>
-                            ))}
+                                <span className="tabular shrink-0 text-[17px] font-semibold tracking-[-0.02em] text-[#DDE9E1]">
+                                    {r.repartoInstaladorPct} %
+                                </span>
+                            </label>
+                            <input
+                                id="earn-com"
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={reparto}
+                                onChange={(e) => setReparto(Number(e.target.value))}
+                                className="earn-range earn-range--dark mt-3 w-full cursor-pointer"
+                            />
+                            <p className="mt-2 text-[13px] text-[rgba(221,233,225,.62)]">
+                                {t.controls.comisionHint.replace(
+                                    '{pct}',
+                                    String(r.repartoClientePct)
+                                )}
+                            </p>
                         </div>
-                    </Aside>
+                        <p className="mt-4 max-w-[64ch] text-[12.5px] leading-[1.5] text-[rgba(221,233,225,.58)]">
+                            {t.results.poolNote}
+                        </p>
+                    </div>
 
-                    <Aside
-                        label={t.results.hours}
-                        sub={t.results.hoursSub
-                            .replace('{h}', num(horas))
-                            .replace('{hour}', money(porHora))}
-                    >
-                        <AsideValue>{num(horas)} h</AsideValue>
-                    </Aside>
-                </div>
+                    {r.superaTopeLegal ? (
+                        <div className="bg-white/[.035] pt-1">
+                            <Aviso>
+                                {t.results.capAviso.replace(
+                                    '{tope}',
+                                    String(COMISION_MAXIMA_PCT)
+                                )}
+                            </Aviso>
+                        </div>
+                    ) : null}
+                    {!r.cumpleMinimo ? (
+                        <div className="bg-white/[.035] pt-1">
+                            <Aviso>{t.belowMin}</Aviso>
+                        </div>
+                    ) : null}
 
-                {/* piede */}
-                <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[var(--caes-line-2)] px-6 py-4 sm:px-9">
-                    <p className="max-w-[62ch] text-[11.5px] leading-[1.45] text-[var(--caes-faint)]">
-                        {t.disclaimer}
-                    </p>
-                    <Link
-                        href={`/${locale}/instaladores#empezar`}
-                        className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-[var(--caes-ink)] px-5 py-2.5 text-[13.5px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90"
-                    >
-                        {t.cta}
-                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                    </Link>
+                    {/* ④ COSA HA DICHIARATO: qui il mono è al suo posto,
+                           è una stringa tecnica e non prosa */}
+                    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-white/[.14] px-6 py-4 sm:px-9">
+                        <span className="font-mono text-[11.5px] tracking-[.01em] text-[rgba(221,233,225,.55)]">
+                            {resumen}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setPaso(1)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[.18] px-3 py-1.5 text-[12.5px] text-[rgba(221,233,225,.82)] transition-colors hover:border-white/[.4] hover:text-[#DDE9E1]"
+                        >
+                            <Pencil className="h-3 w-3" />
+                            {w.edit}
+                        </button>
+                    </div>
+
+                    {/* ⑤ L'ULTIMO GRADINO */}
+                    <div className="flex flex-wrap items-center justify-between gap-5 border-t border-white/[.14] px-6 py-5 sm:px-9">
+                        <p className="max-w-[58ch] text-[12px] leading-[1.5] text-[rgba(221,233,225,.6)]">
+                            {t.disclaimer}
+                        </p>
+                        <Link
+                            href={`/${locale}/instaladores#empezar`}
+                            className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-[var(--caes-lime)] px-5 py-2.5 text-[13.5px] font-semibold text-[var(--caes-lime-ink)] transition-opacity hover:opacity-90"
+                        >
+                            {t.cta}
+                            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                        </Link>
+                    </div>
                 </div>
+            ) : null}
+
+            {/* ═════════════ FUORI DAL SIMULATORE: I BENEFICI ═════════════
+                Non sono risultati, sono argomenti — ma si ricavano dagli
+                stessi dati, quindi si muovono con gli input invece di stare
+                lì come tre righe di brochure. */}
+            <div className="mt-10">
+                <p className="label-mono text-[var(--caes-faint)]">
+                    {t.beneficios.heading}
+                </p>
+                <ul className="mt-5 grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-4">
+                    {beneficios.map((b) => (
+                        <li key={b.k} className="min-w-0">
+                            <div className="font-mono tabular text-[clamp(22px,2.3vw,27px)] font-medium leading-[1.1] tracking-[-0.03em] text-[var(--caes-ink)]">
+                                {b.v}
+                            </div>
+                            <p className="mt-2 text-[13.5px] font-medium leading-[1.4] tracking-[-0.01em] text-[var(--caes-ink)]">
+                                {b.k}
+                            </p>
+                            <p className="mt-1 text-[12.5px] leading-[1.5] text-[var(--caes-mut)]">
+                                {b.s}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
             </div>
         </div>
     )
