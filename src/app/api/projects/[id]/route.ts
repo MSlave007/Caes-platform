@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabaseServer'
+import { createAdminClient } from '@/lib/supabaseAdmin'
 import { mockDb } from '@/lib/mockDb'
 import { quienLlama, soloAgencia, negado, prohibido } from '@/lib/auth/guard'
 import { enviar, debeAvisar } from '@/lib/notify/email'
@@ -11,8 +12,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const id = (await params).id
     const supabase = await createClient()
 
+    // Chi legge cosa.
+    //
+    // Le regole di riga dicono «solo i propri espedienti», che per
+    // l'installatore e giusto e per l'agenzia e il contrario del suo
+    // lavoro: revisionare vuol dire aprire quelli degli altri. Senza
+    // questo, con i ruoli attivi, ogni fascicolo rispondeva «non
+    // esiste» — la coda si vedeva e non si apriva niente.
+    //
+    // La chiave di servizio salta le regole di riga ed e legittima solo
+    // perche il ruolo e gia stato verificato sopra.
+    const lector = quien.rol === 'admin' ? createAdminClient() ?? supabase : supabase
+
     // Real DB Fetch
-    const { data, error } = await supabase
+    const { data, error } = await lector
         .from('projects')
         .select('*')
         .eq('id', id)
@@ -44,10 +57,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = await request.json()
     const supabase = await createClient()
 
-    const parche = await firmar(body, id, quien.userId, quien.email, supabase)
+    // Come sopra, in scrittura: approvare un espediente vuol dire
+    // scrivere su una riga che non e tua.
+    const escritor = createAdminClient() ?? supabase
+
+    const parche = await firmar(body, id, quien.userId, quien.email, escritor)
 
     // Real DB Update
-    const { data, error } = await supabase
+    const { data, error } = await escritor
         .from('projects')
         .update(parche)
         .eq('id', id)
@@ -106,7 +123,7 @@ async function firmar(
     id: string,
     userId: string | null,
     email: string | null,
-    supabase: Awaited<ReturnType<typeof createClient>>
+    supabase: NonNullable<ReturnType<typeof createAdminClient>> | Awaited<ReturnType<typeof createClient>>
 ): Promise<Record<string, unknown>> {
     const parche = { ...body }
 

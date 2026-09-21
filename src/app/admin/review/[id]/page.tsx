@@ -348,7 +348,7 @@ export default function AdminReviewDetail({
     const guardarAvance = useCallback(async () => {
         setGuardado('guardando')
         try {
-            await patch({
+            const respuesta = await patch({
                 extraccion,
                 // Anche questi due. Stavano nello stesso buco: chi fissava
                 // il risparmio riconosciuto e muoveva il margine, e poi
@@ -362,6 +362,31 @@ export default function AdminReviewDetail({
                     verified: Boolean(verified[d.id]),
                 })),
             })
+
+            /**
+             * Si prende indietro la firma che ha messo il server.
+             *
+             * Senza questo il nome di chi ha confermato compariva solo
+             * ricaricando la pagina: si spuntava un campo e non succedeva
+             * niente di visibile. Si copiano SOLO `por` e `en`, e solo sui
+             * campi rimasti identici a quelli mandati: nel frattempo si
+             * puo essere gia scritto in un altro campo, e adottare in
+             * blocco la risposta glielo cancellerebbe sotto le dita.
+             */
+            const firmada = respuesta?.data?.extraccion as Extraccion | undefined
+            if (firmada) {
+                setExtraccion((prev) => {
+                    const siguiente = { ...prev }
+                    for (const [campo, v] of Object.entries(firmada)) {
+                        const actual = prev[campo]
+                        if (!actual) continue
+                        if (actual.valor !== v.valor || actual.estado !== v.estado) continue
+                        siguiente[campo] = { ...actual, por: v.por, en: v.en }
+                    }
+                    return siguiente
+                })
+            }
+
             setGuardado('hecho')
         } catch {
             // Non si perde niente di quello che c'e' a schermo: si dice
