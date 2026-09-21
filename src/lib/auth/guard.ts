@@ -47,6 +47,13 @@ export type Rol = 'admin' | 'installer'
 export type Sesion = {
     /** L'utente autenticato, se c'è. */
     userId: string | null
+    /**
+     * La sua email. Serve a due cose: firmare in modo leggibile quello che
+     * conferma («confermato da ana@…» invece di un identificatore di
+     * trentasei caratteri) e avere un destinatario per le notifiche, che
+     * oggi partono verso il vuoto.
+     */
+    email: string | null
     /** Il ruolo letto dal profilo. `null` solo in modalità dimostrativa. */
     rol: Rol | null
     /** Vero quando si sta passando senza sessione grazie alla demo. */
@@ -75,6 +82,7 @@ export async function quienLlama(): Promise<Sesion | null> {
 
             return {
                 userId: user.id,
+                email: user.email ?? null,
                 rol: data?.role === 'admin' ? 'admin' : 'installer',
                 demo: false,
             }
@@ -83,7 +91,7 @@ export async function quienLlama(): Promise<Sesion | null> {
         // Supabase irraggiungibile: in demo si prosegue, altrimenti si nega.
     }
 
-    return esModoDemo() ? { userId: null, rol: null, demo: true } : null
+    return esModoDemo() ? { userId: null, email: null, rol: null, demo: true } : null
 }
 
 /**

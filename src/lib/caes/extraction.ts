@@ -356,6 +356,20 @@ export type ValorCampo = {
     estado: EstadoCampo
     /** 0–1. Sotto 0,8 conviene guardare il documento. */
     confianza?: number
+    /**
+     * Chi ha confermato o corretto, e quando.
+     *
+     * Non è burocrazia: questi valori finiscono nel Convenio CAE e nel
+     * RES60, documenti che qualcuno firma e per cui risponde dieci anni.
+     * «Confermato» senza «da chi» non è una conferma, è un'affermazione
+     * senza nessuno dietro.
+     *
+     * Li scrive il SERVER dalla sessione, mai il browser: un'attribuzione
+     * che arriva dal client è un'attribuzione che si può scrivere a mano.
+     */
+    por?: string
+    /** ISO 8601 */
+    en?: string
 }
 
 export type Extraccion = Record<string, ValorCampo>

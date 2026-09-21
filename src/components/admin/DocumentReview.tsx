@@ -289,6 +289,23 @@ function Campo({
                     contra el documento
                 </span>
             )}
+
+            {/* Chi risponde di questo dato.
+                Questi valori finiscono nel Convenio CAE e nel RES60, che
+                qualcuno firma e per cui risponde dieci anni: «confermato»
+                senza «da chi» non e una conferma. La firma la scrive il
+                server dalla sessione, non il browser. */}
+            {confirmado && v.por && (
+                <span className="pr-[84px] text-[11.5px] leading-[1.4] text-[var(--caes-faint)]">
+                    Comprobado por {v.por}
+                    {v.en
+                        ? ` · ${new Date(v.en).toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                        })}`
+                        : ''}
+                </span>
+            )}
         </div>
     )
 }

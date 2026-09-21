@@ -44,10 +44,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = await request.json()
     const supabase = await createClient()
 
+    const parche = await firmar(body, id, quien.userId, quien.email, supabase)
+
     // Real DB Update
     const { data, error } = await supabase
         .from('projects')
-        .update(body)
+        .update(parche)
         .eq('id', id)
         .select()
         .single()
@@ -77,4 +79,98 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     return NextResponse.json({ data })
+}
+
+
+/**
+ * Mette la firma su quello che si sta salvando.
+ *
+ * ── PERCHE' LO FA IL SERVER ──────────────────────────────────────────
+ *
+ * Chi ha confermato un dato e quando lo decide la sessione, mai il corpo
+ * della richiesta. Un'attribuzione che arriva dal browser e'
+ * un'attribuzione che si puo' scrivere a mano — e questi valori finiscono
+ * in documenti che qualcuno firma e per cui risponde dieci anni.
+ *
+ * ── PERCHE' RILEGGE PRIMA ────────────────────────────────────────────
+ *
+ * Il salvataggio automatico manda l'intera estrazione a ogni modifica.
+ * Senza confrontare con quello che c'e' gia', ogni salvataggio
+ * riscriverebbe la firma di TUTTI i campi con l'ora corrente e con
+ * l'ultima persona che ha toccato la pagina: la conferma fatta ieri da un
+ * collega diventerebbe tua, di adesso. Quindi si firma solo quello che e'
+ * davvero cambiato.
+ */
+async function firmar(
+    body: Record<string, unknown>,
+    id: string,
+    userId: string | null,
+    email: string | null,
+    supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<Record<string, unknown>> {
+    const parche = { ...body }
+
+    // Chi approva, e quando. Le colonne esistono da sempre e non le
+    // scriveva nessuno: un fascicolo approvato senza approvante.
+    if (body.status === 'approved') {
+        if (userId) parche.admin_id = userId
+        parche.approved_at = new Date().toISOString()
+    }
+
+    if (!body.extraccion || typeof body.extraccion !== 'object') return parche
+
+    type Campo = {
+        valor: string | number | null
+        estado: string
+        confianza?: number
+        por?: string
+        en?: string
+    }
+    // Si firma con l'email, che si legge. L'identificatore resta la
+    // colonna admin_id sul fascicolo, per quando serve l'identita stabile.
+    const firma = email ?? userId
+
+    const nueva = body.extraccion as Record<string, Campo>
+
+    // Senza sessione (modalita' dimostrativa) non si firma niente: meglio
+    // nessuna firma che una firma di nessuno.
+    if (!userId) return parche
+
+    let anterior: Record<string, Campo> = {}
+    try {
+        const { data } = await supabase
+            .from('projects')
+            .select('extraccion')
+            .eq('id', id)
+            .single()
+        anterior = (data?.extraccion ?? {}) as Record<string, Campo>
+    } catch {
+        // Se non si riesce a rileggere, si firma quello che arriva: meglio
+        // una firma in piu' che un dato confermato da nessuno.
+    }
+
+    const ahora = new Date().toISOString()
+    const firmada: Record<string, Campo> = {}
+
+    for (const [campo, v] of Object.entries(nueva)) {
+        const viejo = anterior[campo]
+        const confirmado = v.estado === 'confirmado' || v.estado === 'corregido'
+
+        if (!confirmado) {
+            // Tornato indietro: si toglie anche la firma, altrimenti resta
+            // appesa a un valore che nessuno sostiene piu'.
+            firmada[campo] = { ...v, por: undefined, en: undefined }
+            continue
+        }
+
+        const cambiado =
+            !viejo || viejo.valor !== v.valor || viejo.estado !== v.estado
+
+        firmada[campo] = cambiado
+            ? { ...v, por: firma ?? undefined, en: ahora }
+            : { ...v, por: viejo.por, en: viejo.en }
+    }
+
+    parche.extraccion = firmada
+    return parche
 }

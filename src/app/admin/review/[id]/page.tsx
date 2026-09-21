@@ -350,6 +350,13 @@ export default function AdminReviewDetail({
         try {
             await patch({
                 extraccion,
+                // Anche questi due. Stavano nello stesso buco: chi fissava
+                // il risparmio riconosciuto e muoveva il margine, e poi
+                // usciva senza approvare, tornava e li ritrovava com'erano
+                // prima. Sono le due cifre che decidono quanto prende
+                // ognuno — perderle in silenzio e la cosa peggiore.
+                savings_eur: savings,
+                agency_pct: agencyPct,
                 docs: (p?.docs ?? []).map((d) => ({
                     ...d,
                     verified: Boolean(verified[d.id]),
@@ -362,7 +369,7 @@ export default function AdminReviewDetail({
             setGuardado('error')
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [extraccion, verified, p?.docs, id])
+    }, [extraccion, verified, savings, agencyPct, p?.docs, id])
 
     useEffect(() => {
         // Il primo giro e' il caricamento, non una modifica: risalvare
@@ -374,7 +381,7 @@ export default function AdminReviewDetail({
         }
         const t = window.setTimeout(() => void guardarAvance(), 500)
         return () => window.clearTimeout(t)
-    }, [extraccion, verified, loading, guardarAvance])
+    }, [extraccion, verified, savings, agencyPct, loading, guardarAvance])
 
     const decide = async (status: 'approved' | 'rejected') => {
         setBusy(status === 'approved' ? 'approve' : 'reject')
