@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, AlertTriangle, Check } from 'lucide-react'
 import { deleteDraft } from '@/lib/draft'
@@ -54,6 +54,7 @@ export default function SubmitStep({
     notas,
     nombre,
     draftId,
+    clienteInicial,
 }: {
     docs: Doc[]
     notas?: string
@@ -61,6 +62,8 @@ export default function SubmitStep({
      *  e l'unica cosa che identifica la pratica. */
     nombre?: string
     draftId?: string
+    /** L'id di un cliente scelto prima di entrare qui. */
+    clienteInicial?: string
 }) {
     const router = useRouter()
 
@@ -75,6 +78,35 @@ export default function SubmitStep({
     const [clienteId, setClienteId] = useState<string | null>(null)
     const [nifCliente, setNifCliente] = useState('')
     const [telCliente, setTelCliente] = useState('')
+
+    /**
+     * Il cliente scelto prima di arrivare qui.
+     *
+     * Si carica una volta sola: se qualcuno ha gia' scritto nel campo,
+     * riscriverglielo sotto le dita sarebbe peggio che non precompilare.
+     */
+    useEffect(() => {
+        if (!clienteInicial || cliente) return
+        let vivo = true
+        fetch(`/api/clientes/${clienteInicial}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => {
+                const d = j?.data
+                if (!vivo || !d) return
+                setCliente(d.nombre ?? '')
+                setClienteId(d.id ?? null)
+                setNifCliente(d.nif ?? '')
+                setTelCliente(d.telefono ?? '')
+                if (d.direccion) setDireccion(d.direccion)
+            })
+            .catch(() => {
+                /* senza rete si scrive a mano, come sempre */
+            })
+        return () => {
+            vivo = false
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [clienteInicial])
     const [empresa, setEmpresa] = useState('')
     const [superficie, setSuperficie] = useState(220)
     const [zona, setZona] = useState('D3')

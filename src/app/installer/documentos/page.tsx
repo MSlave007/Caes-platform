@@ -62,6 +62,9 @@ function Cargando() {
 function Documentos() {
     const params = useSearchParams()
     const pedido = params.get('b')
+    // Arrivando dalla scheda di un cliente, il modulo si apre con i
+    // suoi dati gia dentro: e il motivo per cui esiste la rubrica.
+    const clientePedido = params.get('cliente')
 
     const [id, setId] = useState<string | null>(null)
     const [nombre, setNombre] = useState('')
@@ -305,6 +308,7 @@ function Documentos() {
                             notas={notas}
                             nombre={nombre}
                             draftId={id ?? undefined}
+                            clienteInicial={clientePedido ?? undefined}
                             docs={Object.entries(files).flatMap(([slot, v]) =>
                                 v
                                     .filter((f) => f.state === 'done')

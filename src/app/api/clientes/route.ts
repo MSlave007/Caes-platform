@@ -35,6 +35,17 @@ const texto = (v: unknown, max = 200) =>
 
 const CAMPOS = ['nombre', 'nif', 'telefono', 'email', 'direccion', 'notas'] as const
 
+/** Quello che serve alla riga dell'elenco: quanti, quanti aperti, quanto. */
+function resumen(exp: { status?: string | null; savings_eur?: number | null }[]) {
+    return {
+        expedientes: exp.length,
+        abiertos: exp.filter(
+            (e) => !['paid', 'rejected'].includes(String(e.status ?? ''))
+        ).length,
+        ahorro: exp.reduce((a, e) => a + (e.savings_eur ?? 0), 0),
+    }
+}
+
 function sanear(body: Record<string, unknown>) {
     const limpio: Record<string, string> = {}
     for (const k of CAMPOS) {
@@ -51,7 +62,11 @@ export async function GET(request: Request) {
     // In dimostrazione i clienti si ricavano dagli espedienti finti: cosi
     // la scheda mostra pratiche vere e i due elenchi non si contraddicono.
     if (!quien.userId) {
-        return NextResponse.json({ data: mockClientes.all(q), demo: true })
+        const lista = mockClientes.all(q).map((c) => {
+            const exp = mockClientes.expedientes(c.id)
+            return { ...c, ...resumen(exp) }
+        })
+        return NextResponse.json({ data: lista, demo: true })
     }
 
     const supabase = await createClient()
@@ -67,16 +82,39 @@ export async function GET(request: Request) {
 
     const { data, error } = await consulta
     if (error) return NextResponse.json({ error: error.message }, { status: 502 })
-    return NextResponse.json({ data: data ?? [] })
+
+    /**
+     * Il conto degli espedienti, per l'elenco.
+     *
+     * Senza, la lista e' una rubrica: nomi uguali uno sotto l'altro. Con,
+     * si vede subito chi ha qualcosa in ballo — che e' l'unico motivo per
+     * aprire quella pagina.
+     *
+     * Si prendono tutti gli espedienti in una volta e si contano qui: le
+     * regole di riga danno solo i suoi, sono pochi, e una query per
+     * cliente sarebbe N chiamate per una colonna.
+     */
+    const { data: proyectos } = await supabase
+        .from('projects')
+        .select('cliente_id, status, savings_eur')
+
+    const porCliente = new Map<string, typeof proyectos>()
+    for (const p of proyectos ?? []) {
+        if (!p.cliente_id) continue
+        porCliente.set(p.cliente_id, [...(porCliente.get(p.cliente_id) ?? []), p])
+    }
+
+    return NextResponse.json({
+        data: (data ?? []).map((c) => ({
+            ...c,
+            ...resumen(porCliente.get(c.id) ?? []),
+        })),
+    })
 }
 
 export async function POST(request: Request) {
     const quien = await quienLlama()
     if (!quien) return negado()
-    if (!quien.userId) {
-        return NextResponse.json({ error: 'Sin sesión' }, { status: 401 })
-    }
-
     const LIMITE = { cuantas: 60, segundos: 300 }
     if (!dentroDelLimite(quienCuenta(request, quien.userId), LIMITE)) {
         return demasiadas(LIMITE.segundos)
@@ -91,6 +129,15 @@ export async function POST(request: Request) {
     const limpio = sanear(body)
     if (!limpio.nombre) {
         return NextResponse.json({ error: 'Falta el nombre' }, { status: 400 })
+    }
+
+    // In dimostrazione si scrive sul file: un pulsante che non fa niente
+    // e peggio di un pulsante che non c'e'.
+    if (!quien.userId) {
+        return NextResponse.json({
+            data: mockClientes.crear({ ...limpio, nombre: limpio.nombre }),
+            demo: true,
+        })
     }
 
     const supabase = await createClient()

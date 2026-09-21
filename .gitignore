@@ -41,3 +41,4 @@ yarn-error.log*
 next-env.d.ts
 .caes-demo.json
 .caes-demo.drafts.json
+.caes-demo.clientes.json

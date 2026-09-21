@@ -1,3 +1,5 @@
+import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { join } from 'path'
 import { mockDb, type Project } from './mockDb'
 
 /**
@@ -7,13 +9,18 @@ import { mockDb, type Project } from './mockDb'
  *
  * In dimostrazione non c'è sessione, quindi la tabella `clientes` non
  * restituisce niente: le regole di riga filtrano per utente e utente non
- * ce n'è. L'elenco clienti risultava vuoto e non si poteva vedere come
- * funziona.
+ * ce n'è. L'elenco risultava vuoto e non si poteva vedere come funziona.
  *
- * Questi non sono dati inventati a caso: sono ricavati dagli espedienti
- * della dimostrazione, quindi la scheda di un cliente mostra davvero le
- * sue pratiche e i due elenchi non possono contraddirsi. È lo stesso
- * criterio dell'archivio dimostrativo dei fascicoli.
+ * ── DUE SORGENTI, E NON È UN CASO ─────────────────────────────────────
+ *
+ * Quelli DERIVATI si ricavano dagli espedienti della dimostrazione: non
+ * sono inventati, quindi la scheda mostra davvero le sue pratiche e i
+ * due elenchi non possono contraddirsi.
+ *
+ * Quelli SCRITTI A MANO stanno in un file, come le bozze. Servono a
+ * poter provare «crea un cliente» e «modificane i dati» senza login: un
+ * pulsante che in dimostrazione non fa niente è peggio di un pulsante
+ * che non c'è.
  */
 
 export type ClienteDemo = {
@@ -23,8 +30,11 @@ export type ClienteDemo = {
     telefono: string | null
     email: string | null
     direccion: string | null
+    notas?: string | null
     created_at: string
 }
+
+const ARCHIVO = join(process.cwd(), '.caes-demo.clientes.json')
 
 /** Un id stabile ricavato dal nome: due letture danno lo stesso. */
 const idDe = (nombre: string) =>
@@ -47,9 +57,28 @@ const EXTRA: Record<string, { nif: string; tel: string; email: string }> = {
     'Rocío Delgado': { nif: '66666666Q', tel: '666 778 899', email: 'rocio.delgado@ejemplo.es' },
 }
 
-function deProyectos(): ClienteDemo[] {
-    const vistos = new Map<string, ClienteDemo>()
+/* ------------------------------------------------- il file dei manuali */
 
+function leerArchivo(): ClienteDemo[] {
+    try {
+        if (!existsSync(ARCHIVO)) return []
+        const v = JSON.parse(readFileSync(ARCHIVO, 'utf8'))
+        return Array.isArray(v) ? (v as ClienteDemo[]) : []
+    } catch {
+        return []
+    }
+}
+
+function escribirArchivo(rows: ClienteDemo[]) {
+    try {
+        writeFileSync(ARCHIVO, JSON.stringify(rows, null, 2), 'utf8')
+    } catch {
+        /* sola lettura: la dimostrazione continua senza persistenza */
+    }
+}
+
+function derivados(): ClienteDemo[] {
+    const vistos = new Map<string, ClienteDemo>()
     for (const p of mockDb.getProjects()) {
         const nombre = p.client_name?.trim()
         if (!nombre || vistos.has(nombre)) continue
@@ -64,32 +93,73 @@ function deProyectos(): ClienteDemo[] {
             created_at: p.created_at,
         })
     }
-
-    return [...vistos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    return [...vistos.values()]
 }
+
+/**
+ * Tutti, con le modifiche a mano sopra a quelli derivati.
+ *
+ * L'ordine conta: se qualcuno ha corretto il telefono di un cliente
+ * derivato, vince la correzione. Altrimenti modificare un cliente
+ * sembrerebbe non fare niente.
+ */
+function todos(): ClienteDemo[] {
+    const manuales = leerArchivo()
+    const mapa = new Map(derivados().map((c) => [c.id, c]))
+    for (const m of manuales) mapa.set(m.id, { ...mapa.get(m.id), ...m })
+    return [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+/* ---------------------------------------------------------- pubblico */
 
 export const mockClientes = {
     all: (q?: string): ClienteDemo[] => {
-        const todos = deProyectos()
-        if (!q) return todos
+        const lista = todos()
+        if (!q) return lista
         const t = q.toLowerCase()
-        return todos.filter((c) =>
+        return lista.filter((c) =>
             [c.nombre, c.nif, c.telefono, c.direccion]
                 .filter(Boolean)
                 .some((v) => v!.toLowerCase().includes(t))
         )
     },
 
-    byId: (id: string): ClienteDemo | undefined =>
-        deProyectos().find((c) => c.id === id),
+    byId: (id: string): ClienteDemo | undefined => todos().find((c) => c.id === id),
 
     /** Gli espedienti di un cliente. In demo si legano per nome. */
     expedientes: (id: string): Project[] => {
-        const c = deProyectos().find((x) => x.id === id)
+        const c = todos().find((x) => x.id === id)
         if (!c) return []
         return mockDb
             .getProjects()
             .filter((p) => p.client_name?.trim() === c.nombre)
             .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+    },
+
+    crear: (datos: Partial<ClienteDemo> & { nombre: string }): ClienteDemo => {
+        const nuevo: ClienteDemo = {
+            id: idDe(datos.nombre) + '-' + Math.random().toString(36).slice(2, 6),
+            nombre: datos.nombre,
+            nif: datos.nif ?? null,
+            telefono: datos.telefono ?? null,
+            email: datos.email ?? null,
+            direccion: datos.direccion ?? null,
+            notas: datos.notas ?? null,
+            created_at: new Date().toISOString(),
+        }
+        escribirArchivo([...leerArchivo(), nuevo])
+        return nuevo
+    },
+
+    actualizar: (id: string, parche: Partial<ClienteDemo>): ClienteDemo | null => {
+        const actual = todos().find((c) => c.id === id)
+        if (!actual) return null
+        const fusionado = { ...actual, ...parche, id }
+        const manuales = leerArchivo()
+        const i = manuales.findIndex((m) => m.id === id)
+        if (i >= 0) manuales[i] = fusionado
+        else manuales.push(fusionado)
+        escribirArchivo(manuales)
+        return fusionado
     },
 }

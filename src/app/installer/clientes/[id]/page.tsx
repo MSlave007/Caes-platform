@@ -8,10 +8,14 @@ import {
     Loader2,
     Mail,
     MapPin,
+    Pencil,
     Phone,
     Plus,
     UserRound,
 } from 'lucide-react'
+import FichaClienteForm, {
+    type DatosCliente,
+} from '@/components/platform/FichaClienteForm'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
 import { estado } from '@/lib/caes/status'
 import { eur } from '@/lib/caes/estimate'
@@ -73,6 +77,7 @@ export default function ClientePage({
     const { id } = use(params)
     const [c, setC] = useState<Cliente | null>(null)
     const [cargando, setCargando] = useState(true)
+    const [editando, setEditando] = useState(false)
 
     useEffect(() => {
         let vivo = true
@@ -84,6 +89,21 @@ export default function ClientePage({
             vivo = false
         }
     }, [id])
+
+    const guardar = async (d: DatosCliente) => {
+        const r = await fetch(`/api/clientes/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(d),
+        })
+        if (!r.ok) throw new Error((await r.json())?.error ?? 'No se ha podido guardar')
+        const j = await r.json()
+        // Si tiene quello che c'era e si sovrascrive quello che e'
+        // cambiato: la risposta non riporta gli espedienti, e perderli
+        // farebbe sparire mezza pagina dopo un salvataggio.
+        setC((v) => (v ? { ...v, ...j.data } : v))
+        setEditando(false)
+    }
 
     if (cargando) {
         return (
@@ -152,13 +172,69 @@ export default function ClientePage({
                     </div>
                 </div>
 
-                <Link
-                    href="/installer/documentos"
-                    className="group inline-flex items-center gap-2.5 rounded-full bg-[var(--caes-ink)] px-6 py-3.5 text-[15px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90"
-                >
-                    <Plus className="h-4 w-4" />
-                    Nuevo expediente
-                </Link>
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                        type="button"
+                        onClick={() => setEditando(true)}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-5 py-3.5 text-[14.5px] text-[var(--caes-ink)] transition-colors hover:border-[var(--caes-ink)] hover:bg-[var(--caes-band)]"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Editar datos
+                    </button>
+
+                    {/* Il cliente viaggia nell'indirizzo: il modulo si apre
+                        con i suoi dati gia dentro, che e' il motivo per cui
+                        esiste la rubrica. */}
+                    <Link
+                        href={`/installer/documentos?cliente=${c.id}`}
+                        className="group inline-flex items-center gap-2.5 rounded-full bg-[var(--caes-ink)] px-6 py-3.5 text-[15px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Nuevo expediente
+                    </Link>
+                </div>
+            </div>
+
+            {/* ------------------------------------- i numeri, in alto
+                Sono la risposta alla telefonata: quante ne ha in ballo,
+                quante in tutto, quanto risparmio ha certificato. */}
+            <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-3">
+                {[
+                    {
+                        k: 'En marcha',
+                        v: String(abiertos.length),
+                        n:
+                            abiertos.length > 0
+                                ? 'todavía se mueven'
+                                : 'nada pendiente ahora mismo',
+                        vivo: abiertos.length > 0,
+                    },
+                    {
+                        k: 'Expedientes',
+                        v: String(exp.length),
+                        n: 'desde que es cliente tuyo',
+                        vivo: false,
+                    },
+                    {
+                        k: 'Ahorro certificado',
+                        v: eur(total),
+                        n: 'sumando todos los suyos',
+                        vivo: false,
+                    },
+                ].map((m) => (
+                    <div key={m.k} className="bg-[var(--caes-panel)] p-6">
+                        <div className="label-mono text-[var(--caes-faint)]">{m.k}</div>
+                        <div
+                            className={`mt-3.5 font-sans text-[clamp(22px,2.2vw,28px)] font-semibold leading-none tracking-[-0.04em] tabular ${m.vivo ? 'text-[var(--caes-green)]' : 'text-[var(--caes-ink)]'
+                                }`}
+                        >
+                            {m.v}
+                        </div>
+                        <p className="mt-2.5 text-[12.5px] leading-[1.45] text-[var(--caes-mut)]">
+                            {m.n}
+                        </p>
+                    </div>
+                ))}
             </div>
 
             {/* ------------------------------ le sue pratiche, per prime */}
@@ -167,11 +243,12 @@ export default function ClientePage({
                     <h2 className="text-[17px] font-semibold tracking-[-0.024em]">
                         Sus expedientes
                     </h2>
-                    {total > 0 && (
-                        <span className="text-[13px] text-[var(--caes-mut)]">
-                            {eur(total)} de ahorro certificado en total
-                        </span>
-                    )}
+                    <Link
+                        href={`/installer/documentos?cliente=${c.id}`}
+                        className="text-[13px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+                    >
+                        Abrir uno nuevo para él
+                    </Link>
                 </div>
 
                 {exp.length === 0 ? (
@@ -234,9 +311,18 @@ export default function ClientePage({
 
             {/* ------------------------------------ i contatti, in fondo */}
             <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
-                <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
-                    Sus datos
-                </h2>
+                <div className="flex flex-wrap items-baseline justify-between gap-4">
+                    <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+                        Sus datos
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={() => setEditando(true)}
+                        className="text-[13px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+                    >
+                        Corregir
+                    </button>
+                </div>
                 <p className="mt-2 max-w-[56ch] text-[13.5px] leading-[1.55] text-[var(--caes-mut)]">
                     Son los que se escriben en el Convenio. La próxima vez que le hagas
                     una instalación se rellenan solos.
@@ -279,6 +365,21 @@ export default function ClientePage({
                     ))}
                 </dl>
             </section>
+
+            {editando && (
+                <FichaClienteForm
+                    titulo={`Datos de ${c.nombre}`}
+                    inicial={{
+                        nombre: c.nombre,
+                        nif: c.nif ?? '',
+                        telefono: c.telefono ?? '',
+                        email: c.email ?? '',
+                        direccion: c.direccion ?? '',
+                    }}
+                    onGuardar={guardar}
+                    onCerrar={() => setEditando(false)}
+                />
+            )}
         </div>
     )
 }

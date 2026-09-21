@@ -64,10 +64,6 @@ export async function PATCH(
 ) {
     const quien = await quienLlama()
     if (!quien) return negado()
-    if (!quien.userId) {
-        return NextResponse.json({ error: 'Sin sesión' }, { status: 401 })
-    }
-
     const { id } = await params
     const body = (await request.json().catch(() => null)) as Record<
         string,
@@ -86,6 +82,12 @@ export async function PATCH(
     }
     if (Object.keys(parche).length === 0) {
         return NextResponse.json({ error: 'Nada que guardar' }, { status: 400 })
+    }
+
+    if (!quien.userId) {
+        const c = mockClientes.actualizar(id, parche)
+        if (!c) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+        return NextResponse.json({ data: c, demo: true })
     }
 
     const supabase = await createClient()
