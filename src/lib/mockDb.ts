@@ -80,6 +80,8 @@ export type Project = {
     }
     /** Chi l'ha aperto. Da qui si prende la sua anagrafica per i documenti. */
     installer_id?: string
+    /** La scheda del cliente, quando c'e'. Vedi la tabella `clientes`. */
+    cliente_id?: string
     /** Ultimo movimento. Da qui si contano i giorni di attesa. */
     updated_at?: string
     /**

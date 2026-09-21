@@ -103,6 +103,9 @@ export async function POST(request: Request) {
             notas: texto(body.notas, 2000) || undefined,
             nombre: texto(body.nombre, 120) || undefined,
             docs: Array.isArray(body.docs) ? body.docs.slice(0, 80) : [],
+            // La scheda del cliente. Le regole di riga su `clientes`
+            // impediscono di agganciarsi a quella di un altro.
+            cliente_id: texto(body.cliente_id, 40) || undefined,
             // Lo stato iniziale lo decide il server, sempre.
             status: 'submitted' as const,
             // La quota dell'agenzia la fissa l'agenzia in revisione: qui

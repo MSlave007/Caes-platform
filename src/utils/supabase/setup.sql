@@ -276,3 +276,75 @@ order by policyname;
 -- Nadie necesita leer el almacén con la clave pública. La aplicación
 -- firma enlaces desde el servidor (/api/documents/url), con la clave
 -- de servicio y después de comprobar de quién es el archivo.
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  LOS CLIENTES DEL INSTALADOR
+--
+--  Hasta ahora el cliente no existía: nombre, NIF, teléfono y dirección
+--  se escribían DENTRO de cada expediente, copiados otra vez cada vez.
+--  El mismo cliente que hace dos obras — la caldera este año, el aire
+--  el que viene — eran dos juegos de datos que nadie relacionaba, y una
+--  cifra mal puesta en el NIF la segunda vez no la veía nadie.
+--
+--  Esto no añade una función: arregla algo que ya estaba roto.
+--
+--  El cliente NO es un usuario: no entra, no tiene contraseña. Es una
+--  ficha del instalador. Si algún día tiene que entrar, será otra cosa
+--  y se decidirá entonces.
+-- ════════════════════════════════════════════════════════════════════
+
+create table if not exists public.clientes (
+  id           uuid primary key default gen_random_uuid(),
+  installer_id uuid not null references auth.users on delete cascade,
+
+  nombre       text not null,
+  -- Sin `unique`: dos instaladores distintos pueden tener el mismo
+  -- cliente, y es normal. La unicidad que importa es por instalador, y
+  -- la lleva el índice de abajo.
+  nif          text,
+  telefono     text,
+  email        text,
+  direccion    text,
+  notas        text,
+
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+-- Un mismo NIF no se repite dentro del mismo instalador: es justo el
+-- duplicado que esto viene a evitar. Los que no tienen NIF no chocan.
+create unique index if not exists clientes_instalador_nif_idx
+  on public.clientes (installer_id, nif)
+  where nif is not null and nif <> '';
+
+create index if not exists clientes_instalador_nombre_idx
+  on public.clientes (installer_id, nombre);
+
+alter table public.clientes enable row level security;
+
+drop policy if exists "Instaladores ven sus clientes" on public.clientes;
+create policy "Instaladores ven sus clientes"
+  on public.clientes for select using (installer_id = auth.uid());
+
+drop policy if exists "Instaladores crean sus clientes" on public.clientes;
+create policy "Instaladores crean sus clientes"
+  on public.clientes for insert with check (installer_id = auth.uid());
+
+drop policy if exists "Instaladores editan sus clientes" on public.clientes;
+create policy "Instaladores editan sus clientes"
+  on public.clientes for update
+  using (installer_id = auth.uid()) with check (installer_id = auth.uid());
+
+drop trigger if exists clientes_touch_updated_at on public.clientes;
+create trigger clientes_touch_updated_at
+  before update on public.clientes
+  for each row execute procedure public.touch_updated_at();
+
+-- El expediente apunta al cliente en vez de recopiarlo. `set null` y no
+-- `cascade`: borrar una ficha de cliente no puede llevarse por delante
+-- un expediente, que es un documento con valor legal.
+alter table public.projects
+  add column if not exists cliente_id uuid references public.clientes(id) on delete set null;
+
+create index if not exists projects_cliente_idx on public.projects (cliente_id);

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, AlertTriangle, Check } from 'lucide-react'
 import { deleteDraft } from '@/lib/draft'
+import BuscadorCliente, { type Cliente } from './BuscadorCliente'
 import {
     estimate,
     eur,
@@ -65,6 +66,15 @@ export default function SubmitStep({
 
     const [cliente, setCliente] = useState('')
     const [direccion, setDireccion] = useState('')
+    /**
+     * Quando si prende un cliente gia' in scheda, si tiene il suo id:
+     * l'espediente ci punta invece di ricopiarne i dati. E' l'unica
+     * cosa che permette di sapere che due installazioni sono dello
+     * stesso cliente.
+     */
+    const [clienteId, setClienteId] = useState<string | null>(null)
+    const [nifCliente, setNifCliente] = useState('')
+    const [telCliente, setTelCliente] = useState('')
     const [empresa, setEmpresa] = useState('')
     const [superficie, setSuperficie] = useState(220)
     const [zona, setZona] = useState('D3')
@@ -93,6 +103,38 @@ export default function SubmitStep({
         setEnviando(true)
         setError(null)
         try {
+            /**
+             * Prima la scheda del cliente, poi l'espediente.
+             *
+             * Se il cliente e' gia' stato scelto si riusa il suo id. Se
+             * e' scritto a mano si crea — e se il NIF corrisponde a uno
+             * che c'e' gia', il server aggiorna quello invece di fare un
+             * doppione: il secondo espediente dello stesso cliente e' il
+             * caso normale, non quello raro.
+             *
+             * Se questo fallisce l'invio prosegue lo stesso: perdere
+             * l'espediente perche' non si e' potuta salvare una rubrica
+             * sarebbe sproporzionato.
+             */
+            let idCliente = clienteId
+            if (!idCliente && cliente.trim()) {
+                try {
+                    const rc = await fetch('/api/clientes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            nombre: cliente.trim(),
+                            nif: nifCliente.trim() || undefined,
+                            telefono: telCliente.trim() || undefined,
+                            direccion: direccion.trim() || undefined,
+                        }),
+                    })
+                    if (rc.ok) idCliente = (await rc.json())?.data?.id ?? null
+                } catch {
+                    /* la rubrica non deve far fallire l'invio */
+                }
+            }
+
             const res = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -100,6 +142,7 @@ export default function SubmitStep({
                     source: 'installer',
                     status: 'submitted',
                     client_name: cliente.trim(),
+                    cliente_id: idCliente ?? undefined,
                     installer_name: empresa.trim() || 'Sin nombre',
                     address: direccion.trim(),
                     savings_eur: r.valorTotal,
@@ -144,12 +187,23 @@ export default function SubmitStep({
                     <label className={label} htmlFor="sb-cliente">
                         Cliente
                     </label>
-                    <input
+                    <BuscadorCliente
                         id="sb-cliente"
                         className={field}
-                        value={cliente}
-                        onChange={(e) => setCliente(e.target.value)}
-                        placeholder="Nombre y apellidos"
+                        valor={cliente}
+                        onEscribir={(v) => {
+                            setCliente(v)
+                            setClienteId(null)
+                        }}
+                        onElegir={(c: Cliente) => {
+                            // Prendendolo dalla rubrica si riempie tutto
+                            // il resto: e' il punto di avere una rubrica.
+                            setCliente(c.nombre)
+                            setClienteId(c.id ?? null)
+                            setNifCliente(c.nif ?? '')
+                            setTelCliente(c.telefono ?? '')
+                            if (c.direccion) setDireccion(c.direccion)
+                        }}
                     />
                 </div>
                 <div>
@@ -162,6 +216,31 @@ export default function SubmitStep({
                         value={empresa}
                         onChange={(e) => setEmpresa(e.target.value)}
                         placeholder="Clima Levante S.L."
+                    />
+                </div>
+                <div>
+                    <label className={label} htmlFor="sb-nif">
+                        NIF o NIE del cliente
+                    </label>
+                    <input
+                        id="sb-nif"
+                        className={field}
+                        value={nifCliente}
+                        onChange={(e) => setNifCliente(e.target.value)}
+                        placeholder="00000000X"
+                    />
+                </div>
+                <div>
+                    <label className={label} htmlFor="sb-tel">
+                        Teléfono del cliente
+                    </label>
+                    <input
+                        id="sb-tel"
+                        type="tel"
+                        className={field}
+                        value={telCliente}
+                        onChange={(e) => setTelCliente(e.target.value)}
+                        placeholder="600 000 000"
                     />
                 </div>
                 <div className="sm:col-span-2">
