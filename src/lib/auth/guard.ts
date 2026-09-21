@@ -38,7 +38,8 @@
  */
 
 import { createClient } from '@/utils/supabase/server'
-import { esModoDemo } from './demoMode'
+import { cookies } from 'next/headers'
+import { esModoDemo, esModoDemoPara } from './demoMode'
 
 export { esModoDemo }
 
@@ -91,7 +92,8 @@ export async function quienLlama(): Promise<Sesion | null> {
         // Supabase irraggiungibile: in demo si prosegue, altrimenti si nega.
     }
 
-    return esModoDemo() ? { userId: null, email: null, rol: null, demo: true } : null
+    const demo = esModoDemoPara(await cookies())
+    return demo ? { userId: null, email: null, rol: null, demo: true } : null
 }
 
 /**

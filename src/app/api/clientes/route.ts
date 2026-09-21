@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { quienLlama, negado } from '@/lib/auth/guard'
 import { dentroDelLimite, quienCuenta, demasiadas } from '@/lib/auth/ritmo'
+import { mockClientes } from '@/lib/mockClientes'
 
 /**
  * I clienti di un installatore.
@@ -45,9 +46,13 @@ function sanear(body: Record<string, unknown>) {
 export async function GET(request: Request) {
     const quien = await quienLlama()
     if (!quien) return negado()
-    if (!quien.userId) return NextResponse.json({ data: [], demo: true })
-
     const q = new URL(request.url).searchParams.get('q')?.trim() ?? ''
+
+    // In dimostrazione i clienti si ricavano dagli espedienti finti: cosi
+    // la scheda mostra pratiche vere e i due elenchi non si contraddicono.
+    if (!quien.userId) {
+        return NextResponse.json({ data: mockClientes.all(q), demo: true })
+    }
 
     const supabase = await createClient()
     let consulta = supabase

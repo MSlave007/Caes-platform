@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { esModoDemo } from '@/lib/auth/demoMode'
+import { esModoDemoPara } from '@/lib/auth/demoMode'
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -48,6 +48,11 @@ export async function updateSession(request: NextRequest) {
     //
     // In modalità dimostrativa restano aperte: serve a mostrare il giro
     // senza credenziali. In produzione no.
+    // La demo di CHI sta chiedendo: un cookie permette a una singola
+    // scheda di provare la piattaforma bloccata senza spegnerla per
+    // tutti quelli che stanno usando lo stesso server.
+    const demo = esModoDemoPara(request.cookies)
+
     const path = request.nextUrl.pathname
     const reservada =
         path.startsWith('/admin') ||
@@ -56,7 +61,7 @@ export async function updateSession(request: NextRequest) {
         // da mostrare, e la pagina chiederebbe dati a nessuno.
         path.startsWith('/cuenta')
 
-    if (!user && reservada && !esModoDemo()) {
+    if (!user && reservada && !demo) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         url.searchParams.set('volver', path)
@@ -74,7 +79,7 @@ export async function updateSession(request: NextRequest) {
     // dice il browser. La query si fa SOLO per /admin: aggiungerne una a
     // ogni pagina del sito per un controllo che riguarda una zona sola
     // sarebbe un pedaggio inutile.
-    if (user && path.startsWith('/admin') && !esModoDemo()) {
+    if (user && path.startsWith('/admin') && !demo) {
         const { data: perfil } = await supabase
             .from('profiles')
             .select('role')

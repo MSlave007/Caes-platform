@@ -4,12 +4,15 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FolderOpen, LogOut, Plus, User, UserCog } from 'lucide-react'
+import { FolderOpen, LogOut, Plus, User, UserCog, Users } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
 const NAV = [
     { href: '/installer/dashboard', label: 'Expedientes', Icon: FolderOpen },
     { href: '/installer/documentos', label: 'Nuevo', Icon: Plus },
+    // Le schede dei suoi clienti: si creano da sole inviando un
+    // espediente, e servono a rispondere quando il cliente chiama.
+    { href: '/installer/clientes', label: 'Clientes', Icon: Users },
     { href: '/installer/profile', label: 'Perfil', Icon: User },
     { href: '/cuenta', label: 'Mi cuenta', Icon: UserCog },
 ]

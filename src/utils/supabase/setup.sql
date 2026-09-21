@@ -348,3 +348,56 @@ alter table public.projects
   add column if not exists cliente_id uuid references public.clientes(id) on delete set null;
 
 create index if not exists projects_cliente_idx on public.projects (cliente_id);
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  ⚠️  URGENTE — CUALQUIERA PUEDE HACERSE ADMINISTRADOR
+--
+--  Comprobado el 21 de septiembre de 2026, haciéndolo de verdad:
+--  un alta pública con `role: "admin"` en los metadatos crea una cuenta
+--  de AGENCIA. Es decir, quien abra
+--
+--      /register?role=admin
+--
+--  se da de alta con acceso a la cola de revisión, a todos los
+--  expedientes, a los márgenes y a los contactos — nombres y teléfonos
+--  de particulares. Deja sin valor toda la separación de roles.
+--
+--  El motivo: el trigger se creía el rol que venía del navegador.
+--
+--      coalesce(new.raw_user_meta_data->>'role', 'installer')
+--
+--  Lo de abajo lo arregla: el alta crea SIEMPRE un instalador, mire lo
+--  que mire el navegador. Subir a alguien a agencia se hace a mano:
+--
+--      update public.profiles set role = 'admin' where email = '...';
+--
+--  De paso arregla otra cosa: dar de alta sin `full_name` devolvía un
+--  500 opaco, porque `profiles.name` es NOT NULL. Ahora, sin nombre, se
+--  usa la parte del correo antes de la arroba.
+-- ════════════════════════════════════════════════════════════════════
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, name, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(
+      nullif(new.raw_user_meta_data->>'full_name', ''),
+      split_part(new.email, '@', 1)
+    ),
+    -- SIEMPRE instalador. El rol no se pide, se concede.
+    'installer'
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Por si alguien ya se coló antes de este arreglo: esto enseña quién
+-- tiene rol de agencia. Debería salir solo la gente que conoces.
+select email, role, created_at
+from public.profiles
+where role = 'admin'
+order by created_at;
