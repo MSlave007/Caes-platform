@@ -132,7 +132,13 @@ alter table public.projects
   add column if not exists notas          text,
   -- El nombre que le puso en el borrador, cuando el cliente todavía no
   -- estaba escrito en ninguna parte.
-  add column if not exists nombre         text;
+  add column if not exists nombre         text,
+  -- { "<campo>": { valor, estado, confianza } }
+  -- Lo leído de los documentos, campo a campo, con su estado: extraído,
+  -- confirmado o corregido. Vivía solo en la pantalla de quien revisaba:
+  -- doce campos comprobados se perdían al recargar la página. Revisar es
+  -- trabajo, y se guarda mientras se hace, no al final.
+  add column if not exists extraccion     jsonb default '{}'::jsonb;
 
 
 -- ── 3. PERFIL: documentos de la CUENTA ──────────────────────────────

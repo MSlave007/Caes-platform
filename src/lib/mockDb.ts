@@ -58,6 +58,14 @@ export type Project = {
     notas?: string
     /** Come l'ha chiamato chi l'ha aperto, quando il cliente non c'era ancora. */
     nombre?: string
+    /**
+     * I dati letti dai documenti, campo per campo, col loro stato.
+     *
+     * Stavano solo nello stato della pagina: chi rivedeva dodici campi e
+     * poi ricaricava li ritrovava tutti vuoti. Il lavoro di revisione e
+     * lavoro, e va salvato mentre si fa, non alla fine.
+     */
+    extraccion?: Record<string, { valor: string | number | null; estado: string; confianza?: number }>
     files: unknown[]
 }
 

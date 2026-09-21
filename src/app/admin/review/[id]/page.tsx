@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useMemo, useState } from 'react'
+import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StatusControl from '@/components/admin/StatusControl'
 import DocumentReview from '@/components/admin/DocumentReview'
 import {
@@ -50,17 +50,27 @@ export default function AdminReviewDetail({
     const [savings, setSavings] = useState(0)
     const [agencyPct, setAgencyPct] = useState(65)
     const [verified, setVerified] = useState<Record<string, boolean>>({})
+    /** 'limpio' = niente da salvare. Vedi il salvataggio automatico sotto. */
+    const [guardado, setGuardado] = useState<'limpio' | 'guardando' | 'hecho' | 'error'>(
+        'limpio'
+    )
 
     /**
      * I dati estratti dai documenti.
      *
-     * DA COLLEGARE: oggi partono vuoti. Quando /api/extract chiamera un
-     * modello vero, arriveranno precompilati con la loro confidenza — e il
-     * pannello serve esattamente a confermarli o correggerli.
+     * Partono vuoti e si riempiono da due parti: quello che legge
+     * /api/extract dai documenti, e quello che corregge a mano chi rivede.
+     *
+     * Si CARICANO dal fascicolo e si RISALVANO da soli. Prima vivevano
+     * solo qui dentro: dodici campi controllati uno per uno sparivano al
+     * primo aggiornamento della pagina, e nessuno se ne accorgeva finche'
+     * non toccava rifarli.
      */
-    const [extraccion, setExtraccion] = useState<Extraccion>(() =>
-        Object.fromEntries(CAMPOS.map((c) => [c.id, { valor: null, estado: 'vacio' as const }]))
-    )
+    const vacios = () =>
+        Object.fromEntries(
+            CAMPOS.map((c) => [c.id, { valor: null, estado: 'vacio' as const }])
+        )
+    const [extraccion, setExtraccion] = useState<Extraccion>(vacios)
 
     const cambiarCampo = (id: string, valor: string) =>
         setExtraccion((prev) => ({
@@ -265,6 +275,11 @@ export default function AdminReviewDetail({
                 setVerified(
                     Object.fromEntries((proj?.docs ?? []).map((d) => [d.id, d.verified]))
                 )
+                // Quello gia' controllato in una sessione precedente torna
+                // com'era: confermato resta confermato.
+                if (proj?.extraccion && Object.keys(proj.extraccion).length > 0) {
+                    setExtraccion({ ...vacios(), ...(proj.extraccion as Extraccion) })
+                }
             })
             .catch((e) => console.error('Error al cargar el expediente:', e))
             .finally(() => setLoading(false))
@@ -313,6 +328,53 @@ export default function AdminReviewDetail({
         if (!res.ok) throw new Error('No se ha podido guardar el cambio')
         return res.json()
     }
+
+    /**
+     * Salvataggio automatico del lavoro di revisione.
+     *
+     * ── PERCHE' NON BASTAVA SALVARE ALL'APPROVAZIONE ─────────────────
+     *
+     * Prima le spunte di verifica e i dati estratti partivano solo
+     * insieme alla decisione. Ma una revisione non si fa in una seduta:
+     * si aprono i documenti, si confronta il numero di serie, ci si
+     * ferma, si torna il giorno dopo. Chi ricaricava la pagina ritrovava
+     * tutto da rifare — e non era nemmeno detto lo notasse subito.
+     *
+     * Si salva mentre si lavora, con mezzo secondo di attesa perche'
+     * correggere un campo a tastiera non generi una chiamata per lettera.
+     */
+    const primeraVez = useRef(true)
+
+    const guardarAvance = useCallback(async () => {
+        setGuardado('guardando')
+        try {
+            await patch({
+                extraccion,
+                docs: (p?.docs ?? []).map((d) => ({
+                    ...d,
+                    verified: Boolean(verified[d.id]),
+                })),
+            })
+            setGuardado('hecho')
+        } catch {
+            // Non si perde niente di quello che c'e' a schermo: si dice
+            // che non e' arrivato, e il tentativo successivo riprova.
+            setGuardado('error')
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [extraccion, verified, p?.docs, id])
+
+    useEffect(() => {
+        // Il primo giro e' il caricamento, non una modifica: risalvare
+        // subito quello appena letto sarebbe una scrittura per niente.
+        if (loading) return
+        if (primeraVez.current) {
+            primeraVez.current = false
+            return
+        }
+        const t = window.setTimeout(() => void guardarAvance(), 500)
+        return () => window.clearTimeout(t)
+    }, [extraccion, verified, loading, guardarAvance])
 
     const decide = async (status: 'approved' | 'rejected') => {
         setBusy(status === 'approved' ? 'approve' : 'reject')
@@ -486,6 +548,26 @@ export default function AdminReviewDetail({
                     <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
                         Documentación y datos
                     </h2>
+
+                    {/* Che si stia salvando va VISTO. Un salvataggio
+                        automatico silenzioso e indistinguibile da uno che
+                        non c'e: chi rivede deve poter chiudere la scheda
+                        sapendo che il lavoro e al sicuro. */}
+                    <span
+                        className={`text-[12.5px] ${guardado === 'error'
+                            ? 'text-[#9B4526]'
+                            : 'text-[var(--caes-faint)]'
+                            }`}
+                        role={guardado === 'error' ? 'alert' : undefined}
+                    >
+                        {guardado === 'guardando'
+                            ? 'Guardando…'
+                            : guardado === 'hecho'
+                                ? 'Guardado. Puedes cerrar y seguir después.'
+                                : guardado === 'error'
+                                    ? 'No se ha podido guardar lo comprobado.'
+                                    : ''}
+                    </span>
                 </div>
 
                 <div className="mt-6">
