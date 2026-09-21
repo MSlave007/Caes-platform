@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StatusControl from '@/components/admin/StatusControl'
+import PestanasExpediente from '@/components/admin/PestanasExpediente'
 import DocumentReview from '@/components/admin/DocumentReview'
 import {
     CAMPOS,
@@ -393,6 +394,9 @@ export default function AdminReviewDetail({
      * correggere un campo a tastiera non generi una chiamata per lettera.
      */
     const primeraVez = useRef(true)
+    /** Vero quando l'ultima modifica e' la firma ripresa dal server, non
+     *  una modifica di chi rivede. Non va risalvata. */
+    const adoptando = useRef(false)
 
     const guardarAvance = useCallback(async () => {
         setGuardado('guardando')
@@ -427,13 +431,22 @@ export default function AdminReviewDetail({
             const firmada = respuesta?.data?.extraccion as Extraccion | undefined
             if (firmada) {
                 setExtraccion((prev) => {
+                    let cambio = false
                     const siguiente = { ...prev }
                     for (const [campo, v] of Object.entries(firmada)) {
                         const actual = prev[campo]
                         if (!actual) continue
                         if (actual.valor !== v.valor || actual.estado !== v.estado) continue
+                        if (actual.por === v.por && actual.en === v.en) continue
                         siguiente[campo] = { ...actual, por: v.por, en: v.en }
+                        cambio = true
                     }
+                    // Senza questo `return prev` la pagina si salvava in
+                    // tondo: `{...prev}` e sempre un oggetto nuovo, quindi
+                    // l'effetto di salvataggio automatico ripartiva, e a
+                    // schermo si vedeva «Guardando… Guardado» all'infinito.
+                    if (!cambio) return prev
+                    adoptando.current = true
                     return siguiente
                 })
             }
@@ -453,6 +466,10 @@ export default function AdminReviewDetail({
         if (loading) return
         if (primeraVez.current) {
             primeraVez.current = false
+            return
+        }
+        if (adoptando.current) {
+            adoptando.current = false
             return
         }
         const t = window.setTimeout(() => void guardarAvance(), 500)
@@ -520,16 +537,6 @@ export default function AdminReviewDetail({
                     Volver a la cola
                 </Link>
 
-                {/* I documenti che escono da questo fascicolo. Stanno in
-                    una schermata a parte: sono il passo dopo, non un
-                    pezzo della revisione. */}
-                <Link
-                    href={`/admin/review/${id}/documentos`}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-4 py-1.5 text-[13px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]"
-                >
-                    <FileText className="h-3.5 w-3.5" />
-                    Ver los documentos
-                </Link>
             </div>
 
             {/* ------------------------------------------------ intestazione */}
@@ -565,6 +572,12 @@ export default function AdminReviewDetail({
                 </div>
                 <StatusChip status={p.status} />
             </div>
+
+            <PestanasExpediente
+                id={String(id)}
+                activa="revision"
+                pendientes={documentos.filter((d) => d.estado !== 'listo_firmar').length}
+            />
 
             {/* --------------------------------------------------- avvisi */}
             {(belowMinimum || missing.length > 0) && (

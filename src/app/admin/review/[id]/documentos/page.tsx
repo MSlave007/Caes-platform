@@ -4,6 +4,7 @@ import { use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import GeneradorDocumentos from '@/components/admin/GeneradorDocumentos'
+import PestanasExpediente from '@/components/admin/PestanasExpediente'
 import { CAMPOS, type Extraccion } from '@/lib/caes/extraction'
 import {
     DATOS_EJEMPLO,
@@ -156,12 +157,14 @@ export default function DocumentosDelExpediente({
         <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-5 print:hidden">
                 <Link
-                    href={`/admin/review/${id}`}
+                    href="/admin/review"
                     className="group inline-flex w-fit items-center gap-2.5 text-[13px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
                 >
                     <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
-                    Volver al expediente
+                    Volver a la cola
                 </Link>
+
+                <PestanasExpediente id={String(id)} activa="documentos" />
 
                 <div className="flex flex-wrap items-end justify-between gap-5">
                     <div>
