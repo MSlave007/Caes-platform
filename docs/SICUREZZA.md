@@ -7,6 +7,11 @@ aperta, l'ho aperta.
 
 ---
 
+> **Questo documento e un diario, non una fotografia.** Le tornate
+> sono in ordine di data e le piu vecchie raccontano cose che dopo
+> sono state chiuse. **Lo stato di adesso sta in fondo**, sotto
+> «Controllo del 21 settembre 2026, sera».
+
 ## In una riga
 
 Il database è protetto bene. L'applicazione davanti non lo era: l'area
@@ -273,30 +278,99 @@ a seconda, e diventerebbe un modo per farsi l'elenco degli installatori.
   entrasse in una sessione altrui, cambiare l'email sarebbe il primo
   passo per chiudere fuori il proprietario per sempre.
 
+---
+
+# Controllo del 21 settembre 2026, sera — stato verificato
+
+Non dedotto dal codice: rifatto girando contro il server e contro
+Supabase. Dove dico «chiuso», ho riprovato ad aprirlo.
+
+## Il deposito dei documenti — CHIUSO
+
+Era il buco piu grave aperto. Dopo l'SQL che hai lanciato, riprovato
+oggi su quattro file del bucket con una richiesta anonima, senza
+nessuna intestazione e con un parametro finto per scavalcare la cache
+di Cloudflare:
+
+```
+4 file provati, scaricabili senza chiave: 0
+```
+
+Prima ne scendeva uno da 2,7 MB. Adesso l'origine risponde 400.
+
+## Le API, provate da sconosciuto
+
+Tutte le tredici rotte sotto `src/app/api` nominano la guardia
+(`quienLlama` o `soloAgencia`): verificato file per file, nessuna
+scoperta. E provate davvero, con la dimostrazione spenta dal cookie
+`caes_sin_demo`:
+
+```
+401  GET   /api/projects          elenco fascicoli
+401  GET   /api/clientes          schede clienti
+401  GET   /api/drafts            bozze altrui
+401  GET   /api/cuenta            il profilo
+401  GET   /api/documents/url     firmare un percorso altrui
+401  DEL   /api/upload            cancellare un file altrui
+401  POST  /api/extract           la rotta che costa soldi
+401  PATCH /api/projects/1        approvarsi da solo
+401  POST  /api/projects (con id) scavalcare la PATCH
+401  GET   /api/leads             i contatti commerciali
+```
+
+Le pagine: `/admin/*` e `/installer/*` rimandano tutte a
+`/login?volver=…`. Restano pubbliche solo `/es`, `/login`,
+`/forgot-password` e `/register`, che devono esserlo.
+
+## Il limite di frequenza — ATTIVO
+
+Non solo importato: provato. Venticinque chiamate di fila a
+`/api/extract`:
+
+```
+20 risposte normali, poi 5 volte 429 — il primo alla chiamata 21
+```
+
+Il limite e 20 ogni 5 minuti, e scatta **prima** di toccare il modello
+a pagamento. Lo stesso su `/api/upload` (40/5min), `/api/leads`
+(5/10min) e `/api/clientes` (20/5min).
+
+Vale la pena ripeterlo: e un contatore in memoria del processo. Ferma
+un ciclo impazzito e uno che prova a indovinare, **non** ferma un
+attacco distribuito, e si azzera a ogni riavvio. Per quello serve
+qualcosa davanti (Cloudflare, o il rate limit di Supabase).
+
+---
+
+## Come stiamo, in una riga
+
+**Le cose che facevano uscire i dati sono chiuse, e sono state chiuse
+riprovandole.** Quello che resta non e un buco aperto: sono cose non
+ancora costruite, e si sa quali sono.
+
 ## Resta aperto
 
-1. **La registrazione è libera.** Chiunque può creare un account
-   installatore. Finché il ruolo `admin` si assegna solo a mano dal
-   database il danno è limitato, ma va deciso se serve un invito.
-2. **Nessun limite di frequenza** su nessuna rotta. `/api/extract` costa
-   soldi a ogni chiamata.
-3. **⚠️ IL DEPOSITO È APERTO — la cosa più grave aperta.**
-   Verificato il 21 settembre: il bucket è marcato privato, **ma un
-   file si scarica lo stesso senza nessuna chiave**. Provato davvero:
-   2,7 MB scaricati con una richiesta senza intestazioni, all'indirizzo
-   `/storage/v1/object/public/documents/<file>`.
+1. **La registrazione e libera.** `/register` risponde 200 a chiunque.
+   Il danno oggi e limitato — il trigger forza il ruolo `installer`, e
+   `admin` si da solo a mano dal database — ma un estraneo puo crearsi
+   un account e vedere il guscio dell'applicazione. **Si chiude quando
+   l'agenzia puo creare gli account lei**, che e comunque il modello
+   che vogliamo: «non e una piattaforma in cui uno entra perche l'ha
+   trovata». Finche non c'e quella schermata, togliere `/register` vuol
+   dire non poter creare nessuno.
 
-   Vuol dire che una policy su `storage.objects` lascia passare
-   chiunque, scavalcando l'impostazione del bucket. Dentro ci sono DNI,
-   fatture e foto di case di privati.
+2. **Niente registro di chi ha GUARDATO un documento.** Sappiamo chi ha
+   confermato un dato e chi ha cambiato uno stato — il server timbra
+   `por` e `en` dentro `firmar()`. Non sappiamo chi ha aperto il DNI di
+   un cliente. Con dati personali dentro, prima o poi serve: e la
+   domanda che fa un cliente quando chiede «chi ha visto le mie carte».
 
-   Fino a oggi i nomi dei file erano anche indovinabili
-   (`<marca temporale>-<5 char di Math.random()>`): le due cose insieme
-   sono una fuga di dati, non un rischio teorico. I nomi adesso sono
-   UUID, il che alza il costo — ma non chiude niente.
+3. **Nessun fornitore email collegato.** Non e un buco di sicurezza ma
+   ci somiglia: senza, la conferma di registrazione e il recupero
+   password funzionano solo a meta, e l'installatore non viene avvisato
+   quando il revisore gli rimanda indietro un fascicolo.
 
-   **Si chiude con l'SQL in fondo a `src/utils/supabase/setup.sql`.**
-   Non posso lanciarlo io: cancellare una policy è DDL, e l'API REST
-   non esegue DDL.
-4. **Niente registro di chi ha guardato cosa.** Sappiamo chi ha
-   confermato un dato, non chi ha aperto un documento.
+4. **Il limite di frequenza sta in memoria** (vedi sopra).
+
+5. **Tre righe di prova** restano dentro `projects` (`Test`,
+   `Demo Hotel Central`, `Test`). Vanno tolte prima dei dati veri.
