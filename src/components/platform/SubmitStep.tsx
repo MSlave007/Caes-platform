@@ -78,6 +78,14 @@ export default function SubmitStep({
     const [clienteId, setClienteId] = useState<string | null>(null)
     const [nifCliente, setNifCliente] = useState('')
     const [telCliente, setTelCliente] = useState('')
+    /**
+     * L'email del cliente.
+     *
+     * Non e' un dato in piu': e' l'indirizzo a cui arrivera' il Convenio
+     * da firmare. Il modello lo chiede da sempre e finora non lo
+     * chiedeva nessuno, cosi' finiva vuoto nel documento.
+     */
+    const [emailCliente, setEmailCliente] = useState('')
 
     /**
      * Il cliente scelto prima di arrivare qui.
@@ -97,6 +105,7 @@ export default function SubmitStep({
                 setClienteId(d.id ?? null)
                 setNifCliente(d.nif ?? '')
                 setTelCliente(d.telefono ?? '')
+                setEmailCliente(d.email ?? '')
                 if (d.direccion) setDireccion(d.direccion)
             })
             .catch(() => {
@@ -158,6 +167,7 @@ export default function SubmitStep({
                             nombre: cliente.trim(),
                             nif: nifCliente.trim() || undefined,
                             telefono: telCliente.trim() || undefined,
+                            email: emailCliente.trim() || undefined,
                             direccion: direccion.trim() || undefined,
                         }),
                     })
@@ -234,6 +244,7 @@ export default function SubmitStep({
                             setClienteId(c.id ?? null)
                             setNifCliente(c.nif ?? '')
                             setTelCliente(c.telefono ?? '')
+                            setEmailCliente(c.email ?? '')
                             if (c.direccion) setDireccion(c.direccion)
                         }}
                     />
@@ -274,6 +285,22 @@ export default function SubmitStep({
                         onChange={(e) => setTelCliente(e.target.value)}
                         placeholder="600 000 000"
                     />
+                </div>
+                <div className="sm:col-span-2">
+                    <label className={label} htmlFor="sb-email">
+                        Correo del cliente
+                    </label>
+                    <input
+                        id="sb-email"
+                        type="email"
+                        className={field}
+                        value={emailCliente}
+                        onChange={(e) => setEmailCliente(e.target.value)}
+                        placeholder="cliente@ejemplo.es"
+                    />
+                    <p className="mt-2 text-[12.5px] leading-[1.45] text-[var(--caes-faint)]">
+                        Es donde le llegará el Convenio cuando haya que firmarlo.
+                    </p>
                 </div>
                 <div className="sm:col-span-2">
                     <label className={label} htmlFor="sb-direccion">
