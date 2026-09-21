@@ -6,6 +6,8 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Loader2, Plus, Search, Trash2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
+import TeToca, { type Pendiente } from '@/components/platform/TeToca'
+import { esperaAlInstalador } from '@/lib/caes/status'
 import { COMISION_MAXIMA_PCT, eur } from '@/lib/caes/estimate'
 import {
     contarArchivos,
@@ -23,6 +25,8 @@ type Project = {
     address?: string
     status: string
     savings_eur?: number
+    /** Il motivo scritto dall'agenzia quando rimanda indietro. */
+    admin_notes?: string | null
     created_at: string
     project_date: string
 }
@@ -50,15 +54,22 @@ export default function InstallerDashboard() {
         setBorradores(await listDrafts())
     }
 
+    /**
+     * Gli espedienti passano dall'API, non da Supabase diretto.
+     *
+     * Prima questa pagina interrogava il database dal browser. Con una
+     * sessione le regole di riga davano i propri, il che e giusto — ma
+     * senza sessione davano zero, e in dimostrazione la dashboard
+     * dell'installatore risultava sempre vuota mentre quella
+     * dell'agenzia mostrava le stesse pratiche. Due letture diverse
+     * degli stessi dati sono due posti dove divergere.
+     */
     useEffect(() => {
         const load = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('projects')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                if (error) throw error
-                setProjects(data || [])
+                const res = await fetch('/api/projects')
+                const j = await res.json()
+                setProjects(j.data ?? [])
             } catch (err) {
                 console.error('Error al cargar los expedientes:', err)
             } finally {
@@ -78,6 +89,27 @@ export default function InstallerDashboard() {
                 p.status?.toLowerCase().includes(q)
         )
     }, [projects, search])
+
+    /**
+     * Quelli fermi in attesa di lui.
+     *
+     * Non «gli aperti»: quelli su cui NESSUNO puo' muoversi al posto suo.
+     * Il modello degli stati lo sa gia' — `actor === 'installer'` — e
+     * fino a ora quell'informazione finiva in una pastiglia dello stesso
+     * peso di tutte le altre.
+     */
+    const pendientes = useMemo<Pendiente[]>(
+        () =>
+            projects
+                .filter((p) => esperaAlInstalador(normalize(p.status)))
+                .map((p) => ({
+                    id: p.id,
+                    cliente: p.client_name,
+                    estado: normalize(p.status),
+                    motivo: p.admin_notes,
+                })),
+        [projects]
+    )
 
     const totalSavings = projects.reduce((a, p) => a + (p.savings_eur || 0), 0)
     const open = projects.filter((p) =>
@@ -119,6 +151,9 @@ export default function InstallerDashboard() {
                     Nuevo expediente
                 </Link>
             </div>
+
+            {/* Prima di tutto il resto: quello che aspetta lui. */}
+            <TeToca pendientes={pendientes} />
 
             {/* ------------------------------------------------------ numeri */}
             <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-2 lg:grid-cols-4">

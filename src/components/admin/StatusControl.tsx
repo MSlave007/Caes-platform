@@ -36,25 +36,50 @@ const ACTOR_TEXTO: Record<string, string> = {
     none: 'Nada pendiente',
 }
 
+/**
+ * Gli stati che tornano indietro all'installatore.
+ *
+ * Per questi il motivo non è facoltativo. Un «cambios solicitados» senza
+ * dire cosa cambiare è la cosa peggiore che si possa mandare: la pratica
+ * si ferma, l'installatore non sa cosa fare, e l'unico modo di
+ * scoprirlo è una telefonata. È esattamente la settimana di silenzio
+ * che questa piattaforma dovrebbe togliere, prodotta da noi.
+ */
+const EXIGEN_MOTIVO: EstadoId[] = ['changes_requested', 'rejected']
+
 export default function StatusControl({
     current,
     onChange,
 }: {
     current: string
-    onChange: (next: EstadoId) => Promise<void>
+    /** `motivo` arriva valorizzato solo per gli stati che lo esigono. */
+    onChange: (next: EstadoId, motivo?: string) => Promise<void>
 }) {
     const [busy, setBusy] = useState<EstadoId | null>(null)
+    const [pidiendo, setPidiendo] = useState<EstadoId | null>(null)
+    const [motivo, setMotivo] = useState('')
     const e = estado(current)
     const opciones = siguientes(current)
     const i = posicion(current)
 
-    async function ir(next: EstadoId) {
+    async function ir(next: EstadoId, texto?: string) {
         setBusy(next)
         try {
-            await onChange(next)
+            await onChange(next, texto)
+            setPidiendo(null)
+            setMotivo('')
         } finally {
             setBusy(null)
         }
+    }
+
+    /** Chiede il motivo prima, quando lo stato lo esige. */
+    function pulsar(next: EstadoId) {
+        if (EXIGEN_MOTIVO.includes(next)) {
+            setPidiendo(next)
+            return
+        }
+        void ir(next)
     }
 
     return (
@@ -101,7 +126,7 @@ export default function StatusControl({
                                 key={id}
                                 type="button"
                                 disabled={busy !== null}
-                                onClick={() => ir(id)}
+                                onClick={() => pulsar(id)}
                                 className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-4 py-2 text-[13.5px] text-[var(--caes-ink)] transition-colors hover:border-[var(--caes-ink)] disabled:opacity-40"
                             >
                                 {busy === id ? (
@@ -115,6 +140,63 @@ export default function StatusControl({
                     })}
                 </div>
             ) : null}
+
+            {/* Il motivo. Compare solo quando serve, e senza di lui il
+                pulsante non si preme: la scorciatoia «mando indietro e
+                poi chiamo» e' quella che si prende sempre, se c'e'. */}
+            {pidiendo && (
+                <div className="mt-4 rounded-xl border border-[#D9A94F]/55 bg-[#D9A94F]/[.07] p-5">
+                    <label
+                        htmlFor="motivo"
+                        className="text-[14px] font-semibold text-[#6F4708]"
+                    >
+                        {pidiendo === 'rejected'
+                            ? '¿Por qué no sigue adelante?'
+                            : '¿Qué tiene que corregir?'}
+                    </label>
+                    <p className="mt-1.5 max-w-[62ch] text-[13px] leading-[1.5] text-[#7A5A16]">
+                        Lo lee el instalador tal cual, en su panel. Sé concreto: «falta
+                        la foto de la etiqueta, no se lee el número de serie» le ahorra
+                        una llamada y a ti otra vuelta.
+                    </p>
+
+                    <textarea
+                        id="motivo"
+                        rows={3}
+                        autoFocus
+                        value={motivo}
+                        onChange={(ev) => setMotivo(ev.target.value)}
+                        className="mt-3.5 w-full resize-y rounded-xl border border-[#D9A94F]/55 bg-[var(--caes-paper)] px-4 py-3 text-[14px] leading-[1.55] text-[var(--caes-ink)] outline-none transition-colors focus:border-[#C4863F]"
+                    />
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                        <button
+                            type="button"
+                            disabled={busy !== null || motivo.trim().length < 10}
+                            onClick={() => ir(pidiendo, motivo.trim())}
+                            className="inline-flex items-center gap-2 rounded-full bg-[var(--caes-ink)] px-5 py-2.5 text-[13.5px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                            {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                            Mandárselo
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setPidiendo(null)
+                                setMotivo('')
+                            }}
+                            className="rounded-full px-4 py-2.5 text-[13.5px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
+                        >
+                            Dejarlo
+                        </button>
+                        {motivo.trim().length < 10 && (
+                            <span className="text-[12.5px] text-[#8A5B0B]">
+                                Escribe qué falta antes de mandarlo.
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

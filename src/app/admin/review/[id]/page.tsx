@@ -907,9 +907,24 @@ export default function AdminReviewDetail({
                 <div className="mt-8">
                     <StatusControl
                         current={p.status}
-                        onChange={async (next: EstadoId) => {
-                            await patch({ status: next })
-                            setP((prev) => (prev ? { ...prev, status: next } : prev))
+                        onChange={async (next: EstadoId, motivo?: string) => {
+                            // Il motivo finisce sul fascicolo: lo legge
+                            // l'installatore nel suo pannello, ed e' quello
+                            // che gli dice cosa fare.
+                            await patch(
+                                motivo
+                                    ? { status: next, admin_notes: motivo }
+                                    : { status: next }
+                            )
+                            setP((prev) =>
+                                prev
+                                    ? {
+                                        ...prev,
+                                        status: next,
+                                        ...(motivo ? { admin_notes: motivo } : {}),
+                                    }
+                                    : prev
+                            )
                         }}
                     />
                 </div>

@@ -83,6 +83,14 @@ export type Project = {
     /** Ultimo movimento. Da qui si contano i giorni di attesa. */
     updated_at?: string
     /**
+     * Il motivo scritto dall'agenzia quando rimanda indietro o rifiuta.
+     *
+     * Lo legge l'installatore tal quale. Un «cambios solicitados» senza
+     * motivo ferma la pratica e produce una telefonata: e' la settimana
+     * di silenzio che questa piattaforma dovrebbe togliere, fatta da noi.
+     */
+    admin_notes?: string | null
+    /**
      * Il soggetto delegato a cui si cede l'ahorro. Vedi proveedores.ts.
      *
      * Non e' un dettaglio commerciale: e' la controparte del Convenio, e
