@@ -5,6 +5,20 @@ per questa non è stata scritta una riga di codice.
 
 ---
 
+> **Aggiornamento del 21 settembre, sera.** Marco ha ribaltato la
+> domanda: «magari il CRM non verrebbe nemmeno utilizzato
+> dall'installatore ma dal capo degli installatori, per capire quanti
+> clienti hanno e il cliente X a chi e assegnato».
+>
+> Ha ragione, ed e la lettura piu forte — vedi **«Lo stesso conto, due
+> altezze»** in fondo. La prima parte di questo documento resta valida
+> come ragionamento: quello che cambia e il soggetto, non il
+> meccanismo.
+>
+> La vista del capo e gia in piedi: `/admin/installers`.
+
+---
+
 ## La domanda vera
 
 «Un CRM per i clienti dell'installatore» si può leggere in due modi, e
@@ -216,3 +230,93 @@ La **Fase 1**, e dentro la Fase 1 il **punto 2: l'orologio**.
 È l'unica delle tre che nessun altro strumento può dare all'installatore,
 perché nessun altro strumento sa quando scade la finestra. Tutto il
 resto, alla peggio, se lo ricorda lui.
+
+
+---
+
+# Lo stesso conto, due altezze
+
+Il pezzo che mancava alla proposta qui sopra, e che e arrivato dalla
+domanda di Marco.
+
+Il conto non e «un CRM per l'installatore». E **una funzione sola,
+applicata a due livelli diversi**:
+
+> chi sta fermo, da quanti giorni, e quanti soldi ci sono sopra.
+
+Cambia solo il soggetto.
+
+| | soggetto | chi guarda | la domanda |
+|---|---|---|---|
+| **in basso** | i suoi clienti | l'installatore | quale cliente chiamo oggi? |
+| **in alto** | i suoi installatori | il capo | quale installatore chiamo oggi? |
+
+Per questo il calcolo sta in `src/lib/caes/cartera.ts` e non dentro una
+pagina: perche la seconda vista non sia una copia della prima scritta
+due volte. Due copie e il modo in cui, fra sei mesi, i due schermi
+cominciano a mostrare numeri diversi per la stessa cosa — e da li non
+si torna piu indietro, perche nessuno sa quale dei due ha ragione.
+
+## Perche si comincia dall'alto
+
+Tre motivi, e sono buoni.
+
+**Il ruolo esiste gia.** L'agenzia c'e, ha il suo guscio, la sua
+navigazione e i suoi permessi. La vista del capo si e potuta aprire
+oggi. La vista dell'installatore avrebbe richiesto prima la cronologia
+per cliente, che e piu lavoro.
+
+**I dati bastano gia.** Chi blocca lo dice `estado(id).actor`, da
+quanto lo dicono le date. Non serve niente di nuovo da riempire.
+
+**Il capo ha un problema che l'installatore non ha.** L'installatore ha
+quaranta clienti e in testa ce li ha. Il capo ha cinque installatori per
+quaranta clienti ciascuno, e **in testa non ce li ha**. Il valore di uno
+schermo e inversamente proporzionale a quanto chi lo guarda gia sa.
+
+## Cosa mostra oggi `/admin/installers`
+
+- **La fascia in cima**: chi ha roba ferma in mano, da quanti giorni, e
+  quanti euro sono fermi con lui. Se non c'e niente, sparisce.
+- **Ogni installatore**: clienti distinti, espedienti, fermi, incassato.
+  Con una frase sotto il nome che dice la situazione a parole, perche i
+  numeri da soli non dicono se e un problema.
+- **L'ordine**: per urgenza, mai alfabetico.
+- **Quattro situazioni**, derivate: `Te necesita` (fermo da oltre 7
+  giorni in mano sua), `Dormido` (oltre 90 giorni di silenzio), `Nuevo`
+  (appena arrivato: i numeri bassi sono l'inizio, non un problema),
+  `Al dia`.
+- **La ricerca trova anche i clienti**, ed e li che risponde al
+  «il cliente X a chi e assegnato». Quando lo stesso cliente sta in
+  mano a due installatori, lo segnala: e una cosa che nessun altro
+  schermo puo far notare.
+- **Aprendo una riga**, i suoi clienti, con quanti espedienti ciascuno.
+
+## Cosa non c'e ancora, e in che ordine
+
+1. **Assegnare un installatore a un espediente orfano** da qui. Oggi si
+   vedono ma non si smistano.
+2. **La stessa vista per l'installatore**, sui suoi clienti. Il motore
+   e gia scritto e vale per tutti e due: manca la pagina.
+3. **Il contatto** (Fase 2 sopra): «chiamato il giorno X», col bottone
+   WhatsApp che scrive il messaggio da solo. Vale a tutte e due le
+   altezze: il capo chiama l'installatore, l'installatore chiama il
+   cliente.
+4. **`Verificado` che persista.** Il bottone c'era ma non salvava
+   niente — l'ho tolto. Un interruttore che non fa niente e peggio di
+   un interruttore che non c'e.
+
+## Una domanda ancora aperta
+
+**Chi e «il capo degli installatori»?** Ci sono due letture, e portano
+a due permessi diversi:
+
+- **l'agenzia** — noi, che coordiniamo installatori di ditte diverse;
+- **il titolare di una ditta** che ha sotto piu tecnici.
+
+La vista e la stessa in tutte e due i casi. Cambia una cosa sola: su
+quali installatori si affaccia. E un parametro, non un'altra pagina —
+ma il giorno in cui serve la seconda lettura serve anche un livello che
+oggi non c'e: la ditta, con dentro piu utenti.
+
+Per adesso e costruita per l'agenzia, perche quel ruolo esiste.
