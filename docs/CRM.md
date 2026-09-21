@@ -10,12 +10,23 @@ per questa non è stata scritta una riga di codice.
 > dall'installatore ma dal capo degli installatori, per capire quanti
 > clienti hanno e il cliente X a chi e assegnato».
 >
-> Ha ragione, ed e la lettura piu forte — vedi **«Lo stesso conto, due
-> altezze»** in fondo. La prima parte di questo documento resta valida
-> come ragionamento: quello che cambia e il soggetto, non il
-> meccanismo.
+> Costruita: `/admin/installers` — vedi **«Lo stesso conto, due
+> altezze»** in fondo.
 >
-> La vista del capo e gia in piedi: `/admin/installers`.
+> **Il verdetto di Marco, lo stesso giorno:** «va bene cosi, pero
+> chiaramente questa e piu una visione per vedere tutti gli
+> installatori che abbiamo cosa stanno facendo. Non era proprio quello
+> che chiedevo, chiaramente un CRM.»
+>
+> Quindi mettiamolo agli atti, perche fra un mese non si legga questo
+> documento e si pensi che il CRM e fatto: **`/admin/installers` e la
+> vista di rete, non il CRM.** Il CRM vero e quello descritto qui
+> sotto — per cliente, con la cronologia e il contatto — e resta da
+> fare. Il motore in `cartera.ts` serve a tutte e due, ma il motore non
+> e il prodotto.
+>
+> Marco ha anche detto che un **filtro per installatore** dentro la
+> vista di rete andrebbe bene. E piccolo e va fatto quando si riprende.
 
 ---
 
