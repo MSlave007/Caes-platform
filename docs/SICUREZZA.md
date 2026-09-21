@@ -280,7 +280,23 @@ a seconda, e diventerebbe un modo per farsi l'elenco degli installatori.
    database il danno è limitato, ma va deciso se serve un invito.
 2. **Nessun limite di frequenza** su nessuna rotta. `/api/extract` costa
    soldi a ogni chiamata.
-3. **Il bucket `documents`**: verificare che sia privato. Il codice è
-   pronto per il privato da tempo.
+3. **⚠️ IL DEPOSITO È APERTO — la cosa più grave aperta.**
+   Verificato il 21 settembre: il bucket è marcato privato, **ma un
+   file si scarica lo stesso senza nessuna chiave**. Provato davvero:
+   2,7 MB scaricati con una richiesta senza intestazioni, all'indirizzo
+   `/storage/v1/object/public/documents/<file>`.
+
+   Vuol dire che una policy su `storage.objects` lascia passare
+   chiunque, scavalcando l'impostazione del bucket. Dentro ci sono DNI,
+   fatture e foto di case di privati.
+
+   Fino a oggi i nomi dei file erano anche indovinabili
+   (`<marca temporale>-<5 char di Math.random()>`): le due cose insieme
+   sono una fuga di dati, non un rischio teorico. I nomi adesso sono
+   UUID, il che alza il costo — ma non chiude niente.
+
+   **Si chiude con l'SQL in fondo a `src/utils/supabase/setup.sql`.**
+   Non posso lanciarlo io: cancellare una policy è DDL, e l'API REST
+   non esegue DDL.
 4. **Niente registro di chi ha guardato cosa.** Sappiamo chi ha
    confermato un dato, non chi ha aperto un documento.

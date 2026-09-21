@@ -239,3 +239,40 @@ select table_name from information_schema.tables
 where table_schema = 'public'
   and table_name in ('profiles', 'projects', 'drafts', 'leads')
 order by table_name;
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  ⚠️  URGENTE — EL ALMACÉN ESTÁ ABIERTO
+--
+--  Comprobado el 21 de septiembre de 2026: el bucket `documents` está
+--  marcado como privado, PERO un archivo se descarga sin ninguna clave.
+--  Probado de verdad: 2,7 MB bajados con una petición sin cabeceras.
+--
+--      https://<proyecto>.supabase.co/storage/v1/object/public/documents/<archivo>
+--
+--  Es decir: hay una política que deja pasar a cualquiera por encima
+--  del ajuste del bucket. Dentro hay DNIs, facturas y fotos de casas
+--  de particulares.
+--
+--  Lo de abajo la quita. Es lo más importante de este archivo.
+-- ════════════════════════════════════════════════════════════════════
+
+-- Las políticas que abren el bucket a cualquiera. Los nombres varían
+-- según cómo se creara; se borran las que existan y no pasa nada con
+-- las que no.
+drop policy if exists "Public Access"                on storage.objects;
+drop policy if exists "Public Access documents"      on storage.objects;
+drop policy if exists "Give anon users access"       on storage.objects;
+drop policy if exists "Enable read access for all users" on storage.objects;
+
+-- Y por si tiene otro nombre: esto enseña TODAS las que quedan sobre
+-- el almacén. Si alguna dice `{public}` o `{anon}` en el rol, es esa —
+-- bórrala a mano con `drop policy "<nombre>" on storage.objects;`
+select policyname, roles, cmd
+from pg_policies
+where schemaname = 'storage' and tablename = 'objects'
+order by policyname;
+
+-- Nadie necesita leer el almacén con la clave pública. La aplicación
+-- firma enlaces desde el servidor (/api/documents/url), con la clave
+-- de servicio y después de comprobar de quién es el archivo.
