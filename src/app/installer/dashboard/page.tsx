@@ -4,10 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Loader2, Plus, Search, Trash2 } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
 import TeToca, { type Pendiente } from '@/components/platform/TeToca'
-import { esperaAlInstalador } from '@/lib/caes/status'
+import { esperaAlInstalador, estado } from '@/lib/caes/status'
 import { COMISION_MAXIMA_PCT, eur } from '@/lib/caes/estimate'
 import {
     contarArchivos,
@@ -36,7 +35,6 @@ export default function InstallerDashboard() {
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [borradores, setBorradores] = useState<Draft[]>([])
-    const supabase = createClient()
 
     // Le bozze arrivano dall'account (e dalla copia in questo browser, che
     // copre il cantiere senza campo). Si leggono dopo il montaggio: durante
@@ -77,7 +75,7 @@ export default function InstallerDashboard() {
             }
         }
         load()
-    }, [supabase])
+    }, [])
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase()
@@ -110,6 +108,11 @@ export default function InstallerDashboard() {
                 })),
         [projects]
     )
+
+    /** Quelli che sta guardando l'agenzia: non c'e' niente da fare. */
+    const enRevision = projects.filter(
+        (p) => estado(normalize(p.status)).actor === 'agency'
+    ).length
 
     const totalSavings = projects.reduce((a, p) => a + (p.savings_eur || 0), 0)
     const open = projects.filter((p) =>
@@ -158,7 +161,17 @@ export default function InstallerDashboard() {
             {/* ------------------------------------------------------ numeri */}
             <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                    { k: 'Expedientes', v: String(projects.length), n: 'desde que empezaste' },
+                    // Il primo non e' un conteggio, e' una domanda: quanti
+                    // stanno fermi da qualcuno che non sei tu. E' quello
+                    // che uno vuole sapere entrando, e prima non c'era.
+                    {
+                        k: 'En manos de la agencia',
+                        v: String(enRevision),
+                        n:
+                            enRevision > 0
+                                ? 'los estamos mirando. No tienes que hacer nada'
+                                : 'nada esperando revisión',
+                    },
                     { k: 'Aprobados', v: String(approved), n: 'certificado ya emitido' },
                     { k: 'Ahorro certificado', v: eur(totalSavings), n: 'suma de todos los proyectos' },
                     {
@@ -291,6 +304,33 @@ export default function InstallerDashboard() {
                                             <p className="mt-1 truncate text-[13px] text-[var(--caes-mut)]">
                                                 {p.address || 'Sin dirección'}
                                             </p>
+
+                                            {/* Di chi e' la palla adesso.
+                                                La pastiglia dice in che STATO e',
+                                                che non e' la stessa domanda: da
+                                                «Aprobado» non si capisce se c'e'
+                                                qualcosa da fare o se si aspetta.
+                                                Questa riga risponde a quella. */}
+                                            {(() => {
+                                                const e = estado(normalize(p.status))
+                                                const mio = e.actor === 'installer' && normalize(p.status) !== 'draft'
+                                                return (
+                                                    <p
+                                                        className={`mt-2 truncate text-[12.5px] ${mio
+                                                            ? 'font-medium text-[#8A5B0B]'
+                                                            : 'text-[var(--caes-faint)]'
+                                                            }`}
+                                                    >
+                                                        {mio
+                                                            ? 'Te toca a ti'
+                                                            : e.actor === 'agency'
+                                                                ? 'Lo está revisando la agencia'
+                                                                : e.actor === 'external'
+                                                                    ? 'En trámite con el sujeto delegado'
+                                                                    : 'Cerrado'}
+                                                    </p>
+                                                )
+                                            })()}
                                         </div>
 
                                         <span className="font-mono text-[12px] text-[var(--caes-faint)]">
