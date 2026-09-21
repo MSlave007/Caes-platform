@@ -66,6 +66,20 @@ export type Project = {
      * lavoro, e va salvato mentre si fa, non alla fine.
      */
     extraccion?: Record<string, { valor: string | number | null; estado: string; confianza?: number }>
+    /**
+     * Lo stato dei tre documenti generati: i ritocchi scritti a mano
+     * dentro il testo e quali sono stati dati per buoni.
+     *
+     * Vivevano nella schermata: una referenza catastrale cercata sul
+     * portale del Catastro e scritta a mano spariva al primo
+     * aggiornamento della pagina.
+     */
+    documentos?: {
+        retoques?: Record<string, string>
+        revisados?: Record<string, boolean>
+    }
+    /** Chi l'ha aperto. Da qui si prende la sua anagrafica per i documenti. */
+    installer_id?: string
     files: unknown[]
 }
 

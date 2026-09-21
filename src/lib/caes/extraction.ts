@@ -111,6 +111,22 @@ export const CAMPOS: CampoDef[] = [
         destino: 'formula',
         ayuda: 'Agua caliente sanitaria, el segundo término de la fórmula.',
     },
+    {
+        id: 'num_personas',
+        label: 'Ocupantes de la vivienda',
+        documento: 'cee-antes',
+        tipo: 'numero',
+        destino: 'documentos',
+        ayuda: 'De aquí sale la demanda de agua caliente. Si no consta, se estima por superficie.',
+    },
+    {
+        id: 'zona_climatica',
+        label: 'Zona climática',
+        documento: 'cee-antes',
+        tipo: 'texto',
+        destino: 'documentos',
+        ayuda: 'La del certificado (A3, D3, E1…). Decide el SCOP mínimo exigible.',
+    },
 
     // ── Certificado energético posterior: niente da confermare ──
     //
@@ -296,6 +312,17 @@ export const CAMPOS: CampoDef[] = [
         ayuda: 'Si la factura no lo trae, se rellena a mano con el del contacto.',
     },
     {
+        // Senza questo non si puo' mandare niente a firmare: e'
+        // l'indirizzo a cui arriva il Convenio. Il modello lo chiedeva
+        // gia' e puntava a un campo che non esisteva.
+        id: 'email_cliente',
+        label: 'Correo del cliente',
+        documento: 'factura',
+        tipo: 'texto',
+        destino: 'documentos',
+        ayuda: 'Si la factura no lo trae, se rellena a mano. Es donde llega el documento a firmar.',
+    },
+    {
         id: 'direccion_actuacion',
         label: 'Dirección de la actuación',
         documento: ['factura', 'titularidad'],
@@ -318,6 +345,14 @@ export const CAMPOS: CampoDef[] = [
     // nel calcolo e non lo chiede nessun documento da firmare. Quello che
     // conta è la data, perché da lì decorrono i tre anni per presentare
     // l'actuación.
+    {
+        id: 'fecha_inicio_obra',
+        label: 'Fecha de inicio de obra',
+        documento: 'rite',
+        tipo: 'fecha',
+        destino: 'documentos',
+        ayuda: 'La Ficha RES060 pide las dos fechas, inicio y fin.',
+    },
     {
         id: 'fecha_fin_obra',
         label: 'Fecha de fin de obra',

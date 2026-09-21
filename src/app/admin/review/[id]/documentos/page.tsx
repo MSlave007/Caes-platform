@@ -1,11 +1,16 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import GeneradorDocumentos from '@/components/admin/GeneradorDocumentos'
 import { CAMPOS, type Extraccion } from '@/lib/caes/extraction'
-import { DATOS_EJEMPLO, datosDe } from '@/lib/caes/expediente'
+import {
+    DATOS_EJEMPLO,
+    datosDe,
+    extrasDeAgencia,
+    extrasDePerfil,
+} from '@/lib/caes/expediente'
 import { huecosSinOrigen, type Datos } from '@/lib/caes/plantillas'
 import type { Project } from '@/lib/mockDb'
 
@@ -44,27 +49,89 @@ export default function DocumentosDelExpediente({
      * dati, tornare indietro vorrebbe dire ricordarsi a memoria cosa
      * c'era prima.
      *
-     * DA COLLEGARE: vive nella schermata, quindi si perde al reload.
-     * Va salvato sul fascicolo insieme all'estrazione.
+     * Vive sul fascicolo, non nella schermata: la referenza catastrale
+     * scritta a mano una volta non si riscrive la volta dopo.
      */
     const [retoques, setRetoques] = useState<Datos>({})
-
-    // Vuota: quando l'estrazione si salvera sul fascicolo, arrivera da li.
-    const [extraccion] = useState<Extraccion>(() =>
+    const [extraccion, setExtraccion] = useState<Extraccion>(() =>
         Object.fromEntries(CAMPOS.map((c) => [c.id, { valor: null, estado: 'vacio' as const }]))
+    )
+    const [perfil, setPerfil] = useState<Parameters<typeof extrasDePerfil>[0]>(null)
+    const [guardado, setGuardado] = useState<'limpio' | 'guardando' | 'hecho' | 'error'>(
+        'limpio'
     )
 
     useEffect(() => {
         fetch(`/api/projects/${id}`)
             .then((r) => r.json())
-            .then((j) => setP(j.data))
+            .then((j) => {
+                const proj: Project = j.data
+                setP(proj)
+                // Quello che chi rivede ha gia' confermato campo per campo.
+                const ex = proj?.extraccion as Extraccion | undefined
+                if (ex && Object.keys(ex).length > 0) {
+                    setExtraccion((prev) => ({ ...prev, ...ex }))
+                }
+                const doc = proj?.documentos as
+                    | { retoques?: Datos; revisados?: Record<string, boolean> }
+                    | undefined
+                if (doc?.retoques) setRetoques(doc.retoques)
+                if (doc?.revisados) setRevisados(doc.revisados)
+                // Se il fascicolo ha dati veri, si parte da quelli: l'esempio
+                // serviva quando non c'era altro da mostrare.
+                if (ex && Object.values(ex).some((v) => v?.valor)) setConEjemplo(false)
+            })
             .catch((e) => console.error('Error al cargar el expediente:', e))
             .finally(() => setCargando(false))
     }, [id])
 
+    // L'anagrafica dell'installatore: cinque campi dei documenti vengono
+    // da qui, e finora si riscrivevano a mano a ogni pratica.
+    useEffect(() => {
+        if (!p?.installer_id) return
+        fetch(`/api/installers/${p.installer_id}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => j?.data && setPerfil(j.data))
+            .catch(() => {
+                /* senza profilo i cinque campi restano da scrivere a mano */
+            })
+    }, [p?.installer_id])
+
+    /**
+     * Ritocchi e spunte si salvano sul fascicolo.
+     *
+     * Mezzo secondo di attesa, come nel pannello di revisione: scrivere
+     * una referenza catastrale a tastiera non deve generare una chiamata
+     * per lettera.
+     */
+    const primeraVez = useRef(true)
+    useEffect(() => {
+        if (cargando) return
+        if (primeraVez.current) {
+            primeraVez.current = false
+            return
+        }
+        const t = window.setTimeout(async () => {
+            setGuardado('guardando')
+            try {
+                const res = await fetch(`/api/projects/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ documentos: { retoques, revisados } }),
+                })
+                setGuardado(res.ok ? 'hecho' : 'error')
+            } catch {
+                setGuardado('error')
+            }
+        }, 500)
+        return () => window.clearTimeout(t)
+    }, [retoques, revisados, cargando, id])
+
     // I ritocchi vincono sempre: sono l'ultima parola di una persona su
     // un documento che quella persona firma.
-    const base = conEjemplo ? DATOS_EJEMPLO : datosDe(extraccion)
+    const base = conEjemplo
+        ? DATOS_EJEMPLO
+        : datosDe(extraccion, { ...extrasDePerfil(perfil), ...extrasDeAgencia() })
     const datos: Datos = { ...base, ...retoques }
     const sinOrigen = huecosSinOrigen()
 
@@ -100,6 +167,22 @@ export default function DocumentosDelExpediente({
                         </p>
                     </div>
 
+                    <div className="flex flex-wrap items-center gap-4">
+                        <span
+                            className={`text-[12.5px] ${guardado === 'error'
+                                ? 'text-[#9B4526]'
+                                : 'text-[var(--caes-faint)]'
+                                }`}
+                        >
+                            {guardado === 'guardando'
+                                ? 'Guardando…'
+                                : guardado === 'hecho'
+                                    ? 'Guardado'
+                                    : guardado === 'error'
+                                        ? 'No se ha podido guardar'
+                                        : ''}
+                        </span>
+
                     {/* L'interruttore fra la verita e la dimostrazione. */}
                     <div className="flex items-center gap-1 rounded-full border border-[var(--caes-line)] p-1">
                         {[
@@ -118,6 +201,7 @@ export default function DocumentosDelExpediente({
                                 {o.t}
                             </button>
                         ))}
+                    </div>
                     </div>
                 </div>
             </div>

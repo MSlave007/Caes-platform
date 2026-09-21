@@ -138,7 +138,13 @@ alter table public.projects
   -- confirmado o corregido. Vivía solo en la pantalla de quien revisaba:
   -- doce campos comprobados se perdían al recargar la página. Revisar es
   -- trabajo, y se guarda mientras se hace, no al final.
-  add column if not exists extraccion     jsonb default '{}'::jsonb;
+  add column if not exists extraccion     jsonb default '{}'::jsonb,
+  -- { retoques: {...}, revisados: {...} }
+  -- Lo stato de los tres documentos generados: lo reescrito a mano
+  -- dentro del texto y cuáles se han dado por buenos. Una referencia
+  -- catastral buscada en el portal del Catastro y escrita a mano se
+  -- perdía al recargar la página.
+  add column if not exists documentos     jsonb default '{}'::jsonb;
 
 
 -- ── 3. PERFIL: documentos de la CUENTA ──────────────────────────────
