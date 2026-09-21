@@ -1,5 +1,6 @@
-import { CESIONARIO, HUECOS, type Datos } from './plantillas'
-import { FP, RENDIMIENTO_CALDERA_DEFECTO, TARIFA_CAES_EUR_KWH } from './estimate'
+import { HUECOS, type Datos } from './plantillas'
+import { proveedor, tarifaDe, type Proveedor } from './proveedores'
+import { FP, RENDIMIENTO_CALDERA_DEFECTO } from './estimate'
 import type { Extraccion } from './extraction'
 
 /**
@@ -134,11 +135,31 @@ export function extrasDePerfil(perfil?: PerfilInstalador | null): Partial<Datos>
  * stesso posto da cui la prende il simulatore, cosi' il documento non
  * puo' dire una cifra diversa da quella promessa.
  */
-export function extrasDeAgencia(fecha = new Date()): Partial<Datos> {
+export function extrasDeAgencia(
+    e: { proveedor?: string | null; tarifa_eur_mwh?: number | null } = {},
+    fecha = new Date()
+): Partial<Datos> {
+    const p: Proveedor = proveedor(e.proveedor)
+
     return {
-        tarifa: es(TARIFA_CAES_EUR_KWH * 1000),
-        // La sede dell'agenzia: e' li che si firma.
-        lugar_firma: CESIONARIO.domicilio.split(',').pop()?.replace(/^.*?-/, '').trim() ?? '',
+        // Chi compra l'ahorro. Nove campi che stavano scritti dentro il
+        // testo del Convenio come se fosse sempre la stessa societa'.
+        cesionario_razon: p.razon,
+        cesionario_nif: p.nif,
+        cesionario_codigo_sd: p.codigoSD,
+        cesionario_representante: p.representante,
+        cesionario_dni: p.dni,
+        cesionario_cargo: p.cargo,
+        cesionario_domicilio: p.domicilio,
+        cesionario_telefono: p.telefono,
+        cesionario_email: p.email,
+
+        // La contraprestazione: quella pattuita su QUESTO espediente, non
+        // quella che vale oggi. E' la cifra che il cliente firma.
+        tarifa: es(tarifaDe(e)),
+
+        // Dove si firma: la sede del cesionario.
+        lugar_firma: p.localidad,
         fecha_firma: fecha.toLocaleDateString('es-ES', {
             day: '2-digit',
             month: 'long',

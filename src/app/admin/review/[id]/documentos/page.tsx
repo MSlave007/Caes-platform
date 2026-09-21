@@ -131,7 +131,15 @@ export default function DocumentosDelExpediente({
     // un documento che quella persona firma.
     const base = conEjemplo
         ? DATOS_EJEMPLO
-        : datosDe(extraccion, { ...extrasDePerfil(perfil), ...extrasDeAgencia() })
+        : datosDe(extraccion, {
+            ...extrasDePerfil(perfil),
+            // Il soggetto delegato di QUESTO espediente: da lui escono i
+            // nove campi del cesionario e la tariffa della clausola.
+            ...extrasDeAgencia({
+                proveedor: p?.proveedor,
+                tarifa_eur_mwh: p?.tarifa_eur_mwh,
+            }),
+        })
     const datos: Datos = { ...base, ...retoques }
     const sinOrigen = huecosSinOrigen()
 

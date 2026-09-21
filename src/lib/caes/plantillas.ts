@@ -83,17 +83,15 @@ export type Hueco = {
  *  ahorros. Sta qui e non nei buchi perché non è un dato del fascicolo,
  *  è un dato nostro — e se cambia, cambia in un posto solo.
  * ------------------------------------------------------------------ */
-export const CESIONARIO = {
-    representante: 'Antonio José Ruiz López',
-    dni: '44584446G',
-    razon: 'BETTERGY, S.L.',
-    nif: 'B93149870',
-    domicilio: 'Avenida Juan López Peñalver, 17, C.P. 29590-Málaga',
-    telefono: '952025789',
-    email: 'cae@bettergy.es',
-    codigoSD: 'SD-B93149870',
-    cargo: 'Administrador Solidario',
-}
+/**
+ * ⚠️ NON AGGIUNGERE QUI IL CESIONARIO.
+ *
+ * Stava qui, scritto fisso dentro il testo del Convenio: nome, NIF,
+ * codice di accreditamento. Ma il cesionario e' la CONTROPARTE del
+ * contratto e cambia con il soggetto delegato — Bettergy e' uno dei
+ * possibili. Adesso sono buchi come tutti gli altri, riempiti da
+ * src/lib/caes/proveedores.ts.
+ */
 
 /** La ficha: nome e testi che non cambiano mai. */
 export const FICHA = {
@@ -105,6 +103,73 @@ export const FICHA = {
 }
 
 export const HUECOS: Record<string, Hueco> = {
+    /* ── il cesionario: chi compra l'ahorro ─────────────────────── */
+    cesionario_razon: {
+        id: 'cesionario_razon',
+        label: 'Razón social del sujeto delegado',
+        origen: 'agencia',
+        ejemplo: 'BETTERGY, S.L.',
+        requerido: true,
+        nota: 'Cambia con el sujeto delegado con el que se tramite. Se elige en el expediente.',
+    },
+    cesionario_nif: {
+        id: 'cesionario_nif',
+        label: 'NIF del sujeto delegado',
+        origen: 'agencia',
+        ejemplo: 'B93149870',
+        requerido: true,
+    },
+    cesionario_codigo_sd: {
+        id: 'cesionario_codigo_sd',
+        label: 'Código de sujeto delegado',
+        origen: 'agencia',
+        ejemplo: 'SD-B93149870',
+        requerido: true,
+        nota: 'El código con el que el MITECO lo ha acreditado. Si no corresponde al NIF de arriba, el convenio no vale.',
+    },
+    cesionario_representante: {
+        id: 'cesionario_representante',
+        label: 'Representante del sujeto delegado',
+        origen: 'agencia',
+        ejemplo: 'Nombre Apellido Apellido',
+        requerido: true,
+    },
+    cesionario_dni: {
+        id: 'cesionario_dni',
+        label: 'DNI del representante',
+        origen: 'agencia',
+        ejemplo: '00000000X',
+        requerido: true,
+    },
+    cesionario_cargo: {
+        id: 'cesionario_cargo',
+        label: 'Cargo del representante',
+        origen: 'agencia',
+        ejemplo: 'Administrador Solidario',
+        requerido: true,
+    },
+    cesionario_domicilio: {
+        id: 'cesionario_domicilio',
+        label: 'Domicilio social del sujeto delegado',
+        origen: 'agencia',
+        ejemplo: 'Calle Example, 1, C.P. 00000-Ciudad',
+        requerido: true,
+    },
+    cesionario_telefono: {
+        id: 'cesionario_telefono',
+        label: 'Teléfono del sujeto delegado',
+        origen: 'agencia',
+        ejemplo: '900000000',
+        requerido: true,
+    },
+    cesionario_email: {
+        id: 'cesionario_email',
+        label: 'Correo del sujeto delegado',
+        origen: 'agencia',
+        ejemplo: 'cae@ejemplo.es',
+        requerido: true,
+    },
+
     /* ── il cliente ─────────────────────────────────────────────── */
     cliente_nombre: {
         id: 'cliente_nombre',
@@ -467,7 +532,7 @@ export const PLANTILLAS: Plantilla[] = [
             },
             {
                 tipo: 'parrafo',
-                texto: `Don ${CESIONARIO.representante}, mayor de edad, con documento nacional de identidad ${CESIONARIO.dni} en nombre y representación de ${CESIONARIO.razon}, compañía debidamente constituida y válidamente existente conforme a legislación española, provista de NIF número ${CESIONARIO.nif}, domicilio social en ${CESIONARIO.domicilio}, teléfono de contacto ${CESIONARIO.telefono} y correo electrónico ${CESIONARIO.email} y acreditada por el Ministerio para la Transición Ecológica y el Reto Demográfico como Sujeto Delegado del sistema de Certificados de Ahorro Energético con el código de identificación ${CESIONARIO.codigoSD}, actúa en su condición de ${CESIONARIO.cargo}, en adelante el Cesionario.`,
+                texto: 'Don {{cesionario_representante}}, mayor de edad, con documento nacional de identidad {{cesionario_dni}} en nombre y representación de {{cesionario_razon}}, compañía debidamente constituida y válidamente existente conforme a legislación española, provista de NIF número {{cesionario_nif}}, domicilio social en {{cesionario_domicilio}}, teléfono de contacto {{cesionario_telefono}} y correo electrónico {{cesionario_email}} y acreditada por el Ministerio para la Transición Ecológica y el Reto Demográfico como Sujeto Delegado del sistema de Certificados de Ahorro Energético con el código de identificación {{cesionario_codigo_sd}}, actúa en su condición de {{cesionario_cargo}}, en adelante el Cesionario.',
             },
             { tipo: 'seccion', texto: 'EXPONEN' },
             {
@@ -503,7 +568,7 @@ export const PLANTILLAS: Plantilla[] = [
                 tipo: 'firmas',
                 partes: [
                     { rol: 'EL CEDENTE', nombre: '{{cliente_nombre}}' },
-                    { rol: 'EL CESIONARIO', nombre: CESIONARIO.representante },
+                    { rol: 'EL CESIONARIO', nombre: '{{cesionario_representante}}' },
                 ],
             },
         ],

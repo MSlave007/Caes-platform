@@ -9,6 +9,7 @@ import {
     type Extraccion,
 } from '@/lib/caes/extraction'
 import type { EstadoId } from '@/lib/caes/status'
+import { PROVEEDORES, proveedor } from '@/lib/caes/proveedores'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -50,6 +51,11 @@ export default function AdminReviewDetail({
     const [savings, setSavings] = useState(0)
     const [agencyPct, setAgencyPct] = useState(65)
     const [verified, setVerified] = useState<Record<string, boolean>>({})
+    // Il soggetto delegato e il prezzo pattuito. Non sono dettagli
+    // commerciali: sono la controparte del Convenio e la clausola che il
+    // cliente firma.
+    const [prov, setProv] = useState<string>('')
+    const [tarifa, setTarifa] = useState<number | ''>('')
     /** 'limpio' = niente da salvare. Vedi il salvataggio automatico sotto. */
     const [guardado, setGuardado] = useState<'limpio' | 'guardando' | 'hecho' | 'error'>(
         'limpio'
@@ -272,6 +278,10 @@ export default function AdminReviewDetail({
                 setP(proj)
                 setSavings(proj?.savings_eur ?? 0)
                 setAgencyPct(proj?.agency_pct ?? 65)
+                setProv(proj?.proveedor ?? proveedor(null).id)
+                setTarifa(
+                    typeof proj?.tarifa_eur_mwh === 'number' ? proj.tarifa_eur_mwh : ''
+                )
                 setVerified(
                     Object.fromEntries((proj?.docs ?? []).map((d) => [d.id, d.verified]))
                 )
@@ -357,6 +367,8 @@ export default function AdminReviewDetail({
                 // ognuno — perderle in silenzio e la cosa peggiore.
                 savings_eur: savings,
                 agency_pct: agencyPct,
+                proveedor: prov || undefined,
+                tarifa_eur_mwh: tarifa === '' ? null : Number(tarifa),
                 docs: (p?.docs ?? []).map((d) => ({
                     ...d,
                     verified: Boolean(verified[d.id]),
@@ -394,7 +406,7 @@ export default function AdminReviewDetail({
             setGuardado('error')
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [extraccion, verified, savings, agencyPct, p?.docs, id])
+    }, [extraccion, verified, savings, agencyPct, prov, tarifa, p?.docs, id])
 
     useEffect(() => {
         // Il primo giro e' il caricamento, non una modifica: risalvare
@@ -406,7 +418,7 @@ export default function AdminReviewDetail({
         }
         const t = window.setTimeout(() => void guardarAvance(), 500)
         return () => window.clearTimeout(t)
-    }, [extraccion, verified, savings, agencyPct, loading, guardarAvance])
+    }, [extraccion, verified, savings, agencyPct, prov, tarifa, loading, guardarAvance])
 
     const decide = async (status: 'approved' | 'rejected') => {
         setBusy(status === 'approved' ? 'approve' : 'reject')
@@ -656,6 +668,65 @@ export default function AdminReviewDetail({
                                 className="w-[9rem] rounded-xl border border-[var(--caes-line)] bg-[var(--caes-paper)] px-4 py-3 font-mono tabular text-[20px] font-medium outline-none transition-colors focus:border-[var(--caes-green)] focus:ring-4 focus:ring-[var(--caes-green)]/12"
                             />
                             <span className="text-[14px] text-[var(--caes-mut)]">€ / año</span>
+                        </div>
+                    </section>
+
+                    {/* ------------------------------------ il cesionario
+
+                        Sta accanto al risparmio e non nelle impostazioni
+                        perche' non e' una preferenza: e' la controparte
+                        del Convenio. Cambiarlo cambia NIF, codice di
+                        accreditamento e chi firma, e il documento si
+                        rigenera intero. */}
+                    <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
+                        <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+                            Sujeto delegado
+                        </h2>
+                        <p className="mt-2 text-[13px] leading-[1.5] text-[var(--caes-mut)]">
+                            A quién se cede el ahorro. Sale en el Convenio con su NIF y
+                            su código de acreditación, así que cámbialo aquí y no a mano
+                            en el documento.
+                        </p>
+
+                        <select
+                            value={prov}
+                            onChange={(e) => setProv(e.target.value)}
+                            className="mt-5 w-full rounded-xl border border-[var(--caes-line)] bg-[var(--caes-paper)] px-4 py-3 text-[14.5px] text-[var(--caes-ink)] outline-none transition-colors focus:border-[var(--caes-green)]"
+                        >
+                            {PROVEEDORES.map((o) => (
+                                <option key={o.id} value={o.id}>
+                                    {o.etiqueta}
+                                </option>
+                            ))}
+                        </select>
+
+                        <div className="mt-6">
+                            <label
+                                htmlFor="tarifa"
+                                className="label-mono block text-[var(--caes-faint)]"
+                            >
+                                Contraprestación
+                            </label>
+                            <div className="mt-2 flex items-baseline gap-2">
+                                <input
+                                    id="tarifa"
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={tarifa}
+                                    placeholder={String(proveedor(prov).tarifaEurMwh)}
+                                    onChange={(e) =>
+                                        setTarifa(e.target.value === '' ? '' : Number(e.target.value))
+                                    }
+                                    className="w-[7rem] rounded-xl border border-[var(--caes-line)] bg-[var(--caes-paper)] px-4 py-2.5 font-mono tabular text-[16px] outline-none transition-colors focus:border-[var(--caes-green)]"
+                                />
+                                <span className="text-[14px] text-[var(--caes-mut)]">€ / MWh</span>
+                            </div>
+                            <p className="mt-2.5 max-w-[46ch] text-[12.5px] leading-[1.5] text-[var(--caes-faint)]">
+                                {tarifa === ''
+                                    ? `Vacío: se usa la del acuerdo con ${proveedor(prov).etiqueta}, ${proveedor(prov).tarifaEurMwh} €/MWh.`
+                                    : 'Precio pactado en este expediente. Es el que se escribe en la cláusula del Convenio.'}
+                            </p>
                         </div>
                     </section>
 

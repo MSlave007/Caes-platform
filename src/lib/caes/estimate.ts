@@ -1,3 +1,5 @@
+import { PROVEEDOR_DEFECTO, proveedor } from './proveedores'
+
 /**
  * Motore di calcolo CAES — ficha RES060.
  *
@@ -49,11 +51,22 @@
  * la fetta è una sua decisione.
  */
 
-/** Tariffa CAES: € per kWh di energia finale risparmiata (= 130 €/MWh). */
-export const TARIFA_CAES_EUR_KWH = 0.13
+/**
+ * Tariffa CAES, € per MWh di energia finale risparmiata.
+ *
+ * Non è una costante del sistema: è il prezzo del contratto con il
+ * soggetto delegato, e cambia con il soggetto. Qui c'è quella di quello
+ * predefinito, che è la cifra giusta per il simulatore pubblico — chi
+ * arriva dalla landing non ha ancora un espediente né un soggetto.
+ *
+ * Dentro un espediente vale invece quella dell'espediente: vedi
+ * `tarifaDe()` in src/lib/caes/proveedores.ts. La clausola della
+ * contraprestazione del Convenio esce da lì, non da qui.
+ */
+export const TARIFA_CAES_EUR_MWH = proveedor(PROVEEDOR_DEFECTO).tarifaEurMwh
 
-/** Come sopra, espressa in MWh: è così che la scrivono nel settore. */
-export const TARIFA_CAES_EUR_MWH = 130
+/** Come sopra in kWh: è l'unità con cui lavorano le formule. */
+export const TARIFA_CAES_EUR_KWH = TARIFA_CAES_EUR_MWH / 1000
 
 /** Risparmio minimo sulla linea base per qualificarsi, %. */
 export const AHORRO_MINIMO_PCT = 20

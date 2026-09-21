@@ -144,7 +144,21 @@ alter table public.projects
   -- dentro del texto y cuáles se han dado por buenos. Una referencia
   -- catastral buscada en el portal del Catastro y escrita a mano se
   -- perdía al recargar la página.
-  add column if not exists documentos     jsonb default '{}'::jsonb;
+  add column if not exists documentos     jsonb default '{}'::jsonb,
+  -- El sujeto delegado al que se cede el ahorro. No es un detalle
+  -- comercial: es la contraparte del Convenio, y con él cambian el NIF,
+  -- el código de acreditación y quién firma. El catálogo está en el
+  -- código (src/lib/caes/proveedores.ts) porque son identidades
+  -- jurídicas y un error aquí invalida contratos.
+  add column if not exists proveedor      text,
+  -- €/MWh pactados en ESTE expediente. Vacío = la del sujeto. Vale lo
+  -- que se firmó ese día, no lo que valga hoy.
+  add column if not exists tarifa_eur_mwh numeric,
+  -- { convenio: { id, estado, enviado_at, firmado_at, path } , ... }
+  -- El estado de la firma electrónica de cada documento. Todavía no se
+  -- escribe: la columna se crea ahora para no pedir otra migración
+  -- cuando se conecte el proveedor de firma.
+  add column if not exists firmas         jsonb default '{}'::jsonb;
 
 
 -- ── 3. PERFIL: documentos de la CUENTA ──────────────────────────────

@@ -80,6 +80,21 @@ export type Project = {
     }
     /** Chi l'ha aperto. Da qui si prende la sua anagrafica per i documenti. */
     installer_id?: string
+    /**
+     * Il soggetto delegato a cui si cede l'ahorro. Vedi proveedores.ts.
+     *
+     * Non e' un dettaglio commerciale: e' la controparte del Convenio, e
+     * con lui cambiano NIF, codice di accreditamento e chi firma.
+     */
+    proveedor?: string
+    /**
+     * €/MWh pattuiti su QUESTO espediente.
+     *
+     * Vuoto vuol dire «quella del soggetto». Si riempie quando il prezzo
+     * negoziato e' diverso: vale quello scritto sul contratto firmato
+     * quel giorno, non quello di oggi.
+     */
+    tarifa_eur_mwh?: number | null
     files: unknown[]
 }
 
