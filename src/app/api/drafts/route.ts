@@ -42,6 +42,9 @@ export type DraftRow = {
     step: number
     files: Record<string, { name: string; size: number; storagePath?: string }[]>
     notas?: string | null
+    /** Il cliente scelto all'inizio, quando c'e'. */
+    cliente_id?: string | null
+    cliente_nombre?: string | null
     updated_at: string
 }
 
@@ -101,6 +104,9 @@ function sanear(body: unknown): DraftRow | null {
         step: Math.min(Math.max(Number(b.step) || 0, 0), 10),
         files,
         notas: typeof b.notas === 'string' ? b.notas.slice(0, 2000) : null,
+        cliente_id: typeof b.cliente_id === 'string' ? b.cliente_id.slice(0, 64) : null,
+        cliente_nombre:
+            typeof b.cliente_nombre === 'string' ? b.cliente_nombre.slice(0, 160) : null,
         updated_at: new Date().toISOString(),
     }
 }
@@ -121,7 +127,7 @@ export async function GET() {
     const supabase = await createClient()
     const { data, error } = await supabase
         .from('drafts')
-        .select('id, nombre, role, step, files, notas, updated_at')
+        .select('id, nombre, role, step, files, notas, cliente_id, cliente_nombre, updated_at')
         .order('updated_at', { ascending: false })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 502 })
@@ -156,7 +162,7 @@ export async function POST(request: Request) {
             { ...fila, installer_id: quien.userId, updated_at: undefined },
             { onConflict: 'id' }
         )
-        .select('id, nombre, role, step, files, notas, updated_at')
+        .select('id, nombre, role, step, files, notas, cliente_id, cliente_nombre, updated_at')
         .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 502 })

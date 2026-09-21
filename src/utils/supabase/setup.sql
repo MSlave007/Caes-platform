@@ -401,3 +401,17 @@ select email, role, created_at
 from public.profiles
 where role = 'admin'
 order by created_at;
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  El cliente, elegido al empezar
+--
+--  Se elige antes de subir los papeles porque ya se sabe quién es: se
+--  vuelve de la obra de alguien. Elegirlo al principio significa que al
+--  llegar al envío el NIF, el teléfono, el correo y la dirección ya
+--  están puestos.
+-- ════════════════════════════════════════════════════════════════════
+
+alter table public.drafts
+  add column if not exists cliente_id     text,
+  add column if not exists cliente_nombre text;

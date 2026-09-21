@@ -15,7 +15,7 @@ const NAV = [
     { href: '/admin/settings', label: 'Ajustes', Icon: Settings },
     // La propria utenza, non quella dell'agenzia: password, correo,
     // foto. Stessa pagina per tutti e due i ruoli.
-    { href: '/cuenta', label: 'Mi cuenta', Icon: UserCog },
+    { href: '/admin/cuenta', label: 'Mi cuenta', Icon: UserCog },
 ]
 
 /**

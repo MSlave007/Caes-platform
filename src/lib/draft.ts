@@ -49,6 +49,15 @@ export type Draft = {
     files: Record<string, DraftFile[]>
     /** Quello che l'installatore ha scritto a mano. Lo legge chi revisiona. */
     notas?: string
+    /**
+     * Il cliente, scelto all'inizio.
+     *
+     * Si sceglie prima di caricare le carte perché si sa già chi è: si
+     * torna dal cantiere di qualcuno. Sceglierlo qui vuol dire che al
+     * passo dell'invio NIF, telefono, correo e indirizzo sono già lì.
+     */
+    cliente_id?: string | null
+    cliente_nombre?: string | null
     /** ISO 8601 */
     savedAt: string
     /** Falso finché non è arrivata all'account. */
@@ -81,6 +90,8 @@ function normalizar(d: Partial<Draft> & { savedAt: string; id: string }): Draft 
         role: (d.role as Role) ?? 'installer',
         step: d.step ?? 0,
         notas: d.notas,
+        cliente_id: d.cliente_id ?? null,
+        cliente_nombre: d.cliente_nombre ?? null,
         sincronizado: d.sincronizado,
         files: Object.fromEntries(
             Object.entries(d.files ?? {}).map(([k, v]) => [
@@ -149,6 +160,8 @@ type FilaServidor = {
     step: number
     files: Record<string, DraftFile[]>
     notas?: string | null
+    cliente_id?: string | null
+    cliente_nombre?: string | null
     updated_at: string
 }
 
@@ -160,6 +173,8 @@ const deFila = (r: FilaServidor): Draft =>
         step: r.step,
         files: r.files,
         notas: r.notas ?? undefined,
+        cliente_id: r.cliente_id ?? null,
+        cliente_nombre: r.cliente_nombre ?? null,
         savedAt: r.updated_at,
         sincronizado: true,
     })

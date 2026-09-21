@@ -36,6 +36,7 @@ export default function WizardShell({
     savedAt,
     nombre,
     onNombreChange,
+    cliente,
     children,
     ancho,
 }: {
@@ -49,6 +50,13 @@ export default function WizardShell({
     /** Il nome dell'espediente. Vive qui perché vale per tutti i passi. */
     nombre?: string
     onNombreChange?: (v: string) => void
+    /**
+     * Il selettore del cliente. Sta qui e non dentro un passo perché il
+     * cliente è dell'espediente, non del modulo: si sa chi è prima di
+     * caricare la prima foto, e saperlo da subito vuol dire non
+     * riscrivere NIF, telefono e indirizzo alla fine.
+     */
+    cliente?: React.ReactNode
     children: React.ReactNode
     /** Il passo dei documenti e una griglia a due colonne: gli servono
      *  piu di 820px, agli altri no. */
@@ -78,6 +86,8 @@ export default function WizardShell({
                         placeholder="Calle Mayor 4, 3ºB"
                         className="mt-2 w-full max-w-[34ch] border-b border-transparent bg-transparent pb-1.5 text-[22px] font-semibold tracking-[-0.026em] text-[var(--caes-ink)] outline-none transition-colors placeholder:font-normal placeholder:text-[var(--caes-faint)] hover:border-[var(--caes-line)] focus:border-[var(--caes-ink)]"
                     />
+
+                    {cliente}
                 </div>
             )}
 

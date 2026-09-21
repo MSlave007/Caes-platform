@@ -14,7 +14,7 @@ const NAV = [
     // espediente, e servono a rispondere quando il cliente chiama.
     { href: '/installer/clientes', label: 'Clientes', Icon: Users },
     { href: '/installer/profile', label: 'Perfil', Icon: User },
-    { href: '/cuenta', label: 'Mi cuenta', Icon: UserCog },
+    { href: '/installer/cuenta', label: 'Mi cuenta', Icon: UserCog },
 ]
 
 /**

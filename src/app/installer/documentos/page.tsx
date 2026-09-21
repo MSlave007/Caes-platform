@@ -8,6 +8,10 @@ import DocumentChecklist, {
     type FileMap,
 } from '@/components/platform/DocumentChecklist'
 import SubmitStep from '@/components/platform/SubmitStep'
+import BuscadorCliente, {
+    type Cliente,
+} from '@/components/platform/BuscadorCliente'
+import { UserRound, X } from 'lucide-react'
 import WizardShell, {
     StepPlaceholder,
     type SaveState,
@@ -71,6 +75,14 @@ function Documentos() {
     const [role, setRole] = useState<Role>('installer')
     const [files, setFiles] = useState<FileMap>({})
     const [notas, setNotas] = useState('')
+    /**
+     * Il cliente dell'espediente, scelto in cima.
+     *
+     * Si tiene anche il nome, non solo l'id: riaprendo la bozza si vede
+     * subito di chi e' senza dover chiedere la scheda al server.
+     */
+    const [clienteId, setClienteId] = useState<string | null>(null)
+    const [clienteNombre, setClienteNombre] = useState('')
     const [step, setStep] = useState(0)
     const [maxReached, setMaxReached] = useState(0)
     const [save, setSave] = useState<SaveState>('idle')
@@ -98,6 +110,8 @@ function Documentos() {
             setStep(d.step)
             setMaxReached(d.step)
             setNotas(d.notas ?? '')
+            setClienteId(d.cliente_id ?? null)
+            setClienteNombre(d.cliente_nombre ?? '')
             setSavedAt(timeAgo(d.savedAt))
         // I riferimenti tornano con il percorso: un file archiviato resta
         // apribile anche riprendendo la bozza da un altro momento.
@@ -124,11 +138,29 @@ function Documentos() {
 
     // Lo stato più fresco, senza rimettere `persist` in piedi a ogni tasto
     // scritto nel nome: il salvataggio automatico si riaggancerebbe.
-    const ahora = useRef({ id, nombre, role, step, files, notas })
+    const ahora = useRef({
+        id,
+        nombre,
+        role,
+        step,
+        files,
+        notas,
+        clienteId,
+        clienteNombre,
+    })
     // Aggiornato DOPO il render, non durante: scrivere in un ref mentre si
     // renderizza e una di quelle cose che funzionano finche non funzionano.
     useEffect(() => {
-        ahora.current = { id, nombre, role, step, files, notas }
+        ahora.current = {
+            id,
+            nombre,
+            role,
+            step,
+            files,
+            notas,
+            clienteId,
+            clienteNombre,
+        }
     })
 
     /**
@@ -161,6 +193,8 @@ function Documentos() {
                 role: next?.role ?? v.role,
                 step: next?.step ?? v.step,
                 notas: v.notas,
+                cliente_id: v.clienteId,
+                cliente_nombre: v.clienteNombre || null,
                 files: Object.fromEntries(
                     Object.entries(next?.files ?? v.files)
                         .map(([k, arr]) => [
@@ -270,6 +304,62 @@ function Documentos() {
                         setNombre(v)
                         setSave('idle')
                     }}
+                    cliente={
+                        <div className="mt-5 max-w-[34ch]">
+                            <label
+                                htmlFor="cliente-expediente"
+                                className="label-mono block text-[var(--caes-faint)]"
+                            >
+                                Cliente
+                            </label>
+
+                            {clienteId ? (
+                                // Gia' scelto: si mostra e si puo' togliere.
+                                // Un campo di ricerca con dentro un nome gia'
+                                // deciso invita a riscriverlo per sbaglio.
+                                <span className="mt-2 inline-flex items-center gap-2.5 rounded-full border border-[var(--caes-green)]/45 bg-[var(--caes-green)]/[.07] py-1.5 pl-3 pr-1.5 text-[14px] text-[var(--caes-ink)]">
+                                    <UserRound
+                                        className="h-3.5 w-3.5 text-[var(--caes-green)]"
+                                        strokeWidth={2}
+                                    />
+                                    {clienteNombre}
+                                    <button
+                                        type="button"
+                                        aria-label="Quitar cliente"
+                                        onClick={() => {
+                                            setClienteId(null)
+                                            setClienteNombre('')
+                                            persist()
+                                        }}
+                                        className="rounded-full p-1 text-[var(--caes-faint)] transition-colors hover:bg-[var(--caes-band)] hover:text-[var(--caes-ink)]"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
+                                </span>
+                            ) : (
+                                <>
+                                    <BuscadorCliente
+                                        id="cliente-expediente"
+                                        valor={clienteNombre}
+                                        className="mt-2 w-full rounded-xl border border-[var(--caes-line)] bg-[var(--caes-panel)] px-4 py-2.5 text-[14px] text-[var(--caes-ink)] outline-none transition-colors focus:border-[var(--caes-green)]"
+                                        onEscribir={(v) => {
+                                            setClienteNombre(v)
+                                            setClienteId(null)
+                                        }}
+                                        onElegir={(c: Cliente) => {
+                                            setClienteNombre(c.nombre)
+                                            setClienteId(c.id ?? null)
+                                            persist()
+                                        }}
+                                    />
+                                    <p className="mt-2 text-[12.5px] leading-[1.45] text-[var(--caes-faint)]">
+                                        Si ya es cliente tuyo, elígelo y sus datos van
+                                        solos al final. Si es nuevo, déjalo en blanco.
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    }
                 >
                     {step === 0 && (
                         <DocumentChecklist
@@ -308,7 +398,7 @@ function Documentos() {
                             notas={notas}
                             nombre={nombre}
                             draftId={id ?? undefined}
-                            clienteInicial={clientePedido ?? undefined}
+                            clienteInicial={clienteId ?? clientePedido ?? undefined}
                             docs={Object.entries(files).flatMap(([slot, v]) =>
                                 v
                                     .filter((f) => f.state === 'done')
