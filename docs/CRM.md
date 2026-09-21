@@ -169,9 +169,11 @@ Costo: zero in più rispetto a quelle due integrazioni.
 
 Qui devo essere onesto su due punti.
 
-**Primo: non so cosa sia «Muse, la nuova ID Meta».** Non l'ho
-riconosciuta, e non voglio costruire una proposta su una cosa che sto
-indovinando. Mandami un link e ci ragiono sopra davvero.
+**Primo, sul «Muse» di Meta.** Marco ha chiarito che e la loro nuova
+AI, e che semmai se ne riparla «successivamente, o con altre che ne
+verranno». Quindi qui non si progetta niente: si prende nota che il
+giorno in cui si aggancia qualcosa del genere, vale il punto qui sotto,
+che non dipende da quale sia lo strumento.
 
 **Secondo, e vale comunque qualunque cosa sia:** mandare i dati dei
 clienti a una piattaforma pubblicitaria per cercare «persone simili» è un
