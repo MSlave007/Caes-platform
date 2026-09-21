@@ -80,6 +80,8 @@ export type Project = {
     }
     /** Chi l'ha aperto. Da qui si prende la sua anagrafica per i documenti. */
     installer_id?: string
+    /** Ultimo movimento. Da qui si contano i giorni di attesa. */
+    updated_at?: string
     /**
      * Il soggetto delegato a cui si cede l'ahorro. Vedi proveedores.ts.
      *
