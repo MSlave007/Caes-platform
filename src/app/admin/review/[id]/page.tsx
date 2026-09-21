@@ -2,7 +2,8 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StatusControl from '@/components/admin/StatusControl'
-import PestanasExpediente from '@/components/admin/PestanasExpediente'
+import CabeceraExpediente from '@/components/admin/CabeceraExpediente'
+import Avisos, { type Aviso } from '@/components/admin/Avisos'
 import DocumentReview from '@/components/admin/DocumentReview'
 import {
     CAMPOS,
@@ -19,9 +20,7 @@ import {
 } from '@/lib/caes/expediente'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, FileText, Home, Loader2, Wrench, X } from 'lucide-react'
-import StatusChip from '@/components/platform/StatusChip'
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, FileText, Loader2, X } from 'lucide-react'
 import { DOCUMENTS } from '@/lib/documents'
 import {
     AHORRO_MINIMO_PCT,
@@ -362,6 +361,50 @@ export default function AdminReviewDetail({
     const belowMinimum = (p?.savings_pct ?? 0) < AHORRO_MINIMO_PCT
     const canApprove = missing.length === 0 && allVerified && !belowMinimum
 
+    /**
+     * Quello che impedisce di approvare, come dati invece che come
+     * paragrafo. Due livelli: un blocco e' una cosa che NON si puo'
+     * fare, una mancanza e' lavoro da fare. Chiedere sei foto
+     * all'installatore e' una telefonata; dirgli che la pratica non e'
+     * ammissibile e' un'altra cosa.
+     */
+    const avisos = useMemo<Aviso[]>(() => {
+        const lista: Aviso[] = []
+
+        if (belowMinimum) {
+            lista.push(
+                sinCalcular
+                    ? {
+                        tipo: 'falta',
+                        titulo: 'El ahorro todavía no está calculado',
+                        detalle: `Hasta que no esté no se puede saber si supera el ${AHORRO_MINIMO_PCT} % que exige la norma, y sin eso no se aprueba.`,
+                    }
+                    : {
+                        tipo: 'bloqueo',
+                        titulo: `Ahorro del ${p?.savings_pct?.toLocaleString('es-ES')} %, por debajo del mínimo`,
+                        detalle: `La norma exige un ${AHORRO_MINIMO_PCT} %. Este expediente no es elegible tal y como está.`,
+                    }
+            )
+        }
+
+        if (missing.length > 0) {
+            lista.push({
+                tipo: 'falta',
+                titulo: `Faltan ${missing.length} ${missing.length === 1 ? 'documento obligatorio' : 'documentos obligatorios'}`,
+                detalle: 'Sin ellos no se puede aprobar. Pídeselos al instalador o súbelos tú si los tienes.',
+                piezas: missing.map((m) => {
+                    const n = m.minFiles ?? 1
+                    return n > 1
+                        ? `${m.label} · ${cuantos[m.id] ?? 0} de ${n}`
+                        : m.label
+                }),
+            })
+        }
+
+        return lista
+    }, [belowMinimum, sinCalcular, missing, cuantos, p?.savings_pct])
+
+
     // Ripartizione: l'installatore ha bloccato la sua quota all'invio;
     // l'agenzia sceglie la propria sul residuo.
     const installerCut = (savings * (p?.installer_pct ?? 0)) / 100
@@ -528,113 +571,22 @@ export default function AdminReviewDetail({
 
     return (
         <div className="flex flex-col gap-9">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <Link
-                    href="/admin/review"
-                    className="group inline-flex w-fit items-center gap-2.5 text-[13px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
-                >
-                    <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
-                    Volver a la cola
-                </Link>
-
-            </div>
-
-            {/* ------------------------------------------------ intestazione */}
-            <div className="flex flex-wrap items-start justify-between gap-6">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <span
-                            className="flex h-9 w-9 items-center justify-center rounded-full"
-                            style={{
-                                background:
-                                    p.source === 'installer'
-                                        ? 'var(--caes-band)'
-                                        : 'rgba(199,240,74,.28)',
-                            }}
-                        >
-                            {p.source === 'installer' ? (
-                                <Wrench className="h-4 w-4 text-[var(--caes-mut)]" strokeWidth={1.7} />
-                            ) : (
-                                <Home className="h-4 w-4 text-[var(--caes-lime-ink)]" strokeWidth={1.7} />
-                            )}
-                        </span>
-                        <span className="label-mono text-[var(--caes-mut)]">
-                            Expediente #{p.id} ·{' '}
-                            {p.source === 'installer' ? 'Lo abre el instalador' : 'Lo abre el cliente'}
-                        </span>
-                    </div>
-                    <h1 className="mt-4 text-balance text-[clamp(26px,3.2vw,36px)] font-semibold leading-[1.06] tracking-[-0.038em]">
-                        {p.client_name}
-                    </h1>
-                    <p className="mt-2 text-[14px] text-[var(--caes-mut)]">
-                        {p.installer_name ?? 'Sin instalador asignado'} · {p.address}
-                    </p>
-                </div>
-                <StatusChip status={p.status} />
-            </div>
-
-            <PestanasExpediente
+            {/* Il ritorno alla coda sta dentro l'intestazione condivisa:
+                qui ce n'era un secondo, identico, a quattro pixel. */}
+            <CabeceraExpediente
                 id={String(id)}
+                numero={String(p.id)}
+                cliente={p.client_name}
+                instalador={p.installer_name}
+                direccion={p.address}
+                origen={p.source === 'client' ? 'client' : 'installer'}
+                estado={p.status}
                 activa="revision"
                 pendientes={documentos.filter((d) => d.estado !== 'listo_firmar').length}
             />
 
             {/* --------------------------------------------------- avvisi */}
-            {(belowMinimum || missing.length > 0) && (
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, ease: EASE }}
-                    className="flex items-start gap-3.5 rounded-2xl border border-[#E0B48C] bg-[#FBF1E7] p-5"
-                >
-                    <AlertTriangle className="mt-[2px] h-[18px] w-[18px] shrink-0 text-[#8A5B0B]" />
-                    <div className="text-[14px] leading-[1.6] text-[#7A4A12]">
-                        {belowMinimum && (
-                            sinCalcular ? (
-                                <p>
-                                    El ahorro todavía no está calculado, así que no se
-                                    puede saber si supera el {AHORRO_MINIMO_PCT} % que
-                                    exige la norma. Hasta entonces no se aprueba.
-                                </p>
-                            ) : (
-                                <p>
-                                    El ahorro verificado es del{' '}
-                                    <b>{p.savings_pct.toLocaleString('es-ES')} %</b>, por
-                                    debajo del {AHORRO_MINIMO_PCT} % que exige la norma.
-                                    Este expediente no es elegible.
-                                </p>
-                            )
-                        )}
-                        {missing.length > 0 && (
-                            <p className={belowMinimum ? 'mt-2' : ''}>
-                                Falta documentación obligatoria:{' '}
-                                {missing
-                                    .map((m) => {
-                                        const n = m.minFiles ?? 1
-                                        return n > 1
-                                            ? `${m.label} (${cuantos[m.id] ?? 0} de ${n})`
-                                            : m.label
-                                    })
-                                    .join(', ')}
-                                .
-                            </p>
-                        )}
-                    </div>
-                </motion.div>
-            )}
-
-            {/* Quello che l'installatore ha scritto a mano. Sta sopra ai
-                documenti apposta: di solito spiega perche uno manca. */}
-            {p?.notas && (
-                <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
-                    <h2 className="font-mono text-[9.5px] uppercase tracking-[.14em] text-[var(--caes-faint)]">
-                        Nota del instalador
-                    </h2>
-                    <p className="mt-3 max-w-[70ch] whitespace-pre-wrap text-[14.5px] leading-[1.6] text-[var(--caes-ink)]">
-                        {p.notas}
-                    </p>
-                </section>
-            )}
+            <Avisos avisos={avisos} />
 
             {/* Documenti e dati estratti in una lista sola: i dati stanno
                 dentro il documento da cui escono, cosi il collegamento non

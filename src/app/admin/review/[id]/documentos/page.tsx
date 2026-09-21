@@ -1,10 +1,9 @@
 'use client'
 
 import { use, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import GeneradorDocumentos from '@/components/admin/GeneradorDocumentos'
-import PestanasExpediente from '@/components/admin/PestanasExpediente'
+import CabeceraExpediente from '@/components/admin/CabeceraExpediente'
 import { CAMPOS, type Extraccion } from '@/lib/caes/extraction'
 import {
     DATOS_EJEMPLO,
@@ -12,7 +11,7 @@ import {
     extrasDeAgencia,
     extrasDePerfil,
 } from '@/lib/caes/expediente'
-import { huecosSinOrigen, type Datos } from '@/lib/caes/plantillas'
+import { PLANTILLAS, estadoDe, huecosSinOrigen, type Datos } from '@/lib/caes/plantillas'
 import type { Project } from '@/lib/mockDb'
 
 /**
@@ -144,6 +143,11 @@ export default function DocumentosDelExpediente({
     const datos: Datos = { ...base, ...retoques }
     const sinOrigen = huecosSinOrigen()
 
+    // Lo stesso conteggio che compare sulla scheda nella revisione.
+    const pendientes = PLANTILLAS.filter(
+        (pl) => estadoDe(pl, datos, Boolean(revisados[pl.id])) !== 'listo_firmar'
+    ).length
+
     if (cargando) {
         return (
             <div className="flex items-center gap-3 text-[14px] text-[var(--caes-mut)]">
@@ -156,23 +160,25 @@ export default function DocumentosDelExpediente({
     return (
         <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-5 print:hidden">
-                <Link
-                    href="/admin/review"
-                    className="group inline-flex w-fit items-center gap-2.5 text-[13px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
-                >
-                    <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
-                    Volver a la cola
-                </Link>
-
-                <PestanasExpediente id={String(id)} activa="documentos" />
+                {/* La stessa testa della revisione: numero, cliente,
+                    stato. Restando ferma mentre cambia il contenuto,
+                    dice da sola che sono due viste della stessa pratica
+                    e non due pagine diverse. */}
+                <CabeceraExpediente
+                    id={String(id)}
+                    numero={String(p?.id ?? id)}
+                    cliente={p?.client_name ?? 'Expediente'}
+                    instalador={p?.installer_name}
+                    direccion={p?.address}
+                    origen={p?.source === 'client' ? 'client' : 'installer'}
+                    estado={p?.status}
+                    activa="documentos"
+                    pendientes={pendientes}
+                />
 
                 <div className="flex flex-wrap items-end justify-between gap-5">
                     <div>
-                        <h1 className="text-[22px] font-semibold tracking-[-0.026em] text-[var(--caes-ink)]">
-                            Documentos del expediente {p?.id ?? id}
-                        </h1>
-                        <p className="mt-1 text-[13.5px] text-[var(--caes-mut)]">
-                            {p?.client_name ? `${p.client_name} · ` : ''}
+                        <p className="max-w-[62ch] text-[13.5px] leading-[1.55] text-[var(--caes-mut)]">
                             Los tres se generan de los mismos datos, así que no pueden
                             contradecirse entre ellos.
                         </p>
