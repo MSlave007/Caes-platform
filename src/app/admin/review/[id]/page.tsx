@@ -10,19 +10,16 @@ import {
 } from '@/lib/caes/extraction'
 import type { EstadoId } from '@/lib/caes/status'
 import { PROVEEDORES, proveedor } from '@/lib/caes/proveedores'
+import { PLANTILLAS, estadoDe, faltanEn } from '@/lib/caes/plantillas'
+import {
+    datosDe,
+    extrasDeAgencia,
+    extrasDePerfil,
+} from '@/lib/caes/expediente'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import {
-    AlertTriangle,
-    ArrowLeft,
-    Check,
-    FileText,
-    Home,
-    Loader2,
-    Wrench,
-    X,
-} from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, FileText, Home, Loader2, Wrench, X } from 'lucide-react'
 import StatusChip from '@/components/platform/StatusChip'
 import { DOCUMENTS } from '@/lib/documents'
 import {
@@ -56,6 +53,9 @@ export default function AdminReviewDetail({
     // cliente firma.
     const [prov, setProv] = useState<string>('')
     const [tarifa, setTarifa] = useState<number | ''>('')
+    // Cinque campi dei documenti vengono dalla ficha dell'installatore.
+    // Senza, il conteggio dei mancanti ne direbbe cinque di troppo.
+    const [perfil, setPerfil] = useState<Parameters<typeof extrasDePerfil>[0]>(null)
     /** 'limpio' = niente da salvare. Vedi il salvataggio automatico sotto. */
     const [guardado, setGuardado] = useState<'limpio' | 'guardando' | 'hecho' | 'error'>(
         'limpio'
@@ -294,6 +294,45 @@ export default function AdminReviewDetail({
             .catch((e) => console.error('Error al cargar el expediente:', e))
             .finally(() => setLoading(false))
     }, [id])
+
+    useEffect(() => {
+        if (!p?.installer_id) return
+        fetch(`/api/installers/${p.installer_id}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => j?.data && setPerfil(j.data))
+            .catch(() => {
+                /* senza profilo quei cinque restano da scrivere a mano */
+            })
+    }, [p?.installer_id])
+
+    /**
+     * Lo stato dei tre documenti che escono da questo fascicolo.
+     *
+     * Si calcola con gli STESSI dati con cui si impaginano. Se qui
+     * dicesse «listo» e poi nel documento mancasse un campo, questa
+     * schermata sarebbe peggio che non averla.
+     */
+    const documentos = useMemo(() => {
+        const datos = datosDe(extraccion, {
+            ...extrasDePerfil(perfil),
+            ...extrasDeAgencia({
+                proveedor: prov,
+                tarifa_eur_mwh: tarifa === '' ? null : Number(tarifa),
+            }),
+        })
+        // I ritocchi scritti a mano contano come dati: sono l'ultima
+        // parola di una persona su un documento che quella persona firma.
+        const hechos = { ...datos, ...(p?.documentos?.retoques ?? {}) }
+        const revisados = p?.documentos?.revisados ?? {}
+
+        return PLANTILLAS.map((pl) => ({
+            id: pl.id,
+            nombre: pl.nombre,
+            firman: pl.firman,
+            faltan: faltanEn(pl, hechos).length,
+            estado: estadoDe(pl, hechos, Boolean(revisados[pl.id])),
+        }))
+    }, [extraccion, perfil, prov, tarifa, p?.documentos])
 
     const specs = useMemo(
         () => (p ? DOCUMENTS[p.source === 'client' ? 'client' : 'installer'] : []),
@@ -644,6 +683,96 @@ export default function AdminReviewDetail({
                         </p>
                     )}
                 </div>
+            </section>
+
+            {/* ------------------------------------ i documenti in uscita
+
+                Il giro e': carte che arrivano -> dati confermati -> carte
+                che escono. Prima questa terza parte era una pastiglia in
+                alto che diceva solo «Ver los documentos»: si poteva
+                approvare un fascicolo senza sapere se i documenti erano
+                emettibili. Adesso lo stato si legge qui, e si calcola con
+                gli stessi dati con cui i documenti si impaginano. */}
+            <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
+                <div className="flex flex-wrap items-baseline justify-between gap-4">
+                    <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+                        Documentos que salen de aquí
+                    </h2>
+                    <Link
+                        href={`/admin/review/${id}/documentos`}
+                        className="group inline-flex items-center gap-2 text-[13px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
+                    >
+                        Abrirlos y revisarlos
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+                    </Link>
+                </div>
+
+                <ul className="mt-6 flex flex-col gap-2.5">
+                    {documentos.map((d) => {
+                        const listo = d.estado !== 'incompleto'
+                        const revisado = d.estado === 'listo_firmar'
+                        return (
+                            <li key={d.id}>
+                                <Link
+                                    href={`/admin/review/${id}/documentos`}
+                                    className={`group flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border px-4 py-3.5 transition-colors ${revisado
+                                        ? 'border-[var(--caes-green)]/40 bg-[var(--caes-green)]/[.05]'
+                                        : listo
+                                            ? 'border-[var(--caes-line)] hover:border-[var(--caes-ink)]/30'
+                                            : 'border-dashed border-[var(--caes-line)] hover:border-[#C4863F]'
+                                        }`}
+                                >
+                                    <span
+                                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${revisado
+                                            ? 'border-[var(--caes-green)] bg-[var(--caes-green)] text-white'
+                                            : listo
+                                                ? 'border-[var(--caes-line-2)] text-[var(--caes-faint)]'
+                                                : 'border-dashed border-[#C4863F] text-[#C4863F]'
+                                            }`}
+                                    >
+                                        {revisado ? (
+                                            <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                                        ) : (
+                                            <FileText className="h-3.5 w-3.5" strokeWidth={1.8} />
+                                        )}
+                                    </span>
+
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-[14.5px] font-medium text-[var(--caes-ink)]">
+                                            {d.nombre}
+                                        </span>
+                                        <span className="block text-[12.5px] text-[var(--caes-faint)]">
+                                            Lo firma: {d.firman.toLowerCase()}
+                                        </span>
+                                    </span>
+
+                                    <span
+                                        className={`shrink-0 text-[12.5px] ${revisado
+                                            ? 'text-[var(--caes-green)]'
+                                            : listo
+                                                ? 'text-[var(--caes-mut)]'
+                                                : 'text-[#8A5B0B]'
+                                            }`}
+                                    >
+                                        {revisado
+                                            ? 'Revisado'
+                                            : listo
+                                                ? 'Listo para revisar'
+                                                : `Faltan ${d.faltan} ${d.faltan === 1 ? 'dato' : 'datos'}`}
+                                    </span>
+                                </Link>
+                            </li>
+                        )
+                    })}
+                </ul>
+
+                {/* La firma non c'e' ancora. Dirlo e' meglio che lasciare
+                    immaginare che «revisado» voglia dire «mandato». */}
+                <p className="mt-5 border-t border-[var(--caes-line-2)] pt-5 text-[12.5px] leading-[1.5] text-[var(--caes-faint)]">
+                    {documentos.every((d) => d.estado === 'listo_firmar')
+                        ? 'Los tres están revisados. El envío a firma electrónica todavía no está conectado: por ahora se descargan y se mandan a mano.'
+                        : 'Cuando estén los tres revisados se podrán emitir. El envío a firma electrónica todavía no está conectado.'}
+                </p>
             </section>
 
             {/* Il riparto, sotto: si decide dopo aver verificato. */}
