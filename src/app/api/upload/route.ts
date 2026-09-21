@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { quienLlama, negado, prohibido } from '@/lib/auth/guard'
+import { dentroDelLimite, quienCuenta, demasiadas } from '@/lib/auth/ritmo'
 import { puedeVer } from '@/lib/auth/propiedad'
 import { BUCKET, SIN_DEPOSITO, createAdminClient, explicar } from '@/lib/supabaseAdmin'
 
@@ -47,6 +48,12 @@ export async function POST(request: Request) {
     try {
         const quien = await quienLlama()
         if (!quien) return negado()
+
+    // Ogni file occupa spazio che si paga.
+    const LIMITE = { cuantas: 40, segundos: 300 }
+    if (!dentroDelLimite(quienCuenta(request, quien?.userId), LIMITE)) {
+        return demasiadas(LIMITE.segundos)
+    }
 
         const formData = await request.formData()
         const file = formData.get('file') as File

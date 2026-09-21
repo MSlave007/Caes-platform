@@ -1,14 +1,12 @@
 import { createClient } from '@/utils/supabase/server'
 import { mockDb } from '@/lib/mockDb'
 import { quienLlama, negado } from '@/lib/auth/guard'
+import { COMISION_MAXIMA_PCT } from '@/lib/caes/estimate'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
     const supabase = await createClient()
-    const url = new URL(request.url)
-    const role = url.searchParams.get('role')
-
     // Senza sessione si passa solo in modalità dimostrativa: prima questa
     // rotta rispondeva a chiunque, anche online.
     const quien = await quienLlama()
@@ -53,11 +51,64 @@ export async function POST(request: Request) {
         const body = await request.json()
         const supabase = await createClient()
 
-        // 1. Validate (Basic)
-        // Il nome serve solo per creare: un aggiornamento porta l'id e
-        // magari cambia un campo solo, tipo lo stato.
-        if (!body.id && !body.client_name) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+        // ── SOLO CREAZIONE ────────────────────────────────────────────
+        //
+        // Questa rotta accettava un `id` e in quel caso faceva un
+        // AGGIORNAMENTO — scavalcando il controllo «solo agenzia» messo
+        // sulla PATCH. Un installatore poteva mandare
+        // `{ id, status: 'approved', agency_pct: 0 }` e approvarsi la
+        // pratica da solo azzerando la quota dell'agenzia.
+        //
+        // Due strade per fare la stessa cosa sono due posti dove mettere
+        // il controllo, e uno dei due resta sempre indietro. Qui si crea
+        // e basta; per modificare c'e' la PATCH, e li' il controllo c'e'.
+        if (body.id) {
+            return NextResponse.json(
+                { error: 'Para modificar un expediente usa PATCH /api/projects/[id].' },
+                { status: 405 }
+            )
+        }
+
+        if (!body.client_name) {
+            return NextResponse.json({ error: 'Falta el nombre del cliente' }, { status: 400 })
+        }
+
+        /**
+         * Quello che chi crea puo' scrivere. Lista BIANCA.
+         *
+         * Fuori restano `status`, `agency_pct`, `admin_notes`,
+         * `admin_id`, `approved_at`: sono decisioni dell'agenzia, e
+         * lasciarli passare vorrebbe dire far nascere una pratica gia'
+         * approvata. `installer_pct` invece entra: la sua quota se la
+         * fissa lui all'invio, ed e' il patto che poi non cambia.
+         */
+        const texto = (v: unknown, max = 200) =>
+            typeof v === 'string' ? v.trim().slice(0, max) : ''
+        const numero = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0)
+
+        const nuevo = {
+            source: (body.source === 'client' ? 'client' : 'installer') as 'client' | 'installer',
+            client_name: texto(body.client_name, 160),
+            installer_name: texto(body.installer_name, 160) || null,
+            address: texto(body.address, 240),
+            make: texto(body.make, 80),
+            model: texto(body.model, 80),
+            power_kw: numero(body.power_kw),
+            savings_eur: numero(body.savings_eur),
+            savings_pct: numero(body.savings_pct),
+            // La quota dell'installatore ha un tetto di legge: sopra
+            // quello l'accordo CAES non vale, quindi non si accetta
+            // nemmeno di scriverlo.
+            installer_pct: Math.min(Math.max(numero(body.installer_pct), 0), COMISION_MAXIMA_PCT),
+            notas: texto(body.notas, 2000) || undefined,
+            nombre: texto(body.nombre, 120) || undefined,
+            docs: Array.isArray(body.docs) ? body.docs.slice(0, 80) : [],
+            // Lo stato iniziale lo decide il server, sempre.
+            status: 'submitted' as const,
+            // La quota dell'agenzia la fissa l'agenzia in revisione: qui
+            // nasce vuota, non a zero — zero sarebbe una decisione.
+            agency_pct: null,
+            files: [],
         }
 
         // Get User for installer_id
@@ -66,33 +117,13 @@ export async function POST(request: Request) {
         let dbData, dbError
 
         if (user) {
-            const payload = {
-                ...body,
-                installer_id: user.id
-            }
-
-            // 2. Insert or Update
-            let query = supabase.from('projects')
-
-            if (body.id) {
-                // Update existing
-                const { data, error } = await query
-                    .update(payload)
-                    .eq('id', body.id)
-                    .select()
-                    .single()
-                dbData = data
-                dbError = error
-            } else {
-                // Insert new
-                const { data, error } = await query
-                    .insert(payload)
-                    .select()
-                    .single()
-                dbData = data
-                dbError = error
-            }
-
+            const { data, error } = await supabase
+                .from('projects')
+                .insert({ ...nuevo, installer_id: user.id })
+                .select()
+                .single()
+            dbData = data
+            dbError = error
 
         } else {
             // MODALITÀ DIMOSTRATIVA — senza sessione si scrive in memoria.
@@ -101,41 +132,7 @@ export async function POST(request: Request) {
             // scrittura no, quindi una pratica inviata non poteva comparire
             // nella coda admin in nessun modo. Le due metà non si toccavano.
             // Ora la scrittura segue la stessa strada della lettura.
-            if (body.id) {
-                const updated = mockDb.updateProject(String(body.id), body)
-                if (!updated) {
-                    return NextResponse.json({ error: 'Expediente no encontrado' }, { status: 404 })
-                }
-                return NextResponse.json({ data: updated })
-            }
-
-            const created = mockDb.createProject({
-                source: body.source ?? 'installer',
-                client_name: body.client_name,
-                installer_name: body.installer_name ?? null,
-                // La coda admin filtra su questo: un invio entra come "submitted".
-                status: body.status ?? 'submitted',
-                savings_eur: Number(body.savings_eur) || 0,
-                installer_pct: Number(body.installer_pct) || 0,
-                agency_pct: body.agency_pct ?? null,
-                savings_pct: Number(body.savings_pct) || 0,
-                address: body.address ?? '',
-                make: body.make ?? '',
-                model: body.model ?? '',
-                power_kw: Number(body.power_kw) || 0,
-                // Nota libera dell'installatore. Tagliata: e un campo di
-                // testo aperto che finisce in una pagina di revisione.
-                notas:
-                    typeof body.notas === 'string' && body.notas.trim()
-                        ? body.notas.trim().slice(0, 2000)
-                        : undefined,
-                nombre:
-                    typeof body.nombre === 'string' && body.nombre.trim()
-                        ? body.nombre.trim().slice(0, 120)
-                        : undefined,
-                docs: Array.isArray(body.docs) ? body.docs : [],
-                files: Array.isArray(body.files) ? body.files : [],
-            })
+            const created = mockDb.createProject(nuevo)
             return NextResponse.json({ data: created })
         }
 
@@ -148,7 +145,13 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ data })
 
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 })
+    } catch (e: unknown) {
+        // Il messaggio grezzo puo contenere frammenti della query: si
+        // registra dalla nostra parte e fuori esce una riga sola.
+        console.error('POST /api/projects:', e)
+        return NextResponse.json(
+            { error: 'No se ha podido guardar el expediente' },
+            { status: 500 }
+        )
     }
 }

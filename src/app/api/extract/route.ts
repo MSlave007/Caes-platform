@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { BUCKET, SIN_DEPOSITO, createAdminClient, explicar } from '@/lib/supabaseAdmin'
 import { quienLlama, negado } from '@/lib/auth/guard'
+import { dentroDelLimite, quienCuenta, demasiadas } from '@/lib/auth/ritmo'
 import { camposDe } from '@/lib/caes/extraction'
 import { hayClave, lectorActivo, leer, modeloActivo } from '@/lib/caes/lectores'
 
@@ -45,6 +46,13 @@ const POR_EXTENSION: Record<string, string> = {
 export async function POST(request: Request) {
     const quien = await quienLlama()
     if (!quien) return negado()
+
+    // Dietro c'e un modello a pagamento: un ciclo impazzito qui non e
+    // un rallentamento, e una fattura.
+    const LIMITE = { cuantas: 20, segundos: 300 }
+    if (!dentroDelLimite(quienCuenta(request, quien?.userId), LIMITE)) {
+        return demasiadas(LIMITE.segundos)
+    }
 
     const lector = lectorActivo()
     if (!hayClave(lector)) {

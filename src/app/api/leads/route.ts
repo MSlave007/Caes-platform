@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { quienLlama, soloAgencia, negado, prohibido } from '@/lib/auth/guard'
+import { dentroDelLimite, quienCuenta, demasiadas } from '@/lib/auth/ritmo'
 import { createClient } from '@/utils/supabase/server'
 import { mockLeads, type Lead } from '@/lib/mockLeads'
 
@@ -11,6 +12,15 @@ import { mockLeads, type Lead } from '@/lib/mockLeads'
  * da mostrare. Lo schema SQL è in docs/SCHEMA_LEADS.sql.
  */
 export async function POST(request: Request) {
+    // L'unica rotta che accetta scritture senza account: e' il modulo
+    // del calcolatore pubblico, quindi il posto naturale per riempire
+    // una tabella di spazzatura. Si conta per indirizzo, che si puo'
+    // falsificare — va bene per contare, non per decidere chi sei.
+    const LIMITE = { cuantas: 5, segundos: 600 }
+    if (!dentroDelLimite(quienCuenta(request), LIMITE)) {
+        return demasiadas(LIMITE.segundos)
+    }
+
     let body: Record<string, unknown>
     try {
         body = await request.json()
