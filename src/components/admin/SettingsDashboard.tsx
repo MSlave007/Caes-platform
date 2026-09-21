@@ -56,7 +56,7 @@ export function SettingsDashboard({ user, profile }: SettingsDashboardProps) {
                             <div className="flex flex-col items-center gap-3">
                                 <Avatar className="h-24 w-24 border-2 border-border">
                                     <AvatarFallback className="text-3xl bg-slate-100 font-medium text-slate-600">
-                                        {profile?.full_name?.slice(0, 2).toUpperCase() || 'AD'}
+                                        {profile?.name?.slice(0, 2).toUpperCase() || 'AD'}
                                     </AvatarFallback>
                                 </Avatar>
                                 <Button variant="outline" size="sm">Change Avatar</Button>
@@ -64,7 +64,7 @@ export function SettingsDashboard({ user, profile }: SettingsDashboardProps) {
                             <div className="flex-1 space-y-4">
                                 <div className="grid gap-2">
                                     <Label>Full Name</Label>
-                                    <Input defaultValue={profile?.full_name || ''} />
+                                    <Input defaultValue={profile?.name || ''} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Email Address</Label>
@@ -177,7 +177,7 @@ export function SettingsDashboard({ user, profile }: SettingsDashboardProps) {
                     <CardContent>
                         <div className="space-y-8">
                             {[
-                                { name: profile?.full_name || 'You', email: user?.email, role: 'Owner', date: 'Joined today', avatar: profile?.full_name?.[0] || 'Y' },
+                                { name: profile?.name || 'You', email: user?.email, role: 'Owner', date: 'Joined today', avatar: profile?.name?.[0] || 'Y' },
                                 { name: 'Sarah Connor', email: 'sarah@caes.com', role: 'Admin', date: 'Joined 2 days ago', avatar: 'S' },
                                 { name: 'Mike Ross', email: 'mike@caes.com', role: 'Viewer', date: 'Joined 1 week ago', avatar: 'M' }
                             ].map((member, i) => (

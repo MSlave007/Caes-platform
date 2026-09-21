@@ -3,15 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import {
-    Gauge,
-    Inbox,
-    LogOut,
-    Settings,
-    Sparkles,
-    Users,
-    Wrench,
-} from 'lucide-react'
+import { Gauge, Inbox, LogOut, Settings, Sparkles, UserCog, Users, Wrench } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
 const NAV = [
@@ -21,6 +13,9 @@ const NAV = [
     { href: '/admin/projects', label: 'Expedientes', Icon: Wrench },
     { href: '/admin/installers', label: 'Instaladores', Icon: Users },
     { href: '/admin/settings', label: 'Ajustes', Icon: Settings },
+    // La propria utenza, non quella dell'agenzia: password, correo,
+    // foto. Stessa pagina per tutti e due i ruoli.
+    { href: '/cuenta', label: 'Mi cuenta', Icon: UserCog },
 ]
 
 /**

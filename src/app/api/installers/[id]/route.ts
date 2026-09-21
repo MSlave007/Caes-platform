@@ -46,7 +46,7 @@ export async function GET(
         // Solo quello che serve ai documenti. Non tutto il profilo: la
         // commissione predefinita e il resto non c'entrano niente con
         // quello che si stampa su un Convenio.
-        .select('full_name, company_id, address, phone')
+        .select('name, nif, address, phone')
         .eq('id', id)
         .single()
 

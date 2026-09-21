@@ -107,8 +107,8 @@ export const DATOS_EJEMPLO: Datos = Object.fromEntries(
  * non cambiano mai e che abbiamo gia' in `profiles`.
  */
 export type PerfilInstalador = {
-    full_name?: string | null
-    company_id?: string | null
+    name?: string | null
+    nif?: string | null
     address?: string | null
     phone?: string | null
 }
@@ -116,14 +116,14 @@ export type PerfilInstalador = {
 export function extrasDePerfil(perfil?: PerfilInstalador | null): Partial<Datos> {
     if (!perfil) return {}
     return {
-        instalador_razon: perfil.full_name ?? '',
-        instalador_nif: perfil.company_id ?? '',
+        instalador_razon: perfil.name ?? '',
+        instalador_nif: perfil.nif ?? '',
         instalador_direccion: perfil.address ?? '',
         instalador_telefono: perfil.phone ?? '',
         // Il responsabile che firma la Ficha. Finche' non e' un campo suo
         // nel profilo, e' chi intesta l'azienda: e' sempre stato cosi' nei
         // Word, ma qui si vede ed e' correggibile a mano sul documento.
-        instalador_responsable: perfil.full_name ?? '',
+        instalador_responsable: perfil.name ?? '',
     }
 }
 

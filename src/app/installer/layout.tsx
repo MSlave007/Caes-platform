@@ -4,13 +4,14 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FolderOpen, LogOut, Plus, User } from 'lucide-react'
+import { FolderOpen, LogOut, Plus, User, UserCog } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
 const NAV = [
     { href: '/installer/dashboard', label: 'Expedientes', Icon: FolderOpen },
     { href: '/installer/documentos', label: 'Nuevo', Icon: Plus },
     { href: '/installer/profile', label: 'Perfil', Icon: User },
+    { href: '/cuenta', label: 'Mi cuenta', Icon: UserCog },
 ]
 
 /**

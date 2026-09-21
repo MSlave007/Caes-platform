@@ -169,7 +169,17 @@ alter table public.projects
 
 alter table public.profiles
   add column if not exists dni_path   text,
-  add column if not exists dni_nombre text;
+  add column if not exists dni_nombre text,
+  -- La foto de perfil. Vive en el bucket PRIVADO, como los documentos:
+  -- es la cara de una persona, y una URL permanente en un bucket
+  -- abierto es justo lo que acaba indexado. Se mira con enlace firmado.
+  add column if not exists avatar_path text,
+  -- La comisión por defecto del INSTALADOR, que no es el margen de la
+  -- agencia: `default_admin_margin_percent` ya existía y es otra cosa.
+  add column if not exists default_commission numeric default 25,
+  -- Idioma de la interfaz: 'es' | 'it' | 'en'. Todavía no se usa —
+  -- la columna se crea ahora para no pedir otra migración.
+  add column if not exists idioma      text default 'es';
 
 
 -- ── 4. CONTACTOS del calculador público ─────────────────────────────

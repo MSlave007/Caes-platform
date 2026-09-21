@@ -211,3 +211,76 @@ codice, non dopo.
 
 I punti 2, 3 e 4 dell'elenco sono lavoro da poco. Il punto 1 sono due
 minuti nel pannello e non richiede codice, perché il codice è già pronto.
+
+---
+
+# Tornata del 21 settembre 2026 — i dati personali
+
+Rivisto tutto il giro dell'utenza e dei file, perché da qui in avanti ci
+sono dentro carte d'identità, fatture e foto di case di privati.
+
+## Chiuso: chiunque poteva leggere i documenti di chiunque
+
+`/api/documents/url` firmava QUALSIASI percorso a CHIUNQUE avesse una
+sessione. Bastava registrarsi come installatore — la registrazione è
+aperta — e chiedere il percorso di un documento altrui per ottenerne un
+indirizzo valido cinque minuti.
+
+C'era il controllo di AUTENTICAZIONE («chi sei») e mancava del tutto
+quello di ACCESSO («questo è tuo»). Sono due domande diverse.
+
+Adesso `src/lib/auth/propiedad.ts` risponde alla seconda: l'agenzia vede
+tutto, l'installatore solo i file intestati a lui o citati nei suoi
+espedienti.
+
+## Chiuso: chiunque poteva CANCELLARE i file di chiunque
+
+Stessa mancanza su `DELETE /api/upload`, con un effetto peggiore: non
+una fuga di dati, una distruzione di dati. Stesso controllo.
+
+## Chiuso: i percorsi erano indovinabili
+
+I file si chiamavano `<marca temporale>-<5 caratteri di Math.random()>`.
+`Math.random()` non è un generatore sicuro, la marca temporale è nota a
+chi ha caricato, e cinque caratteri sono uno spazio piccolo. Adesso sono
+`u/<id utente>/<uuid da crypto>`: imprevedibili, e soprattutto intestati
+— un file senza padrone non esiste più.
+
+## Chiuso: il recupero password non esisteva
+
+Il link «¿La has olvidado?» puntava a una 404. Non è solo una scomodità:
+senza recupero, l'unica strada è che qualcuno cambi la password per
+conto di un altro, che è la pratica peggiore di tutte.
+
+La pagina non dice se un indirizzo ha un account: risponderebbe diverso
+a seconda, e diventerebbe un modo per farsi l'elenco degli installatori.
+
+## Scelte, non conseguenze
+
+- **La foto profilo sta nel bucket PRIVATO**, con gli stessi indirizzi
+  firmati dei documenti. È la faccia di una persona: una URL permanente
+  su un bucket aperto è quello che finisce indicizzato.
+- **`/api/cuenta` non accetta un id.** Lavora sempre sull'utente della
+  sessione. Una rotta che prende «di chi» è una rotta da proteggere, e
+  quelle prima o poi restano scoperte — ne abbiamo appena trovate due.
+- **Lista bianca dei campi scrivibili.** `role` non è fra quelli: senza,
+  chiunque si scriverebbe `admin` con una chiamata sola. Una lista nera
+  si dimentica del campo aggiunto domani, una bianca no.
+- **Email e password si cambiano dal browser**, con la sessione viva.
+  Cambiarle da un server per conto di un id è il modo di prendersi
+  l'account di qualcuno.
+- **Il cambio email chiede conferma sul vecchio indirizzo.** Se qualcuno
+  entrasse in una sessione altrui, cambiare l'email sarebbe il primo
+  passo per chiudere fuori il proprietario per sempre.
+
+## Resta aperto
+
+1. **La registrazione è libera.** Chiunque può creare un account
+   installatore. Finché il ruolo `admin` si assegna solo a mano dal
+   database il danno è limitato, ma va deciso se serve un invito.
+2. **Nessun limite di frequenza** su nessuna rotta. `/api/extract` costa
+   soldi a ogni chiamata.
+3. **Il bucket `documents`**: verificare che sia privato. Il codice è
+   pronto per il privato da tempo.
+4. **Niente registro di chi ha guardato cosa.** Sappiamo chi ha
+   confermato un dato, non chi ha aperto un documento.

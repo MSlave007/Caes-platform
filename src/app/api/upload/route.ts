@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { quienLlama, negado } from '@/lib/auth/guard'
+import { quienLlama, negado, prohibido } from '@/lib/auth/guard'
+import { puedeVer } from '@/lib/auth/propiedad'
 import { BUCKET, SIN_DEPOSITO, createAdminClient, explicar } from '@/lib/supabaseAdmin'
 
 /**
@@ -76,8 +77,18 @@ export async function POST(request: Request) {
 
         // Il nome lo scriviamo noi: quello dell'utente puo contenere percorsi
         // (../) o caratteri che cambiano la destinazione.
+        //
+        // Due cose cambiate, e vanno insieme:
+        //
+        // 1. `Math.random()` non e un generatore sicuro, e cinque caratteri
+        //    dopo una marca temporale nota si indovinano. Adesso e un UUID
+        //    da `crypto`.
+        // 2. Il percorso porta dentro CHI l'ha caricato. Cosi chiedere di
+        //    aprirlo e una verifica di prefisso invece di una ricerca, e
+        //    soprattutto un file senza padrone non esiste piu.
         const fileExt = EXT[file.type] ?? 'bin'
-        const filePath = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        const dueno = quien.userId ?? 'demo'
+        const filePath = `u/${dueno}/${crypto.randomUUID()}.${fileExt}`
 
         const { error } = await supabase.storage
             .from(BUCKET)
@@ -141,6 +152,12 @@ export async function DELETE(request: Request) {
     if (path.includes('..') || path.startsWith('/')) {
         return NextResponse.json({ error: 'Path no válido' }, { status: 400 })
     }
+
+    // Come per la firma, mancava del tutto — ma qui e peggio: chiunque
+    // avesse una sessione poteva cancellare qualunque file del deposito,
+    // compresi i documenti di fascicoli altrui. Non era una fuga di
+    // dati, era una distruzione di dati.
+    if (!(await puedeVer(path, quien))) return prohibido()
 
     const supabase = createAdminClient()
     if (!supabase) {

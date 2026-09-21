@@ -49,7 +49,12 @@ export async function updateSession(request: NextRequest) {
     // In modalità dimostrativa restano aperte: serve a mostrare il giro
     // senza credenziali. In produzione no.
     const path = request.nextUrl.pathname
-    const reservada = path.startsWith('/admin') || path.startsWith('/installer')
+    const reservada =
+        path.startsWith('/admin') ||
+        path.startsWith('/installer') ||
+        // La propria utenza: senza sessione non c'e' nessuna utenza
+        // da mostrare, e la pagina chiederebbe dati a nessuno.
+        path.startsWith('/cuenta')
 
     if (!user && reservada && !esModoDemo()) {
         const url = request.nextUrl.clone()

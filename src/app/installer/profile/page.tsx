@@ -11,9 +11,9 @@ import { DOCUMENTOS_PERFIL } from '@/lib/documents'
 const EASE = [0.16, 1, 0.3, 1] as const
 
 type Profile = {
-    full_name: string
+    name: string
     phone: string
-    company_id: string
+    nif: string
     address: string
     default_commission: number
     /** Percorso nel deposito del DNI. Vedi DOCUMENTOS_PERFIL. */
@@ -22,9 +22,9 @@ type Profile = {
 }
 
 const EMPTY: Profile = {
-    full_name: '',
+    name: '',
     phone: '',
-    company_id: '',
+    nif: '',
     address: '',
     default_commission: 25,
     dni_path: null,
@@ -60,7 +60,7 @@ export default function InstallerProfilePage() {
                 const { data } = await supabase
                     .from('profiles')
                     .select(
-                        'full_name, phone, company_id, address, default_commission, dni_path, dni_nombre'
+                        'name, phone, nif, address, default_commission, dni_path, dni_nombre'
                     )
                     .eq('id', auth.user.id)
                     .single()
@@ -87,9 +87,9 @@ export default function InstallerProfilePage() {
             const { error } = await supabase
                 .from('profiles')
                 .update({
-                    full_name: p.full_name,
+                    name: p.name,
                     phone: p.phone,
-                    company_id: p.company_id,
+                    nif: p.nif,
                     address: p.address,
                     default_commission: p.default_commission,
                 })
@@ -182,16 +182,16 @@ export default function InstallerProfilePage() {
                         <Field label="Nombre o razón social">
                             <input
                                 className={inputClass}
-                                value={p.full_name}
-                                onChange={(e) => setP({ ...p, full_name: e.target.value })}
+                                value={p.name}
+                                onChange={(e) => setP({ ...p, name: e.target.value })}
                                 placeholder="Clima Levante S.L."
                             />
                         </Field>
                         <Field label="CIF o NIF">
                             <input
                                 className={inputClass}
-                                value={p.company_id}
-                                onChange={(e) => setP({ ...p, company_id: e.target.value })}
+                                value={p.nif}
+                                onChange={(e) => setP({ ...p, nif: e.target.value })}
                                 placeholder="B12345678"
                             />
                         </Field>

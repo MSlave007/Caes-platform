@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { BUCKET, SIN_DEPOSITO, createAdminClient, explicar } from '@/lib/supabaseAdmin'
-import { quienLlama, negado } from '@/lib/auth/guard'
+import { quienLlama, negado, prohibido } from '@/lib/auth/guard'
+import { puedeVer } from '@/lib/auth/propiedad'
 
 /**
  * Indirizzo firmato e a scadenza per guardare un documento.
@@ -34,6 +35,14 @@ export async function GET(request: Request) {
     if (path.includes('..') || path.startsWith('/')) {
         return NextResponse.json({ error: 'Path no válido' }, { status: 400 })
     }
+
+    // ── E' TUO? ───────────────────────────────────────────────────────
+    //
+    // Qui prima non c'era niente. Avere una sessione bastava a farsi
+    // firmare qualunque percorso del deposito: bastava registrarsi come
+    // installatore per avere l'indirizzo del documento di chiunque.
+    // «Chi sei» e «questo e tuo» sono due domande diverse.
+    if (!(await puedeVer(path, quien))) return prohibido()
 
     try {
         // Con la chiave pubblica l'RLS del bucket rifiuta anche la firma:
