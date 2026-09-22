@@ -162,10 +162,23 @@ export default function AltaInstalador({
     const listo = nombre.trim().length > 1 && email.includes('@') && !ocupado
 
     return (
-        <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-6">
+        /**
+         * Il verde dice che qui si sta facendo una cosa nuova.
+         *
+         * Come pannello grigio come gli altri sembrava un modulo da
+         * compilare fra tanti. Ma questo non modifica niente: crea una
+         * persona che prima non c'era, con le sue chiavi. È lo stesso
+         * verde della firma e dei link — le tre cose in questa
+         * piattaforma che escono da qui e arrivano a qualcuno.
+         */
+        <section className="rounded-2xl border border-[var(--caes-green)]/30 bg-gradient-to-br from-[var(--caes-green)]/[.09] via-[var(--caes-panel)] to-[var(--caes-panel)] p-6 sm:p-7">
             <div className="flex items-start justify-between gap-4">
-                <div>
-                    <h3 className="text-[15px] font-semibold tracking-[-0.018em]">
+                <div className="flex gap-4">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--caes-green)]/14 text-[var(--caes-green)]">
+                        <UserPlus className="h-4 w-4" strokeWidth={2} />
+                    </span>
+                    <div>
+                    <h3 className="text-[16px] font-semibold tracking-[-0.02em]">
                         Dar de alta un instalador
                     </h3>
                     <p className="mt-1.5 max-w-[58ch] text-[13px] leading-[1.5] text-[var(--caes-mut)]">
@@ -173,6 +186,7 @@ export default function AltaInstalador({
                         momento el enlace para subir papeles le llega a un sitio, y
                         lo que suba lo encuentra en su panel.
                     </p>
+                    </div>
                 </div>
                 {onCerrar && (
                     <button

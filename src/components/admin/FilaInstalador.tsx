@@ -209,6 +209,14 @@ function Cifra({
 }
 
 function Chip({ situacion, dias }: { situacion: Situacion; dias: number }) {
+    if (situacion === 'sin-estrenar') {
+        return (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--caes-falta)]/22 px-2.5 py-1 text-[11px] font-medium text-[var(--caes-falta-ink)]">
+                <Sparkle className="h-3 w-3" strokeWidth={2.4} />
+                Sin estrenar
+            </span>
+        )
+    }
     if (situacion === 'necesita') {
         return (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--caes-bloqueo)]/14 px-2.5 py-1 text-[11px] font-medium text-[var(--caes-bloqueo-ink)]">
@@ -245,6 +253,11 @@ function Chip({ situacion, dias }: { situacion: Situacion; dias: number }) {
  * sono già nelle colonne, e ripeterli non aggiunge niente.
  */
 function frase(i: Instalador): string {
+    if (i.situacion === 'sin-estrenar') {
+        // La palla è nostra, e la frase lo dice: non è uno da chiamare,
+        // è uno a cui non abbiamo ancora dato niente.
+        return 'Tiene cuenta y todavía no le habéis dado ningún expediente.'
+    }
     if (i.situacion === 'necesita') {
         const euros = i.parados.reduce((s, p) => s + p.euros, 0)
         const cuantos = i.parados.length

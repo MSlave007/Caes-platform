@@ -7,6 +7,7 @@ import { AlertTriangle, Loader2, Search, UserPlus, Users } from 'lucide-react'
 import {
     carteraDeClientes,
     carteraDeInstaladores,
+    conCuentasSinEstrenar,
     resumenCartera,
 } from '@/lib/caes/cartera'
 import { estado } from '@/lib/caes/status'
@@ -44,8 +45,6 @@ export default function AdminCartera() {
     const [proyectos, setProyectos] = useState<Project[]>([])
     /** Il pannello per dare di alta un installatore, aperto o no. */
     const [creando, setCreando] = useState(false)
-    /** Chi è stato creato adesso: non è ancora in nessun espediente. */
-    const [nuevos, setNuevos] = useState<string[]>([])
     const [cargando, setCargando] = useState(true)
     const [q, setQ] = useState('')
     const [abierto, setAbierto] = useState<string | null>(null)
@@ -68,9 +67,35 @@ export default function AdminCartera() {
             .finally(() => setCargando(false))
     }, [])
 
+    /**
+     * Gli account veri, non solo chi compare negli espedienti.
+     *
+     * La cartera si costruisce dagli espedienti: chi non ne ha mandato
+     * nessuno non esiste. Da quando l'agenzia può CREARE un
+     * installatore, quella regola ha un buco — lo crei e sparisce,
+     * proprio quando ti serve vederlo per dargli la prima pratica.
+     */
+    const [cuentas, setCuentas] = useState<{ nombre: string }[]>([])
+    const [recarga, setRecarga] = useState(0)
+    useEffect(() => {
+        fetch('/api/instaladores')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => setCuentas(j?.data ?? []))
+            .catch(() => {
+                /* senza account veri la cartera resta quella di prima */
+            })
+    }, [recarga])
+
     const instaladores = useMemo(
-        () => (ahora === null ? [] : carteraDeInstaladores(proyectos, ahora)),
-        [proyectos, ahora]
+        () =>
+            ahora === null
+                ? []
+                : conCuentasSinEstrenar(
+                      carteraDeInstaladores(proyectos, ahora),
+                      cuentas,
+                      ahora
+                  ),
+        [proyectos, ahora, cuentas]
     )
     const clientes = useMemo(
         () => (ahora === null ? [] : carteraDeClientes(proyectos, ahora)),
@@ -144,30 +169,11 @@ export default function AdminCartera() {
             {creando && (
                 <AltaInstalador
                     onCerrar={() => setCreando(false)}
-                    onCreado={(i) => setNuevos((n) => [...n, i.nombre])}
+                    onCreado={() => setRecarga((n) => n + 1)}
                 />
             )}
 
-            {/**
-              * Chi è appena stato creato, e perché non lo vedi sotto.
-              *
-              * Questa pagina si costruisce dagli ESPEDIENTI: un
-              * installatore appena dato di alta non ne ha nessuno, quindi
-              * qui sotto non comparirà finché non gliene assegni uno.
-              * Senza dirlo sembrerebbe di nuovo che non sia stato creato
-              * — che è esattamente il difetto appena corretto
-              * nell'elenco di assegnazione.
-              */}
-            {nuevos.length > 0 && (
-                <p className="rounded-xl border border-[var(--caes-green)]/30 bg-[var(--caes-green)]/[.06] px-5 py-3.5 text-[13.5px] leading-[1.5]">
-                    <strong className="font-medium">{nuevos.join(', ')}</strong> ya
-                    {nuevos.length === 1 ? ' tiene cuenta' : ' tienen cuenta'} y
-                    {nuevos.length === 1 ? ' puede' : ' pueden'} entrar. Aquí abajo
-                    no {nuevos.length === 1 ? 'aparece' : 'aparecen'} todavía: esta
-                    lista sale de los expedientes, y{' '}
-                    {nuevos.length === 1 ? 'aún no tiene ninguno' : 'aún no tienen ninguno'}.
-                </p>
-            )}
+
 
             {/* ── quello che va fatto oggi ─────────────────────────── */}
             {resumen.necesitan.length > 0 && (

@@ -40,6 +40,15 @@ const DIAS_NUEVO = 30
 const EXPEDIENTES_NUEVO = 3
 
 export type Situacion =
+    /**
+     * Ha un account e nessun espediente. Mai usato.
+     *
+     * Diverso da `nuevo`, che vuol dire «appena arrivato, i numeri bassi
+     * sono l'inizio» — quello qualcosa l'ha già mandato. Questo ha le
+     * chiavi e non ha ancora aperto la porta, e la palla è NOSTRA:
+     * gliene dobbiamo dare una.
+     */
+    | 'sin-estrenar'
     /** Ha roba ferma in mano da troppo. È quello da chiamare. */
     | 'necesita'
     /** Da mesi non manda niente. */
@@ -203,9 +212,12 @@ export function carteraDeInstaladores(
  */
 const PESO: Record<Situacion, number> = {
     necesita: 0,
-    dormido: 1,
-    nuevo: 2,
-    'al-dia': 3,
+    // Subito dopo chi va chiamato: è l'unica altra riga in cui la palla è
+    // nostra. Le altre due sono situazioni da guardare, non da fare.
+    'sin-estrenar': 1,
+    dormido: 2,
+    nuevo: 3,
+    'al-dia': 4,
 }
 
 function ordenPorUrgencia(a: Instalador, b: Instalador): number {
@@ -224,6 +236,44 @@ function ordenPorUrgencia(a: Instalador, b: Instalador): number {
  * installatore. Serve a rispondere a una domanda sola, che oggi non ha
  * risposta da nessuna parte: **il cliente X di chi è?**
  */
+/**
+ * Gli account che non hanno ancora nessun espediente.
+ *
+ * La cartera si costruisce dagli espedienti, quindi chi non ne ha
+ * sparisce — e sparisce proprio quando serve vederlo, cioè per dargli
+ * la prima pratica. Qui si aggiungono in fondo, con tutti i numeri a
+ * zero, perché a zero sono davvero.
+ *
+ * Si confrontano per nome, che è l'unica cosa che i due elenchi hanno in
+ * comune: la cartera non conosce gli id degli account, li deduce dal
+ * nome scritto sugli espedienti.
+ */
+export function conCuentasSinEstrenar(
+    cartera: Instalador[],
+    cuentas: { nombre: string }[],
+    ahora: number
+): Instalador[] {
+    const yaEstan = new Set(cartera.map((i) => i.nombre.trim().toLowerCase()))
+
+    const sinEstrenar: Instalador[] = cuentas
+        .filter((c) => c.nombre && !yaEstan.has(c.nombre.trim().toLowerCase()))
+        .map((c) => ({
+            nombre: c.nombre,
+            situacion: 'sin-estrenar' as const,
+            clientes: 0,
+            expedientes: 0,
+            parados: [],
+            diasPeor: 0,
+            enRevision: 0,
+            cobrado: 0,
+            enJuego: 0,
+            ultima: new Date(ahora).toISOString(),
+            diasSilencio: 0,
+        }))
+
+    return [...cartera, ...sinEstrenar]
+}
+
 export function carteraDeClientes(
     proyectos: Project[],
     ahora: number
