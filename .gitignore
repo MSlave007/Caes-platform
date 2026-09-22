@@ -48,3 +48,6 @@ next-env.d.ts
 .caes-demo.clientes.json
 .caes-demo.ajustes.json
 .caes-demo.equipos.json
+
+# Il log del server di sviluppo, quando lo si avvia staccato.
+dev-server.log
