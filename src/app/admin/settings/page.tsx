@@ -1,16 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Lock } from 'lucide-react'
+import { AlertTriangle, Check, Loader2, Lock } from 'lucide-react'
 import { Field, PrimaryButton, inputClass } from '@/components/auth/AuthShell'
 import {
     AHORRO_MINIMO_PCT,
-    COMISION_MAXIMA_PCT,    CUOTA_CAES_PCT,
+    COMISION_MAXIMA_PCT,
+    CUOTA_CAES_PCT,
     TARIFA_CAES_EUR_MWH,
     VALIDEZ_ANOS,
     eur,
 } from '@/lib/caes/estimate'
+import { PROVEEDORES } from '@/lib/caes/proveedores'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -26,20 +28,87 @@ export default function AdminSettings() {
     const [agencyPct, setAgencyPct] = useState(CUOTA_CAES_PCT)
     const [delegate, setDelegate] = useState('')
     const [reviewDays, setReviewDays] = useState(5)
+
+    const [cargando, setCargando] = useState(true)
+    const [guardando, setGuardando] = useState(false)
     const [saved, setSaved] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    /**
+     * Se non c'è dove scrivere, il server lo dice e la pagina lo ripete
+     * accanto al bottone spento. Il «Guardado» di prima compariva
+     * sempre: chi lo vedeva usciva convinto di aver cambiato il margine.
+     */
+    const [persistente, setPersistente] = useState(true)
+    const [motivo, setMotivo] = useState<string | null>(null)
+
+    useEffect(() => {
+        let vivo = true
+        fetch('/api/ajustes')
+            .then((r) => r.json())
+            .then((j) => {
+                if (!vivo || !j?.data) return
+                setAgencyPct(j.data.margen_pct ?? CUOTA_CAES_PCT)
+                setDelegate(j.data.proveedor ?? '')
+                setReviewDays(j.data.dias_revision ?? 5)
+                setPersistente(j.persistente !== false)
+                setMotivo(j.motivo ?? null)
+            })
+            .catch(() => {
+                if (vivo) setError('No se han podido cargar los ajustes.')
+            })
+            .finally(() => {
+                if (vivo) setCargando(false)
+            })
+        return () => {
+            vivo = false
+        }
+    }, [])
 
     // Riferimento vivo, così si vede cosa significa la percentuale.
     const sample = 756.28
     const yours = (sample * agencyPct) / 100
 
-    const save = (e: React.FormEvent) => {
+    const save = async (e: React.FormEvent) => {
         e.preventDefault()
-        setSaved(true)
-        window.setTimeout(() => setSaved(false), 2600)
+        if (!persistente || guardando) return
+        setGuardando(true)
+        setError(null)
+        try {
+            const r = await fetch('/api/ajustes', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    margen_pct: agencyPct,
+                    proveedor: delegate || null,
+                    dias_revision: reviewDays,
+                }),
+            })
+            const j = await r.json().catch(() => null)
+            if (!r.ok) {
+                setError(j?.error ?? 'No se ha podido guardar.')
+                if (j?.persistente === false) setPersistente(false)
+                return
+            }
+            setSaved(true)
+            window.setTimeout(() => setSaved(false), 2600)
+        } catch {
+            setError('No se ha podido guardar: sin conexión con el servidor.')
+        } finally {
+            setGuardando(false)
+        }
+    }
+
+    if (cargando) {
+        return (
+            <div className="flex items-center gap-3 text-[14px] text-[var(--caes-mut)]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando…
+            </div>
+        )
     }
 
     return (
-        <div className="flex max-w-[52rem] flex-col gap-10">
+        <div className="flex max-w-[68rem] flex-col gap-10">
             <div>
                 <p className="label-mono text-[var(--caes-mut)]">Ajustes</p>
                 <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
@@ -97,6 +166,9 @@ export default function AdminSettings() {
 
             {/* -------------------------------------------- decisioni nostre */}
             <form onSubmit={save} className="flex flex-col gap-6">
+                {/* Su schermo largo le due affiancate, invece di una
+                    colonna stretta e mezzo schermo vuoto. */}
+                <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
                 <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
                     <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
                         Tu margen por defecto
@@ -145,14 +217,27 @@ export default function AdminSettings() {
                     <div className="mt-6 grid gap-5 sm:grid-cols-2">
                         <Field
                             label="Sujeto delegado"
-                            hint="De quién vienen las plantillas de Convenio CAE, RES 60 y Anexo 1."
+                            hint="Sale en el Convenio con su NIF y su código de acreditación. Cada expediente puede llevar otro."
                         >
-                            <input
+                            {/*
+                                Era texto libre aquí y una lista en la
+                                revisión: el mismo dato con dos controles
+                                distintos. Escrito a mano se podía poner
+                                un nombre que no existe, y acababa
+                                impreso en un contrato.
+                            */}
+                            <select
                                 className={inputClass}
                                 value={delegate}
                                 onChange={(e) => setDelegate(e.target.value)}
-                                placeholder="Naturgy, Bettergy…"
-                            />
+                            >
+                                <option value="">Sin elegir</option>
+                                {PROVEEDORES.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.etiqueta}
+                                    </option>
+                                ))}
+                            </select>
                         </Field>
                         <Field
                             label="Compromiso de revisión"
@@ -169,11 +254,50 @@ export default function AdminSettings() {
                         </Field>
                     </div>
                 </section>
+                </div>
 
-                <div className="flex items-center gap-4">
+                {error && (
+                    <p className="flex items-start gap-2.5 rounded-xl border border-[var(--caes-mal)]/40 bg-[var(--caes-mal-bg)] px-4 py-3 text-[13.5px] leading-[1.5] text-[var(--caes-mal)]">
+                        <AlertTriangle
+                            className="mt-0.5 h-4 w-4 shrink-0"
+                            strokeWidth={2}
+                        />
+                        {error}
+                    </p>
+                )}
+
+                {/*
+                    Il motivo sta ACCANTO al bottone spento, non in fondo
+                    alla pagina in grigio chiaro. È il modello che usa già
+                    la revisione con «Aprobar y emitir»: chi non può fare
+                    una cosa deve leggere perché dove sta guardando.
+                */}
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
                     <div className="w-[16rem]">
-                        <PrimaryButton type="submit">Guardar cambios</PrimaryButton>
+                        <PrimaryButton
+                            type="submit"
+                            disabled={!persistente || guardando}
+                        >
+                            {guardando ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Guardando…
+                                </>
+                            ) : (
+                                'Guardar cambios'
+                            )}
+                        </PrimaryButton>
                     </div>
+
+                    {!persistente && (
+                        <p className="max-w-[42ch] text-[13px] leading-[1.5] text-[var(--caes-falta-ink)]">
+                            {motivo ?? 'Todavía no hay dónde guardarlos.'} Está el
+                            SQL al final de{' '}
+                            <code className="font-mono text-[12.5px]">setup.sql</code>
+                            ; en cuanto pase, este botón funciona.
+                        </p>
+                    )}
+
                     {saved && (
                         <motion.span
                             initial={{ opacity: 0, y: 6 }}
@@ -186,12 +310,6 @@ export default function AdminSettings() {
                         </motion.span>
                     )}
                 </div>
-
-                {/* Onesto: finché non c'è il database, non si salva nulla. */}
-                <p className="text-[12.5px] leading-[1.5] text-[var(--caes-faint)]">
-                    Estos ajustes todavía no se guardan: falta la conexión con la base de
-                    datos. El margen por defecto se lee del motor de cálculo.
-                </p>
             </form>
         </div>
     )

@@ -415,3 +415,83 @@ order by created_at;
 alter table public.drafts
   add column if not exists cliente_id     text,
   add column if not exists cliente_nombre text;
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  Los ajustes de la agencia
+--
+--  Hasta hoy la pantalla de Ajustes tenía un botón «Guardar cambios»
+--  que decía «Guardado» y no guardaba nada. Un control que miente es
+--  peor que un control que no está: quien lo usa cree haber hecho algo.
+--
+--  Una sola fila, siempre la misma, con clave fija. No es una tabla de
+--  configuración por usuario: son las reglas de la agencia, y la
+--  agencia es una. Si algún día hay varias, esta fila se convierte en
+--  una por agencia y cambia la clave, no la forma.
+--
+--  Lo que NO está aquí, y no debe estarlo: la tarifa CAES, el ahorro
+--  mínimo, la comisión máxima y la validez del certificado. Esos los
+--  fija la norma, viven en el motor de cálculo y se cambian con una
+--  revisión de código, no desde un panel a las once de la noche.
+-- ════════════════════════════════════════════════════════════════════
+
+create table if not exists public.ajustes (
+  -- Clave fija: siempre 'agencia'. Evita que existan dos filas y que
+  -- nadie sepa cuál manda.
+  id                 text primary key default 'agencia',
+
+  /* La parte que retiene la agencia, sobre lo que queda después de la
+     comisión del instalador. Cada expediente puede llevar la suya. */
+  margen_pct         integer not null default 65,
+
+  /* El sujeto delegado con el que se trabaja por defecto: sale en el
+     Convenio con su NIF y su código de acreditación. Los identificadores
+     válidos están en src/lib/caes/proveedores.ts. */
+  proveedor          text,
+
+  /* Días hábiles de revisión que se prometen al instalador. Se enseña
+     en su panel, así que es una promesa, no una nota interna. */
+  dias_revision      integer not null default 5,
+
+  actualizado_en     timestamptz not null default now(),
+  actualizado_por    uuid references auth.users on delete set null,
+
+  constraint ajustes_una_sola_fila check (id = 'agencia'),
+  constraint ajustes_margen_sensato check (margen_pct between 0 and 100),
+  constraint ajustes_dias_sensatos  check (dias_revision between 1 and 30)
+);
+
+alter table public.ajustes enable row level security;
+
+-- Leer: cualquiera que haya entrado. El instalador ve los días de
+-- revisión que le prometéis, y es justo que los vea.
+drop policy if exists "Cualquiera autenticado lee los ajustes" on public.ajustes;
+create policy "Cualquiera autenticado lee los ajustes"
+  on public.ajustes for select
+  to authenticated
+  using (true);
+
+-- Escribir: solo la agencia. La comprobación se hace además en el
+-- servidor (soloAgencia), pero una regla de fila que no lo diga es una
+-- regla que alguien se saltará el día que llame a PostgREST directo.
+drop policy if exists "Solo la agencia cambia los ajustes" on public.ajustes;
+create policy "Solo la agencia cambia los ajustes"
+  on public.ajustes for all
+  to authenticated
+  using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+
+-- La fila nace con los valores por defecto, para que la pantalla tenga
+-- algo que enseñar desde el primer día.
+insert into public.ajustes (id) values ('agencia')
+on conflict (id) do nothing;
