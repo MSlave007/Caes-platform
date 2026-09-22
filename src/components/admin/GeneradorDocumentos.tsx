@@ -13,6 +13,7 @@ import {
     RotateCcw,
 } from 'lucide-react'
 import Firmas, { type Estado as EstadoFirmas } from '@/components/admin/Firmas'
+import FirmaEnHoja, { type AjusteFirma } from '@/components/admin/FirmaEnHoja'
 import {
     HUECOS,
     PLANTILLAS,
@@ -302,6 +303,8 @@ function BloqueVista({
     onRetocar,
     bloqueado,
     firmas,
+    onMoverFirma,
+    onQuitarFirma,
 }: {
     b: Bloque
     datos: Datos
@@ -310,6 +313,8 @@ function BloqueVista({
     bloqueado?: boolean
     /** Per ruolo: il tratto già raccolto, se c'è. */
     firmas?: Record<string, Trazo>
+    onMoverFirma?: (rol: string, a: AjusteFirma) => void
+    onQuitarFirma?: (rol: string) => void
 }) {
     // Niente componente scorciatoia definito qui dentro: React lo
     // rimonterebbe a ogni render, e un contentEditable rimontato perde
@@ -408,32 +413,26 @@ function BloqueVista({
                                   * niente.
                                   */}
                                 {/**
-                                  * L'anteprima si muove mentre si aggiusta.
+                                  * Qui la firma si prende e si sposta.
                                   *
-                                  * Le stesse tre misure che usa il PDF, in
-                                  * proporzione: il riquadro qui è più largo,
-                                  * quindi gli spostamenti si scalano invece
-                                  * di essere copiati in pixel — se no si
-                                  * centra la firma qui e nel PDF sta altrove.
+                                  * Non è un'anteprima: è il posto dove si
+                                  * decide dove va. Le misure sono le stesse
+                                  * del PDF — stanno in `cajaFirma.ts` — così
+                                  * dove la lasci è dove si stampa.
                                   */}
-                                {/* Il tratto cresce verso l'alto dalla
-                                    riga, come nel PDF: quindi ancorato
-                                    in basso, con lo stesso punto di
-                                    origine, e con abbastanza aria sopra
-                                    da non tagliarsi. */}
-                                <span className="flex h-[76px] items-end">
-                                    {puesta?.png && (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={`data:image/png;base64,${puesta.png}`}
-                                            alt={`Firma de ${puesta.nombre}`}
-                                            className="max-h-[48px] max-w-full origin-bottom-left object-contain object-left"
-                                            style={{
-                                                transform: `translate(${(puesta.ajuste?.dx ?? 0) * 1.6}px, ${(puesta.ajuste?.dy ?? 0) * 1.6}px) scale(${puesta.ajuste?.escala ?? 1})`,
-                                            }}
-                                        />
-                                    )}
-                                </span>
+                                {puesta?.png ? (
+                                    <FirmaEnHoja
+                                        png={puesta.png}
+                                        ajuste={
+                                            puesta.ajuste ?? { escala: 1, dx: 0, dy: 0 }
+                                        }
+                                        partes={b.partes.length}
+                                        onMover={(a) => onMoverFirma?.(p.rol, a)}
+                                        onQuitar={() => onQuitarFirma?.(p.rol)}
+                                    />
+                                ) : (
+                                    <span className="block h-[76px]" />
+                                )}
 
                                 {/* Firmato: il nome è quello di chi ha
                                     firmato, non quello che il modello si
@@ -638,6 +637,26 @@ export default function GeneradorDocumentos({
 
     const bloqueado = Boolean(estadoFirmas?.bloqueado) && !conEjemplo
 
+    /**
+     * Spostare e togliere si fanno sul foglio, ma li esegue il pannello.
+     *
+     * È lui che parla con `/api/firmas` e che tiene lo stato: due posti
+     * che scrivono la stessa cosa sarebbero due posti da tenere
+     * allineati. Il foglio chiede, il pannello fa.
+     */
+    const acciones = useRef<{
+        mover?: (rol: string, a: AjusteFirma) => void
+        quitar?: (rol: string) => void
+    }>({})
+    const moverFirma = useCallback(
+        (rol: string, a: AjusteFirma) => acciones.current.mover?.(rol, a),
+        []
+    )
+    const quitarFirma = useCallback(
+        (rol: string) => acciones.current.quitar?.(rol),
+        []
+    )
+
     const faltan = useMemo(() => faltanEn(plantilla, datos), [plantilla, datos])
     const estado = estadoDe(plantilla, datos, Boolean(revisados[plantilla.id]))
     const retocados = Object.keys(retoques)
@@ -839,6 +858,8 @@ export default function GeneradorDocumentos({
                         onRetocar={onRetocar}
                         bloqueado={bloqueado}
                         firmas={trazos}
+                        onMoverFirma={moverFirma}
+                        onQuitarFirma={quitarFirma}
                     />
                 ))}
             </div>
@@ -861,6 +882,7 @@ export default function GeneradorDocumentos({
                     plantillaId={plantilla.id}
                     completo={faltan.length === 0}
                     onEstado={recibirFirmas}
+                    acciones={acciones}
                 />
             )}
 

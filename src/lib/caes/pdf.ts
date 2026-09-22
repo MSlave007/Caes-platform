@@ -8,6 +8,7 @@ import {
     type RGB,
 } from 'pdf-lib'
 import { PLANTILLAS, faltanEn, HUECOS, type Bloque, type Datos, type Plantilla } from './plantillas'
+import { ALTO_CAJA, HUECO, anchoColumna, colocar } from './cajaFirma'
 
 /**
  * I documenti, in carta.
@@ -544,9 +545,8 @@ async function firmas(
      * l'etichetta del ruolo — cioè tagliato.
      */
     const ALTO = 140
-    const ALTO_TRAZO = 74
     const columnas = Math.min(partes.length, 2)
-    const anchoCol = (ANCHO - 26 * (columnas - 1)) / columnas
+    const anchoCol = anchoColumna(partes.length)
 
     for (let i = 0; i < partes.length; i += columnas) {
         const grupo = partes.slice(i, i + columnas)
@@ -555,7 +555,7 @@ async function firmas(
         const arriba = l.y
 
         for (const [j, parte] of grupo.entries()) {
-            const x = MARGEN.lado + j * (anchoCol + 26)
+            const x = MARGEN.lado + j * (anchoCol + HUECO)
             l.y = arriba
 
             l.pagina.drawText(alta(parte.rol), {
@@ -569,66 +569,48 @@ async function firmas(
 
             const firma = puestas[parte.rol]
 
-            // Il tratto, se c'è. Dentro il riquadro e senza deformarlo:
-            // una firma stirata è una firma che non somiglia più a
-            // quella di nessuno.
             if (firma?.png) {
                 try {
                     const img = await l.doc.embedPng(
                         Uint8Array.from(Buffer.from(firma.png, 'base64'))
                     )
-                    // Mai ingrandire oltre il vero: un tratto tirato
-                    // su sgrana, e un tratto sgranato sembra un tratto
-                    // rifatto.
-                    const natural = Math.min(
-                        (anchoCol - 16) / img.width,
-                        46 / img.height,
-                        1
-                    )
 
                     /**
-                     * E poi quello che ha deciso una persona.
+                     * Dove e quanto grande lo dice `colocar()`.
                      *
-                     * Aggiustare la dimensione e la posizione del tratto
-                     * si può anche dopo la firma: l'impronta è del
-                     * documento SENZA firme, quindi questo non la tocca.
-                     * Vedi `presentado()` in firma.ts.
+                     * La stessa funzione che usa il foglio a schermo per
+                     * far trascinare il tratto: si sposta lì e si stampa
+                     * qui, e i due devono coincidere. Tiene anche dentro
+                     * al riquadro quello che arriva da un dito che
+                     * trascina — una firma che esce finisce nella colonna
+                     * dell'altra parte.
                      *
-                     * Resta dentro il riquadro comunque: `a.dx` e `a.dy`
-                     * arrivano già stretti nei limiti, e la larghezza si
-                     * ferma a quella della colonna — una firma che sconfina
-                     * nella colonna dell'altra parte è una firma di cui non
-                     * si sa più cosa dica.
+                     * Aggiustarlo si può anche dopo la firma: l'impronta
+                     * è del documento SENZA firme sopra, quindi come
+                     * disegniamo il tratto non entra nel calcolo. Vedi
+                     * `presentado()` in firma.ts.
                      */
-                    const a = firma.ajuste
-
-                    /**
-                     * Una scala sola, non due limiti separati.
-                     *
-                     * Limitando larghezza e altezza ognuna per conto
-                     * suo, una firma arrivata al bordo della colonna
-                     * smetteva di allargarsi e continuava a salire: e
-                     * una firma schiacciata non è più la firma di
-                     * nessuno.
-                     */
-                    const tope = Math.min(
-                        (anchoCol - 8) / img.width,
-                        ALTO_TRAZO / img.height
+                    const caja = colocar(
+                        { ancho: img.width, alto: img.height },
+                        anchoCol,
+                        firma.ajuste ?? { escala: 1, dx: 0, dy: 0 }
                     )
-                    const escala = Math.min(natural * (a?.escala ?? 1), tope)
 
                     l.pagina.drawImage(img, {
-                        x: x + (a?.dx ?? 0),
-                        y: desde(l, 80 + (a?.dy ?? 0)),
-                        width: img.width * escala,
-                        height: img.height * escala,
+                        x: x + caja.x,
+                        // `caja.y` è il bordo ALTO contato dall'alto del
+                        // riquadro; pdf-lib vuole quello basso contato
+                        // dal fondo della pagina.
+                        y: desde(l, caja.y + caja.alto),
+                        width: caja.ancho,
+                        height: caja.alto,
                     })
                 } catch {
                     /* senza il tratto resta la riga da firmare a mano */
                 }
             }
 
-            l.y += 82
+            l.y += ALTO_CAJA
             l.pagina.drawLine({
                 start: { x, y: desde(l) },
                 end: { x: x + anchoCol, y: desde(l) },
