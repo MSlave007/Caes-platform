@@ -12,6 +12,7 @@ import {
     PenLine,
     RotateCcw,
 } from 'lucide-react'
+import Firmas from '@/components/admin/Firmas'
 import {
     HUECOS,
     PLANTILLAS,
@@ -697,6 +698,26 @@ export default function GeneradorDocumentos({
                     />
                 ))}
             </div>
+
+            {/**
+              * Le firme sotto il foglio, non sopra.
+              *
+              * Si firma dopo aver letto, e la schermata mette le cose
+              * nell'ordine in cui si fanno. Sopra, il riquadro della
+              * firma sarebbe la prima cosa che si vede e l'ultima che
+              * si dovrebbe toccare.
+              *
+              * Con i dati di esempio non compare: quelle firme starebbero
+              * su dati inventati e non varrebbero niente, ma sembrerebbero
+              * firme.
+              */}
+            {!conEjemplo && (
+                <Firmas
+                    expedienteId={expedienteId}
+                    plantillaId={plantilla.id}
+                    completo={faltan.length === 0}
+                />
+            )}
 
             {/* ── le azioni finali, sempre a portata ──────────────── */}
             <div className="sticky bottom-5 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-[var(--caes-line)] bg-[var(--caes-paper)]/95 px-2.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,.06),0_16px_40px_-16px_rgba(0,0,0,.22)] backdrop-blur print:hidden">

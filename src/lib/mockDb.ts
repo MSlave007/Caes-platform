@@ -98,6 +98,14 @@ export type Project = {
         retoques?: Record<string, string>
         revisados?: Record<string, boolean>
     }
+    /**
+     * Le firme raccolte, documento per documento.
+     *
+     * Non solo il tratto: anche l istante in cui il documento si e
+     * congelato e la sua impronta. Da quei due, il PDF firmato si
+     * ricompone identico quando si vuole. Vedi src/lib/caes/firma.ts.
+     */
+    firmas?: import('./caes/firma').Firmas
     /** Chi l'ha aperto. Da qui si prende la sua anagrafica per i documenti. */
     installer_id?: string
     /** La scheda del cliente, quando c'e'. Vedi la tabella `clientes`. */

@@ -77,9 +77,20 @@ export default function DocumentosDelExpediente({
                     | undefined
                 if (doc?.retoques) setRetoques(doc.retoques)
                 if (doc?.revisados) setRevisados(doc.revisados)
-                // Se il fascicolo ha dati veri, si parte da quelli: l'esempio
-                // serviva quando non c'era altro da mostrare.
-                if (ex && Object.values(ex).some((v) => v?.valor)) setConEjemplo(false)
+                /**
+                 * Se il fascicolo ha dati veri, si parte da quelli:
+                 * l'esempio serviva quando non c'era altro da mostrare.
+                 *
+                 * E «dati veri» sono anche i ritocchi. Guardando solo
+                 * l'estrazione, un fascicolo compilato a mano si
+                 * riapriva sull'esempio — cioe chi aveva appena scritto
+                 * venti campi rivedeva i dati inventati, e il pannello
+                 * delle firme spariva perche su dati inventati non si
+                 * firma.
+                 */
+                const hayExtraccion = ex && Object.values(ex).some((v) => v?.valor)
+                const hayRetoques = Object.keys(doc?.retoques ?? {}).length > 0
+                if (hayExtraccion || hayRetoques) setConEjemplo(false)
             })
             .catch((e) => console.error('Error al cargar el expediente:', e))
             .finally(() => setCargando(false))

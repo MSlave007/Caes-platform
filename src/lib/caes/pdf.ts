@@ -496,6 +496,29 @@ function tabla(l: Lienzo, cabeceras: string[], filas: string[][]) {
     l.y += 12
 }
 
+/**
+ * Quello che si sa di come è stata raccolta una firma.
+ *
+ * Non è una firma qualificata e non finge di esserlo: è una firma
+ * elettronica semplice, e quello che la sostiene non è un certificato
+ * ma questo — chi, quando, da dove, e su quale documento esatto. Vale
+ * quanto vale la traccia, quindi la traccia si stampa.
+ */
+export type Prueba = {
+    /** Il documento come stava quando gli è stato messo davanti. */
+    huella: string
+    firmantes: {
+        rol: string
+        nombre: string
+        /** `trazo` se l'ha disegnata, `escrito` se ha scritto il nome. */
+        metodo: string
+        /** Data e ora leggibili, con il fuso. */
+        cuando: string
+        ip?: string
+        agente?: string
+    }[]
+}
+
 /** Una firma già raccolta: il tratto, chi l'ha messo e quando. */
 export type FirmaGrafica = {
     /** PNG del tratto, in base64 senza intestazione. */
@@ -544,9 +567,13 @@ async function firmas(
                     const img = await l.doc.embedPng(
                         Uint8Array.from(Buffer.from(firma.png, 'base64'))
                     )
+                    // Mai ingrandire oltre il vero: un tratto tirato
+                    // su sgrana, e un tratto sgranato sembra un tratto
+                    // rifatto.
                     const escala = Math.min(
                         (anchoCol - 16) / img.width,
-                        46 / img.height
+                        46 / img.height,
+                        1
                     )
                     l.pagina.drawImage(img, {
                         x,
@@ -632,6 +659,18 @@ export type Opciones = {
     /** Firme già raccolte, per ruolo. */
     firmas?: Record<string, FirmaGrafica>
     /**
+     * La data che finisce nei metadati del PDF.
+     *
+     * Passandola, lo stesso documento con gli stessi dati esce sempre
+     * identico byte per byte — ed è quello che rende verificabile
+     * l'impronta salvata al momento della firma. Senza, è l'ora di
+     * adesso e due chiamate a un secondo di distanza danno due file
+     * diversi.
+     */
+    fecha?: Date
+    /** La pagina di prova in fondo. Solo quando c'è davvero una firma. */
+    prueba?: Prueba
+    /**
      * Forza il timbro anche con i dati completi.
      *
      * Il contrario non si può: con un dato obbligatorio mancante il
@@ -670,7 +709,11 @@ export async function componer(
     doc.setSubject(p.queEs)
     doc.setProducer('CAES')
     doc.setCreator('CAES')
-    doc.setCreationDate(new Date())
+    // Fissa quando la passano: è quello che rende il file riproducibile
+    // e quindi l'impronta verificabile. Vedi `Opciones.fecha`.
+    const cuando = o.fecha ?? new Date()
+    doc.setCreationDate(cuando)
+    doc.setModificationDate(cuando)
 
     const l: Lienzo = {
         doc,
@@ -684,6 +727,8 @@ export async function componer(
     for (const b of p.bloques) {
         await pintar(l, b, datos, o.firmas ?? {})
     }
+
+    if (o.prueba) paginaDePrueba(l, o.prueba)
 
     adornar(l, p, o.expediente, borrador)
 
@@ -734,6 +779,80 @@ async function pintar(
         case 'nota':
             return nota(l, rellenar(b.texto, datos))
     }
+}
+
+/**
+ * L'ultima pagina: come è stata firmata.
+ *
+ * Sta in fondo e non in testa perché non è il documento — è quello che
+ * dice come il documento è arrivato a essere firmato. Chi lo legge ci
+ * arriva dopo aver letto quello che ha firmato, che è l'ordine giusto.
+ */
+function paginaDePrueba(l: Lienzo, prueba: Prueba) {
+    nuevaPagina(l)
+
+    escribir(l, 'Registro de firma', {
+        fuente: l.f.negrita,
+        tam: 12,
+        interlinea: 16,
+    })
+    l.y += 8
+    regla(l, TINTA, 1)
+    l.y += 14
+
+    parrafo(
+        l,
+        'Este documento se ha firmado electrónicamente en la plataforma. ' +
+            'La firma es una firma electrónica simple en el sentido del ' +
+            'artículo 3.10 del Reglamento (UE) 910/2014 (eIDAS): no es una ' +
+            'firma avanzada ni cualificada. Lo que la sostiene es el ' +
+            'registro que sigue.'
+    )
+
+    for (const f of prueba.firmantes) {
+        campos(l, [
+            { etiqueta: 'Firmante', texto: `${f.nombre} (${f.rol})` },
+            { etiqueta: 'Fecha y hora', texto: f.cuando },
+            { etiqueta: 'Método', texto: metodoEnPalabras(f.metodo) },
+            ...(f.ip ? [{ etiqueta: 'Dirección IP', texto: f.ip }] : []),
+            ...(f.agente ? [{ etiqueta: 'Navegador', texto: f.agente }] : []),
+        ])
+    }
+
+    escribir(l, 'Huella del documento', {
+        fuente: l.f.secaNegrita,
+        tam: 7.5,
+        interlinea: 12,
+        color: GRIS,
+    })
+    l.y += 3
+
+    /**
+     * L'impronta, spezzata in due righe.
+     *
+     * Sessantaquattro caratteri esadecimali su una riga sola escono dal
+     * margine o si rimpiccioliscono fino a non potersi ricopiare. E
+     * ricopiarla è l'unica cosa che ci si fa.
+     */
+    const mitad = Math.ceil(prueba.huella.length / 2)
+    for (const trozo of [prueba.huella.slice(0, mitad), prueba.huella.slice(mitad)]) {
+        escribir(l, trozo, { fuente: l.f.seca, tam: 9, interlinea: 13 })
+    }
+    l.y += 6
+
+    nota(
+        l,
+        'SHA-256 del documento tal y como se presentó a la firma. ' +
+            'Cualquier cambio posterior en los datos del expediente hace ' +
+            'que el documento deje de reproducir esta huella.'
+    )
+}
+
+function metodoEnPalabras(metodo: string): string {
+    if (metodo === 'trazo') return 'Trazo hecho a mano en pantalla'
+    if (metodo === 'escrito') return 'Nombre escrito por el firmante'
+    if (metodo === 'guardada') return 'Firma guardada en el perfil del revisor'
+    return metodo
 }
 
 /**
