@@ -111,6 +111,111 @@ export function redactar(a: AvisoEstado, d: Destinatario) {
 }
 
 /**
+ * Il trasporto, in un posto solo.
+ *
+ * ── PERCHE' E' UNA FUNZIONE E NON CODICE DENTRO `enviar()` ────────────
+ *
+ * Perche i chiamanti sono due — gli avvisi di stato e quello di
+ * assegnazione — e ne arriveranno altri. Copiare la chiamata a Resend
+ * vorrebbe dire due posti da cambiare il giorno che si cambia
+ * fornitore, che e proprio quello che il commento qui sotto promette di
+ * non fare.
+ *
+ * Cambiando fornitore si riscrive QUESTA funzione e nient'altro: fuori
+ * di qui nessuno sa chi manda le email.
+ */
+async function mandar(email: string, asunto: string, texto: string): Promise<boolean> {
+    if (!process.env.EMAIL_API_KEY) {
+        console.info(
+            `[notifica non inviata — nessun trasporto configurato] a: ${email} · ${asunto}`
+        )
+        return false
+    }
+
+    const desde = process.env.EMAIL_DESDE
+    if (!desde) {
+        console.info(
+            `[notifica non inviata — manca EMAIL_DESDE, il mittente verificato] a: ${email} · ${asunto}`
+        )
+        return false
+    }
+
+    try {
+        // Resend: una POST e basta, niente SDK. Un pacchetto per
+        // costruire un oggetto JSON e un pacchetto da aggiornare per
+        // sempre.
+        const r = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${process.env.EMAIL_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ from: desde, to: [email], subject: asunto, text: texto }),
+            // Se il fornitore e lento non si tiene in ostaggio
+            // l'approvazione di un fascicolo.
+            signal: AbortSignal.timeout(10_000),
+        })
+
+        if (!r.ok) {
+            // Il corpo dell'errore e utile e non contiene segreti: dice
+            // cose tipo «dominio non verificato», che e esattamente il
+            // problema che si ha il primo giorno.
+            console.error(
+                `[notifica rifiutata dal fornitore] ${r.status} · ${(await r.text()).slice(0, 300)}`
+            )
+            return false
+        }
+        return true
+    } catch (e) {
+        // Una notifica persa non deve mai far fallire l'operazione che
+        // l'ha generata.
+        console.error('[notifica fallita]', e instanceof Error ? e.message : e)
+        return false
+    }
+}
+
+/**
+ * «Te han asignado un expediente».
+ *
+ * ── PERCHÉ NON È UNO STATO ────────────────────────────────────────────
+ *
+ * Perché non lo è. `changes_requested`, `approved`, `paid` sono punti
+ * del percorso di una pratica; essere assegnati è un fatto che riguarda
+ * CHI la fa, non a che punto è. Infilarlo fra gli stati avrebbe voluto
+ * dire aggiungere un valore finto a `EstadoId` — e da lì in poi ogni
+ * `switch` sugli stati avrebbe avuto un caso che non è uno stato.
+ *
+ * ── PERCHÉ IL MESSAGGIO È DIVERSO ─────────────────────────────────────
+ *
+ * Gli altri avvisi dicono «una cosa tua è cambiata». Questo dice «adesso
+ * hai una cosa che prima non avevi», e chi lo riceve non sa nemmeno di
+ * cosa si tratti: va detto il cliente e va detto cosa ci si aspetta da
+ * lui, se no apre la dashboard e non capisce.
+ */
+export async function avisarAsignado(
+    a: { expedienteId: string; clienteNombre: string; enlace: string },
+    d: Destinatario
+): Promise<boolean> {
+    const asunto = `Tienes un expediente nuevo: ${a.clienteNombre}`
+    const saludo = d.nombre ? `${d.nombre},
+
+` : ''
+    const texto = `${saludo}Te hemos asignado el expediente de ${a.clienteNombre}.
+
+Lo hemos abierto nosotros; faltan los documentos de la obra. Lo tienes en tu panel.
+
+Verlo: ${a.enlace}
+
+CAES`
+
+    if (!d.email) {
+        console.info(`[asignación sin destinatario — falta el correo del perfil] ${asunto}`)
+        return false
+    }
+    return mandar(d.email, asunto, texto)
+}
+
+/**
  * Manda — o registra, finché non c'è un trasporto.
  *
  * ── COME SI ACCENDE ───────────────────────────────────────────────────
@@ -147,59 +252,5 @@ export async function enviar(a: AvisoEstado, d: Destinatario): Promise<boolean> 
         return false
     }
 
-    // Qui andrà il fornitore scelto. Finché non c'è, si registra soltanto.
-    if (!process.env.EMAIL_API_KEY) {
-        console.info(
-            `[notifica non inviata — nessun trasporto configurato] a: ${d.email} · ${asunto}`
-        )
-        return false
-    }
-
-    const desde = process.env.EMAIL_DESDE
-    if (!desde) {
-        console.info(
-            `[notifica non inviata — manca EMAIL_DESDE, il mittente verificato] a: ${d.email} · ${asunto}`
-        )
-        return false
-    }
-
-    try {
-        // Resend: una POST e basta, niente SDK. Un pacchetto per
-        // costruire un oggetto JSON è un pacchetto da aggiornare per
-        // sempre. Cambiando fornitore si riscrive questa funzione e
-        // nient'altro: fuori di qui nessuno sa chi manda le email.
-        const r = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${process.env.EMAIL_API_KEY}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                from: desde,
-                to: [d.email],
-                subject: asunto,
-                text: texto,
-            }),
-            // Se il fornitore è lento non si tiene in ostaggio
-            // l'approvazione di un fascicolo.
-            signal: AbortSignal.timeout(10_000),
-        })
-
-        if (!r.ok) {
-            // Il corpo dell'errore è utile e non contiene segreti: dice
-            // cose tipo «dominio non verificato», che è esattamente il
-            // problema che si ha il primo giorno.
-            console.error(
-                `[notifica rifiutata dal fornitore] ${r.status} · ${(await r.text()).slice(0, 300)}`
-            )
-            return false
-        }
-
-        return true
-    } catch (e) {
-        // Una notifica persa non deve mai far fallire l'operazione che
-        // l'ha generata.
-        console.error('[notifica fallita]', e instanceof Error ? e.message : e)
-        return false
-    }
+    return mandar(d.email, asunto, texto)
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { AlertTriangle, ArrowRight } from 'lucide-react'
-import { estado } from '@/lib/caes/status'
+import { abiertoPorLaAgencia, estado } from '@/lib/caes/status'
 
 /**
  * Quello che la piattaforma sta aspettando DA TE.
@@ -59,6 +59,10 @@ export default function TeToca({ pendientes }: { pendientes: Pendiente[] }) {
                     <ul className="mt-5 flex flex-col gap-2.5">
                         {pendientes.map((p) => {
                             const e = estado(p.estado)
+                            // Una bozza dentro `projects` puo essere nata
+                            // in un modo solo: l'ha aperta l'agenzia per
+                            // lui. Vedi abiertoPorLaAgencia().
+                            const abierto = abiertoPorLaAgencia(p.estado)
                             return (
                                 <li key={p.id}>
                                     <Link
@@ -74,7 +78,7 @@ export default function TeToca({ pendientes }: { pendientes: Pendiente[] }) {
                                                     #{String(p.id).slice(0, 8)}
                                                 </span>
                                                 <span className="rounded-full bg-[var(--caes-falta)]/20 px-2 py-0.5 text-[11px] text-[var(--caes-falta-ink)]">
-                                                    {e.label}
+                                                    {abierto ? 'Te lo hemos abierto' : e.label}
                                                 </span>
                                             </span>
 
@@ -82,6 +86,18 @@ export default function TeToca({ pendientes }: { pendientes: Pendiente[] }) {
                                             {p.motivo ? (
                                                 <span className="mt-2 block max-w-[68ch] whitespace-pre-wrap text-[13.5px] leading-[1.55] text-[var(--caes-ink)]">
                                                     {p.motivo}
+                                                </span>
+                                            ) : abierto ? (
+                                                // Il testo di `draft` e
+                                                // scritto dal punto di vista
+                                                // dell'agenzia («el instalador
+                                                // aun lo esta rellenando») e
+                                                // qui direbbe il contrario di
+                                                // quello che serve sapere.
+                                                <span className="mt-2 block max-w-[68ch] text-[13.5px] leading-[1.55] text-[var(--caes-ink)]">
+                                                    Lo hemos abierto nosotros y te lo hemos
+                                                    asignado. Faltan los documentos de la
+                                                    obra — súbelos y ya lo revisamos.
                                                 </span>
                                             ) : (
                                                 <span className="mt-2 block text-[13px] text-[var(--caes-mut)]">

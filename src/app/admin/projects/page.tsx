@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import AbrirExpediente from '@/components/admin/AbrirExpediente'
 import { motion } from 'framer-motion'
 import { ArrowUpDown, Download, Loader2, Search } from 'lucide-react'
 import ProjectRow from '@/components/admin/ProjectRow'
@@ -122,14 +123,21 @@ export default function AdminProjects() {
                         <em className="serif-accent">certificados</em>.
                     </h1>
                 </div>
-                <button
-                    type="button"
-                    onClick={exportCsv}
-                    className="inline-flex items-center gap-2.5 rounded-full border border-[var(--caes-line)] px-5 py-3 text-[14px] text-[var(--caes-ink)] transition-colors hover:border-[var(--caes-ink)]/40 hover:bg-[var(--caes-band)]"
-                >
-                    <Download className="h-4 w-4" />
-                    Exportar CSV
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={exportCsv}
+                        className="inline-flex items-center gap-2.5 rounded-full border border-[var(--caes-line)] px-5 py-3 text-[14px] text-[var(--caes-ink)] transition-colors hover:border-[var(--caes-ink)]/40 hover:bg-[var(--caes-band)]"
+                    >
+                        <Download className="h-4 w-4" />
+                        Exportar CSV
+                    </button>
+                    {/* Il comando sta tutto dentro il componente: un
+                        interruttore qui e uno li volevano dire che il
+                        primo clic mostrava solo il secondo bottone.
+                        Vedi src/components/admin/AbrirExpediente.tsx. */}
+                    <AbrirExpediente />
+                </div>
             </div>
 
             <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-3">

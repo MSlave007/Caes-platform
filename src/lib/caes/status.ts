@@ -211,3 +211,24 @@ export function posicionPista(id: string): number {
 export function esperaAlInstalador(id: string): boolean {
     return estado(id).actor === 'installer' && id !== 'draft'
 }
+
+/**
+ * Un espediente che l'agenzia ha aperto e assegnato.
+ *
+ * ── COME SI RICONOSCE ─────────────────────────────────────────────────
+ *
+ * Dallo stato `draft` dentro `projects`, e non serve altro: le bozze
+ * dell'installatore NON stanno li, stanno nella tabella `drafts`. Una
+ * riga in `projects` con stato `draft` puo essere nata in un modo solo,
+ * cioe l'ha aperta l'agenzia per qualcuno.
+ *
+ * ── PERCHE' NON BASTA `esperaAlInstalador` ────────────────────────────
+ *
+ * Perche quella esclude `draft` apposta: una bozza che uno sta ancora
+ * scrivendo non e una cosa che «lo aspetta». Ma una bozza che gli
+ * hanno aperto ADDOSSO si: non sa nemmeno di averla, e se non gliela si
+ * mette davanti resta li per sempre.
+ */
+export function abiertoPorLaAgencia(id: string): boolean {
+    return id === 'draft'
+}

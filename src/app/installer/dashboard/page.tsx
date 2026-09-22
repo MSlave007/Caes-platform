@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, ChevronDown, Plus, Search, Trash2 } from 'lucide-react'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
 import TeToca, { type Pendiente } from '@/components/platform/TeToca'
-import { esperaAlInstalador, estado } from '@/lib/caes/status'
+import { abiertoPorLaAgencia, esperaAlInstalador, estado } from '@/lib/caes/status'
 import { COMISION_MAXIMA_PCT, eur } from '@/lib/caes/estimate'
 import {
     contarArchivos,
@@ -122,7 +122,14 @@ export default function InstallerDashboard() {
     const pendientes = useMemo<Pendiente[]>(
         () =>
             projects
-                .filter((p) => esperaAlInstalador(normalize(p.status)))
+                .filter(
+                    (p) =>
+                        esperaAlInstalador(normalize(p.status)) ||
+                        // Quelli che gli ha aperto l'agenzia: non sa
+                        // nemmeno di averli, e senza metterglieli davanti
+                        // restano li per sempre.
+                        abiertoPorLaAgencia(normalize(p.status))
+                )
                 .map((p) => ({
                     id: p.id,
                     cliente: p.client_name,

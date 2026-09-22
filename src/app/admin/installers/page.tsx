@@ -11,6 +11,7 @@ import {
 } from '@/lib/caes/cartera'
 import { estado } from '@/lib/caes/status'
 import FilaInstalador, { eurRedondo } from '@/components/admin/FilaInstalador'
+import AsignarInstalador from '@/components/admin/AsignarInstalador'
 import type { Project } from '@/lib/mockDb'
 
 const EASE = [0.16, 1, 0.3, 1] as const
@@ -324,15 +325,30 @@ export default function AdminCartera() {
                         {huerfanos.length === 1 ? 'aparece' : 'aparecen'} en ninguna
                         cartera.
                     </p>
-                    <ul className="mt-4 flex flex-wrap gap-2">
+                    {/* Prima erano solo pastiglie che portavano al
+                        fascicolo, e il testo qui sopra diceva «hasta que
+                        no tenga instalador, no aparece en ninguna
+                        cartera» — cioe ammetteva il buco senza darti il
+                        modo di chiuderlo. Adesso si assegnano da qui. */}
+                    <ul className="mt-4 flex flex-col gap-4">
                         {huerfanos.map((p) => (
-                            <Link
+                            <li
                                 key={p.id}
-                                href={`/admin/review/${p.id}`}
-                                className="rounded-full border border-[var(--caes-line)] bg-[var(--caes-panel)] px-3 py-1.5 text-[12.5px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)]/35 hover:text-[var(--caes-ink)]"
+                                className="flex flex-wrap items-center gap-x-5 gap-y-2.5 border-t border-[var(--caes-line-2)] pt-4 first:border-t-0 first:pt-0"
                             >
-                                {p.client_name}
-                            </Link>
+                                <Link
+                                    href={`/admin/review/${p.id}`}
+                                    className="text-[14px] font-medium underline-offset-4 hover:underline"
+                                >
+                                    {p.client_name}
+                                </Link>
+                                <span className="text-[12.5px] text-[var(--caes-faint)]">
+                                    {p.address}
+                                </span>
+                                <span className="ml-auto">
+                                    <AsignarInstalador expedienteId={String(p.id)} />
+                                </span>
+                            </li>
                         ))}
                     </ul>
                 </section>

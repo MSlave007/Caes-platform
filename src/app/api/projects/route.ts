@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { mockDb } from '@/lib/mockDb'
-import { quienLlama, negado } from '@/lib/auth/guard'
+import { quienLlama, negado, soloAgencia } from '@/lib/auth/guard'
 import { COMISION_MAXIMA_PCT } from '@/lib/caes/estimate'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { NextResponse } from 'next/server'
@@ -69,6 +69,19 @@ export async function POST(request: Request) {
             )
         }
 
+        /**
+         * Chi apre la pratica.
+         *
+         * Fino a ieri una sola strada: la apre l'installatore e resta
+         * sua. Ma il giro vero e anche l'altro — arriva un cliente,
+         * l'agenzia sa chi copre quella zona, apre lei e la assegna.
+         *
+         * L'installatore in quel caso deve solo mettere i documenti,
+         * che e il suo pezzo di lavoro. Il resto lo fa chi rivede, che
+         * vede tutto comunque.
+         */
+        const esAgencia = Boolean(await soloAgencia())
+
         if (!body.client_name) {
             return NextResponse.json({ error: 'Falta el nombre del cliente' }, { status: 400 })
         }
@@ -107,7 +120,14 @@ export async function POST(request: Request) {
             // impediscono di agganciarsi a quella di un altro.
             cliente_id: texto(body.cliente_id, 40) || undefined,
             // Lo stato iniziale lo decide il server, sempre.
-            status: 'submitted' as const,
+            //
+            // Aprendola l'agenzia nasce `draft`: le carte dell'obra non
+            // ci sono ancora, e farla nascere «inviata» vorrebbe dire
+            // metterla in coda di revisione vuota — cioe far comparire
+            // lavoro che non si puo fare.
+            status: (esAgencia && body.installer_id ? 'draft' : 'submitted') as
+                | 'draft'
+                | 'submitted',
             // La quota dell'agenzia la fissa l'agenzia in revisione: qui
             // nasce vuota, non a zero — zero sarebbe una decisione.
             agency_pct: null,
@@ -120,9 +140,25 @@ export async function POST(request: Request) {
         let dbData, dbError
 
         if (user) {
+            /**
+             * Di chi e la pratica.
+             *
+             * Aprendola l'agenzia, il proprietario e l'installatore
+             * SCELTO, non chi ha premuto il bottone: se restasse
+             * dell'agenzia l'installatore non la vedrebbe nella sua
+             * dashboard, e la regola di riga gliela nasconderebbe.
+             *
+             * Solo l'agenzia puo dire «e di un altro». Un installatore
+             * che potesse farlo si assegnerebbe pratiche altrui.
+             */
+            const dueno =
+                esAgencia && typeof body.installer_id === 'string' && body.installer_id
+                    ? body.installer_id
+                    : user.id
+
             const { data, error } = await supabase
                 .from('projects')
-                .insert({ ...nuevo, installer_id: user.id })
+                .insert({ ...nuevo, installer_id: dueno })
                 .select()
                 .single()
             dbData = data
