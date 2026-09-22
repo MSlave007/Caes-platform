@@ -5,6 +5,7 @@ import StatusControl from '@/components/admin/StatusControl'
 import CabeceraExpediente from '@/components/admin/CabeceraExpediente'
 import Avisos, { type Aviso } from '@/components/admin/Avisos'
 import EquipoConocido from '@/components/admin/EquipoConocido'
+import { motivoSugerido } from '@/lib/caes/motivo'
 import DocumentReview from '@/components/admin/DocumentReview'
 import {
     CAMPOS,
@@ -946,6 +947,10 @@ export default function AdminReviewDetail({
                 <div className="mt-8">
                     <StatusControl
                         current={p.status}
+                        // Scritto con quello che il sistema sa gia: i
+                        // documenti che mancano e i controlli che non
+                        // tornano. Vedi src/lib/caes/motivo.ts.
+                        sugerencia={motivoSugerido(missing, extraccion)}
                         onChange={async (next: EstadoId, motivo?: string) => {
                             // Il motivo finisce sul fascicolo: lo legge
                             // l'installatore nel suo pannello, ed e' quello

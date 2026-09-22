@@ -50,10 +50,19 @@ const EXIGEN_MOTIVO: EstadoId[] = ['changes_requested', 'rejected']
 export default function StatusControl({
     current,
     onChange,
+    sugerencia,
 }: {
     current: string
     /** `motivo` arriva valorizzato solo per gli stati che lo esigono. */
     onChange: (next: EstadoId, motivo?: string) => Promise<void>
+    /**
+     * Il testo gia scritto da quello che il sistema sa.
+     *
+     * Si mette nel campo quando si apre, non si manda da solo: chi
+     * rivede sa cose che il sistema non sa, e quel messaggio e l'unica
+     * cosa su cui l'installatore agisce.
+     */
+    sugerencia?: string
 }) {
     const [busy, setBusy] = useState<EstadoId | null>(null)
     const [pidiendo, setPidiendo] = useState<EstadoId | null>(null)
@@ -77,6 +86,12 @@ export default function StatusControl({
     function pulsar(next: EstadoId) {
         if (EXIGEN_MOTIVO.includes(next)) {
             setPidiendo(next)
+            // Solo per «cambios solicitados»: un rifiuto e una decisione
+            // di chi rivede, e proporgli le parole sarebbe metterle in
+            // bocca a lui.
+            if (next === 'changes_requested' && sugerencia && !motivo) {
+                setMotivo(sugerencia)
+            }
             return
         }
         void ir(next)
@@ -168,6 +183,13 @@ export default function StatusControl({
                         onChange={(ev) => setMotivo(ev.target.value)}
                         className="mt-3.5 w-full resize-y rounded-xl border border-[var(--caes-falta)]/55 bg-[var(--caes-paper)] px-4 py-3 text-[14px] leading-[1.55] text-[var(--caes-ink)] outline-none transition-colors focus:border-[var(--caes-falta-ink)]"
                     />
+
+                    {sugerencia && motivo === sugerencia && (
+                        <p className="mt-2 text-[12.5px] text-[var(--caes-falta-ink)]">
+                            Escrito con lo que falta y lo que no cuadra. Cambialo si
+                            sabes algo mas: lo lee el instalador tal cual.
+                        </p>
+                    )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-2.5">
                         <button
