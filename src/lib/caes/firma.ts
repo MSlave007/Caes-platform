@@ -27,8 +27,13 @@ import type { Datos, Plantilla } from './plantillas'
  * di fronte a una contestazione vale quanto vale la traccia, e per
  * questo la traccia è tutta stampata sul documento.
  *
- * ⚠️ Va confermato con il soggetto delegato quale tipo di firma accetta
- * per il Convenio. Questa è una domanda per Bettergy, non per il codice.
+ * Confermato da Bettergy (22 settembre 2026): per il Convenio accettano
+ * una firma non certificata. Questa basta, e non serve appoggiarsi a
+ * nessun fornitore esterno.
+ *
+ * Vale per LORO. Il giorno che si lavora con un altro soggetto delegato
+ * — il catalogo è in `proveedores.ts`, e cambiarlo è previsto — la
+ * domanda torna aperta, perché la risposta è sua e non della norma.
  *
  * ── PERCHÉ IL DOCUMENTO SI CONGELA ────────────────────────────────────
  *
