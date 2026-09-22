@@ -486,3 +486,47 @@
         content: '';
     }
 }
+
+/* ==================================================================== *
+ *  Su carta
+ *
+ *  La pagina del cliente finisce stampata: c'e chi la porta al gestore
+ *  della comunita, chi la mette nella cartella dei papeles de la casa,
+ *  chi semplicemente si fida di piu della carta.
+ *
+ *  Quello che va tolto non e «la decorazione»: sono le cose che su
+ *  carta MENTONO. Un bottone «Llamar» stampato e un rettangolo che non
+ *  chiama nessuno, e una barra di avanzamento senza colori di sfondo e
+ *  una riga grigia uguale in tutte e quattro le tappe.
+ * ==================================================================== */
+
+@media print {
+  /* I fondi si perdono quasi sempre in stampa: senza questo la barra
+     del percorso esce tutta dello stesso grigio, cioe dice il falso. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* Un bottone su carta e un rettangolo che non fa niente. */
+  .no-imprimir {
+    display: none !important;
+  }
+
+  /* L'indirizzo dei link non serve: chi ha il foglio in mano non lo
+     digita, e a11y a parte riempirebbe la pagina di parentesi. */
+  a[href]::after {
+    content: none !important;
+  }
+
+  /* Niente ombre ne bordi pesanti: su carta sono sporco. */
+  section,
+  dl {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

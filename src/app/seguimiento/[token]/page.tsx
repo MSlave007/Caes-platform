@@ -243,7 +243,7 @@ function Ficha({
                 {telefono && (
                     <a
                         href={`tel:${telefono.replace(/[^0-9+]/g, '')}`}
-                        className="mt-10 inline-flex items-center gap-2.5 rounded-full border border-[var(--caes-line)] bg-[var(--caes-panel)] px-5 py-3 text-[14.5px] transition-colors hover:border-[var(--caes-ink)]/40"
+                        className="no-imprimir mt-10 inline-flex items-center gap-2.5 rounded-full border border-[var(--caes-line)] bg-[var(--caes-panel)] px-5 py-3 text-[14.5px] transition-colors hover:border-[var(--caes-ink)]/40"
                     >
                         <Phone className="h-4 w-4 text-[var(--caes-mut)]" />
                         Llamar a {v.instalador ?? 'tu instalador'}
