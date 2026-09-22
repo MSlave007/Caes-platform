@@ -110,6 +110,32 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                         casilla: j.data?.casilla,
                         seguro: j.data?.seguro,
                     })
+
+                    /**
+                     * E la riga sparisce da «lo que falta».
+                     *
+                     * Solo quando il modello è sicuro: depennare una
+                     * casella per un file finito lì per caso è peggio
+                     * che lasciarla, perché chi carica smette di
+                     * cercare quel documento.
+                     */
+                    if (j.data?.seguro && j.data?.casillaId) {
+                        setEstado((e) =>
+                            e
+                                ? {
+                                      ...e,
+                                      recibidos: e.recibidos + 1,
+                                      faltan: e.faltan.filter(
+                                          (f) => f.id !== j.data.casillaId
+                                      ),
+                                  }
+                                : e
+                        )
+                    } else {
+                        setEstado((e) =>
+                            e ? { ...e, recibidos: e.recibidos + 1 } : e
+                        )
+                    }
                 } else {
                     actualizar({
                         estado: 'error',
@@ -164,6 +190,30 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                 {estado?.nota && (
                     <p className="mt-6 rounded-xl border border-[var(--caes-falta)]/50 bg-[var(--caes-falta-bg)] px-4 py-3.5 text-[14px] leading-[1.55] text-[var(--caes-falta-deep)]">
                         {estado.nota}
+                    </p>
+                )}
+
+                {/**
+                 * Quello che era già arrivato prima di oggi.
+                 *
+                 * Chi riapre il link il giorno dopo vedeva la stessa
+                 * lista di ieri e nessun segno dei file che aveva già
+                 * mandato: l'unica conclusione ragionevole è che non
+                 * fossero arrivati, e li rimandava tutti.
+                 *
+                 * Quanti, non quali: dire i nomi vorrebbe dire aprire
+                 * un indirizzo pubblico su cosa c'è dentro
+                 * l'espediente.
+                 */}
+                {estado && estado.recibidos > 0 && (
+                    <p className="mt-6 text-[13.5px] text-[var(--caes-mut)]">
+                        Ya hay{' '}
+                        <strong className="font-medium text-[var(--caes-ink)]">
+                            {estado.recibidos}{' '}
+                            {estado.recibidos === 1 ? 'documento' : 'documentos'}
+                        </strong>{' '}
+                        en este expediente. Lo que mandes ahora se suma, no
+                        sustituye nada.
                     </p>
                 )}
 
@@ -275,9 +325,43 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                             ))}
                         </ul>
                         <p className="mt-6 text-[12.5px] leading-[1.5] text-[var(--caes-faint)]">
-                            Esta lista es de cuando abriste la página: no se actualiza
-                            sola mientras subes. Si los has mandado todos, ya está.
+                            La lista se va acortando según suben. Si mandas algo que
+                            no está aquí, también vale: lo colocamos igual.
                         </p>
+                    </section>
+                )}
+
+                {/**
+                 * E quando non manca niente lo DICE.
+                 *
+                 * Prima la sezione spariva e basta. Chi aveva appena
+                 * caricato sei foto restava davanti a una pagina che
+                 * non gli diceva se aveva finito — ed è esattamente il
+                 * momento in cui telefona per chiedere.
+                 *
+                 * Due versioni, perché sono due situazioni diverse: chi
+                 * ha appena finito di caricare vuole sapere che può
+                 * chiudere, chi apre il link a cose fatte vuole sapere
+                 * che non deve fare niente.
+                 */}
+                {estado && estado.faltan.length === 0 && (
+                    <section className="mt-10 flex items-start gap-3.5 rounded-2xl border border-[var(--caes-green)]/30 bg-[var(--caes-green)]/[.06] px-5 py-4.5">
+                        <Check
+                            className="mt-0.5 h-5 w-5 shrink-0 text-[var(--caes-green)]"
+                            strokeWidth={2.6}
+                        />
+                        <div>
+                            <p className="text-[15px] font-medium">
+                                {subidos.some((s) => s.estado === 'hecho')
+                                    ? 'Ya está todo. Puedes cerrar.'
+                                    : 'No falta ningún papel.'}
+                            </p>
+                            <p className="mt-1 text-[13px] leading-[1.5] text-[var(--caes-mut)]">
+                                {subidos.some((s) => s.estado === 'hecho')
+                                    ? 'Lo revisamos nosotros y te decimos algo si hay que corregir cosas.'
+                                    : 'Están todos. Si quieres mandar alguno más, súbelo igual.'}
+                            </p>
+                        </div>
                     </section>
                 )}
             </div>

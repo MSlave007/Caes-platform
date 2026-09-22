@@ -62,6 +62,18 @@ export type Project = {
      * accettabile in produzione — un id progressivo si indovina.
      */
     seguimiento_token?: string
+    /**
+     * Il link per caricare documenti senza entrare: token, scadenza e
+     * la riga che scrive chi rivede.
+     *
+     * Stanno anche qui e non solo sul database perche meta della
+     * piattaforma lavora su espedienti dimostrativi, e una funzione che
+     * c'e solo con il database e una funzione che non si puo far
+     * vedere. Vedi src/app/api/subida.
+     */
+    subida_token?: string
+    subida_caduca?: string
+    subida_nota?: string | null
     /** Note libere dell'installatore, scritte al caricamento. */
     notas?: string
     /** Come l'ha chiamato chi l'ha aperto, quando il cliente non c'era ancora. */

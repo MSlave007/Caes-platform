@@ -4,6 +4,7 @@ import { dentroDelLimite, quienCuenta, demasiadas } from '@/lib/auth/ritmo'
 import { clasificar, CAJON } from '@/lib/caes/clasificar'
 import { DOCUMENTS, docLabel, type Role } from '@/lib/documents'
 import { hayClave } from '@/lib/caes/lectores'
+import { mockDb } from '@/lib/mockDb'
 
 /**
  * La porta per caricare documenti senza entrare.
@@ -61,21 +62,44 @@ type Proyecto = {
     subida_nota: string | null
 }
 
+/** Scaduto è come non esistere: vedi il commento in `abrir()`. */
+function vigente(caduca: string | null | undefined): boolean {
+    return !caduca || Date.parse(caduca) >= Date.now()
+}
+
 async function abrir(token: string): Promise<Proyecto | null> {
     const admin = createAdminClient()
-    if (!admin) return null
-    const { data } = await admin
-        .from('projects')
-        .select('id, source, docs, subida_caduca, subida_nota')
-        .eq('subida_token', token)
-        .maybeSingle()
-    if (!data) return null
+    if (admin) {
+        const { data } = await admin
+            .from('projects')
+            .select('id, source, docs, subida_caduca, subida_nota')
+            .eq('subida_token', token)
+            .maybeSingle()
 
-    // Scaduto è come non esistere. Non si distingue nella risposta: un
-    // messaggio diverso direbbe a chi prova indirizzi che quel token è
-    // esistito.
-    if (data.subida_caduca && Date.parse(data.subida_caduca) < Date.now()) return null
-    return data as Proyecto
+        // Scaduto è come non esistere. Non si distingue nella risposta:
+        // un messaggio diverso direbbe a chi prova indirizzi che quel
+        // token è esistito.
+        if (data) return vigente(data.subida_caduca) ? (data as Proyecto) : null
+    }
+
+    /**
+     * E se non è del database, è dimostrativo.
+     *
+     * Senza questo il link si creava e non si apriva: «Este enlace ya no
+     * vale» su un link nato due secondi prima. Che è il modo peggiore di
+     * sbagliare — sembra scaduto, e invece non è mai stato cercato dove
+     * stava.
+     */
+    const demo = mockDb.getProjects().find((p) => p.subida_token === token)
+    if (!demo || !vigente(demo.subida_caduca)) return null
+
+    return {
+        id: demo.id,
+        source: demo.source as Role,
+        docs: demo.docs ?? null,
+        subida_caduca: demo.subida_caduca ?? null,
+        subida_nota: demo.subida_nota ?? null,
+    }
 }
 
 /**
@@ -160,12 +184,13 @@ export async function POST(
         )
     }
 
+    const bytes = Buffer.from(await archivo.arrayBuffer())
+    const esDemo = Boolean(mockDb.getProjectById(p.id))
+
     const admin = createAdminClient()
-    if (!admin) {
+    if (!admin && !esDemo) {
         return NextResponse.json({ error: 'No configurado' }, { status: 503 })
     }
-
-    const bytes = Buffer.from(await archivo.arrayBuffer())
 
     // ── dove va ──────────────────────────────────────────────────────
     //
@@ -187,15 +212,21 @@ export async function POST(
     const ext = archivo.name.split('.').pop()?.slice(0, 8) ?? 'bin'
     const ruta = `subidas/${p.id}/${crypto.randomUUID()}.${ext}`
 
-    const { error: errSubida } = await admin.storage
-        .from('documents')
-        .upload(ruta, bytes, { contentType: archivo.type, upsert: false })
+    // In dimostrazione i byte non si salvano: quello che conta far
+    // vedere è che il file arriva e finisce nella casella giusta, e
+    // riempire il deposito di prove non serve a nessuno.
+    if (admin && !esDemo) {
+        const { error: errSubida } = await admin.storage
+            .from('documents')
+            .upload(ruta, bytes, { contentType: archivo.type, upsert: false })
 
-    if (errSubida) {
-        return NextResponse.json(
-            { error: 'No se ha podido guardar. Vuelve a probar.' },
-            { status: 502 }
-        )
+        if (errSubida) {
+            console.error('subida al almacén:', errSubida)
+            return NextResponse.json(
+                { error: 'No se ha podido guardar. Vuelve a probar.' },
+                { status: 502 }
+            )
+        }
     }
 
     // ── se lo aggiunge all'espediente ────────────────────────────────
@@ -203,11 +234,15 @@ export async function POST(
     // Si rilegge adesso invece di fidarsi della copia di prima: fra la
     // lettura e questa riga possono essere arrivati altri file, e
     // scrivere la lista vecchia li cancellerebbe.
-    const { data: fresco } = await admin
-        .from('projects')
-        .select('docs')
-        .eq('id', p.id)
-        .maybeSingle()
+    const fresco = esDemo
+        ? { docs: mockDb.getProjectById(p.id)?.docs ?? [] }
+        : (
+              await admin!
+                  .from('projects')
+                  .select('docs')
+                  .eq('id', p.id)
+                  .maybeSingle()
+          ).data
 
     const docs = [
         ...((fresco?.docs ?? []) as Proyecto['docs'] as NonNullable<Proyecto['docs']>),
@@ -221,12 +256,20 @@ export async function POST(
         },
     ]
 
-    await admin.from('projects').update({ docs }).eq('id', p.id)
+    if (esDemo) {
+        mockDb.updateProject(p.id, { docs })
+    } else {
+        await admin!.from('projects').update({ docs }).eq('id', p.id)
+    }
 
     return NextResponse.json({
         data: {
             // L'etichetta, non l'id: chi carica non sa cosa sia «cee-antes».
             casilla: docLabel(clasificacion.documento),
+            // L'id invece serve alla pagina, non a chi legge: è con
+            // questo che depenna la riga giusta da «lo que falta»
+            // senza ricaricare niente.
+            casillaId: clasificacion.documento,
             seguro: clasificacion.confianza >= 0.7,
             porque: clasificacion.porque,
         },
