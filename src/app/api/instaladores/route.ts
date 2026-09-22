@@ -26,9 +26,24 @@ export async function GET() {
     const quien = await soloAgencia()
     if (!quien) return negado()
 
-    if (!quien.userId) {
-        // In dimostrazione: i nomi che compaiono negli espedienti, che è
-        // quanto basta per far vedere il giro.
+    const admin = createAdminClient()
+
+    /**
+     * I nomi finti solo quando non c'è proprio il database.
+     *
+     * Prima bastava non avere una sessione — cioè in dimostrazione — e
+     * l'elenco diventava «i nomi che compaiono negli espedienti di
+     * prova». Ma dare di alta un installatore CREA un account vero
+     * (serve la chiave di servizio), e poi quell'account non compariva
+     * mai in questa lista.
+     *
+     * Cioè: creavi una persona e spariva. Il difetto peggiore di tutti —
+     * l'azione riesce e non si vede, quindi la rifai.
+     *
+     * Se il database c'è, si leggono gli account veri. I nomi inventati
+     * restano per quando non c'è niente dietro.
+     */
+    if (!admin) {
         const nombres = [
             ...new Set(
                 mockDb
@@ -42,9 +57,6 @@ export async function GET() {
             demo: true,
         })
     }
-
-    const admin = createAdminClient()
-    if (!admin) return NextResponse.json({ error: 'No configurado' }, { status: 503 })
 
     const { data, error } = await admin
         .from('profiles')
