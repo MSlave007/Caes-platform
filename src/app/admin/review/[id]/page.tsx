@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StatusControl from '@/components/admin/StatusControl'
 import CabeceraExpediente from '@/components/admin/CabeceraExpediente'
 import Avisos, { type Aviso } from '@/components/admin/Avisos'
+import EquipoConocido from '@/components/admin/EquipoConocido'
 import DocumentReview from '@/components/admin/DocumentReview'
 import {
     CAMPOS,
@@ -255,6 +256,11 @@ export default function AdminReviewDetail({
                         valor: leido.valor,
                         estado: 'extraido',
                         confianza: leido.confianza,
+                        // Quello che il modello ha letto, congelato: se
+                        // qualcuno lo corregge, la coppia (letto,
+                        // giusto) resta ed e l'unica cosa che dice se il
+                        // lettore funziona. Rileggendo non si sovrascrive.
+                        leido: actual?.leido ?? leido.valor,
                     }
                 }
                 return siguiente
@@ -602,6 +608,24 @@ export default function AdminReviewDetail({
 
             {/* --------------------------------------------------- avvisi */}
             <Avisos avisos={avisos} />
+
+            {/* Quello che il catalogo sa gia di questa macchina. Vedi
+                src/components/admin/EquipoConocido.tsx: si propone, non
+                si riempie da solo. */}
+            <EquipoConocido
+                extraccion={extraccion}
+                onAplicar={(valores) =>
+                    setExtraccion((prev) => {
+                        const siguiente = { ...prev }
+                        for (const [id, valor] of Object.entries(valores)) {
+                            // `corregido`: risponde chi rivede, non la
+                            // tabella da cui e uscito il numero.
+                            siguiente[id] = { ...prev[id], valor, estado: 'corregido' }
+                        }
+                        return siguiente
+                    })
+                }
+            />
 
             {/* Documenti e dati estratti in una lista sola: i dati stanno
                 dentro il documento da cui escono, cosi il collegamento non

@@ -9,6 +9,8 @@ import {
     rellenarFicha,
     type Extraccion,
 } from '@/lib/caes/fichaCliente'
+import { equipoDe, lecturasNuevas } from '@/lib/caes/aprendizaje'
+import { campo as definicionDe, documentosDe } from '@/lib/caes/extraction'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -66,6 +68,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Come sopra, in scrittura: approvare un espediente vuol dire
     // scrivere su una riga che non e tua.
     const escritor = createAdminClient() ?? supabase
+
+    // Com'era prima, per sapere cosa e stato deciso ADESSO. Senza il
+    // confronto, ogni salvataggio riscriverebbe le stesse righe e il
+    // conto dell'accuratezza peserebbe due volte la stessa decisione.
+    const { data: antes } = await escritor
+        .from('projects')
+        .select('extraccion')
+        .eq('id', id)
+        .maybeSingle()
 
     const parche = await firmar(body, id, quien.userId, quien.email, escritor)
 
@@ -126,6 +137,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // verificato e un dato che qualcuno ribattera a mano.
     void llevarALaFicha(data, escritor)
 
+    // E quello che il sistema impara da questa revisione: se il lettore
+    // aveva indovinato, e che SCOP ha quel modello di macchina. Vedi
+    // src/lib/caes/aprendizaje.ts.
+    void aprender(
+        antes?.extraccion as Extraccion | undefined,
+        data?.extraccion as Extraccion | undefined,
+        id,
+        quien.userId,
+        escritor
+    )
+
     return NextResponse.json({ data })
 }
 
@@ -172,6 +194,74 @@ async function llevarALaFicha(
         await escritor.from('clientes').update(parche).eq('id', clienteId)
     } catch {
         /* la rubrica non deve far fallire una revisione */
+    }
+}
+
+
+/**
+ * Registra quello che questa revisione ha insegnato.
+ *
+ * Non aspettata e senza eccezioni, come la rubrica: e materiale di
+ * qualita, non il lavoro. Se le tabelle non esistono ancora, non
+ * succede niente e nessuno se ne accorge — ma appena l'SQL passa,
+ * comincia a riempirsi da solo.
+ */
+async function aprender(
+    antes: Extraccion | undefined,
+    despues: Extraccion | undefined,
+    proyectoId: string,
+    revisadoPor: string | null,
+    escritor: Awaited<ReturnType<typeof createClient>>
+) {
+    try {
+        if (!despues) return
+
+        // ── cosa ha indovinato il lettore ────────────────────────────
+        const filas = lecturasNuevas(antes, despues, {
+            proyectoId,
+            documentoDe: (campo) => {
+                const def = definicionDe(campo)
+                return def ? documentosDe(def)[0] : 'desconocido'
+            },
+            lector: process.env.CAES_LECTOR ?? 'gemini',
+        })
+        if (filas.length > 0) {
+            await escritor
+                .from('lecturas')
+                .insert(filas.map((f) => ({ ...f, revisado_por: revisadoPor })))
+        }
+
+        // ── il catalogo delle macchine ───────────────────────────────
+        const equipo = equipoDe(despues)
+        if (equipo) {
+            // Se c'e gia, si aggiornano solo i valori che questo
+            // fascicolo porta e si conta una volta in piu. Un modello
+            // visto otto volte si propone con piu ragione di uno visto
+            // una sola.
+            const { data: existe } = await escritor
+                .from('equipos')
+                .select('id, scop, scop_acs, potencia_kw, veces')
+                .eq('marca', equipo.marca)
+                .eq('modelo', equipo.modelo)
+                .maybeSingle()
+
+            if (existe) {
+                await escritor
+                    .from('equipos')
+                    .update({
+                        scop: equipo.scop ?? existe.scop,
+                        scop_acs: equipo.scop_acs ?? existe.scop_acs,
+                        potencia_kw: equipo.potencia_kw ?? existe.potencia_kw,
+                        veces: (existe.veces ?? 1) + 1,
+                        visto_por_ultima_vez: new Date().toISOString(),
+                    })
+                    .eq('id', existe.id)
+            } else {
+                await escritor.from('equipos').insert(equipo)
+            }
+        }
+    } catch {
+        /* non deve far fallire una revisione */
     }
 }
 

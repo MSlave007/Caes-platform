@@ -448,6 +448,22 @@ export type ValorCampo = {
     /** 0–1. Sotto 0,8 conviene guardare il documento. */
     confianza?: number
     /**
+     * Quello che il modello aveva letto, prima che qualcuno lo
+     * toccasse.
+     *
+     * ── PERCHE' SI TIENE ──────────────────────────────────────────────
+     *
+     * Correggendo un campo, `valor` diventa il valore giusto e quello
+     * proposto dal modello sparisce. Ma e proprio la coppia (letto,
+     * giusto) l'unica cosa che dice se il lettore funziona: senza, si
+     * puo solo credere che vada bene.
+     *
+     * Si scrive una volta, quando la lettura arriva, e non si tocca
+     * piu — nemmeno rileggendo lo stesso documento. Un valore che
+     * cambia non e una misura.
+     */
+    leido?: string | number | null
+    /**
      * Chi ha confermato o corretto, e quando.
      *
      * Non è burocrazia: questi valori finiscono nel Convenio CAE e nel

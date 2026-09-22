@@ -31,14 +31,12 @@
  *    su una fattura di otto mesi fa.
  */
 
-/** Come arriva un campo letto dai documenti. */
-export type CampoExtraido = {
-    valor: string | number | null
-    estado: string
-    confianza?: number
-}
+// Il tipo e quello vero, non una copia: due definizioni della stessa
+// cosa divergono, e quella sbagliata e sempre quella che nessuno
+// aggiorna.
+import type { Extraccion, ValorCampo } from '@/lib/caes/extraction'
 
-export type Extraccion = Record<string, CampoExtraido | undefined>
+export type { Extraccion }
 
 /** I campi della scheda che si possono riempire da soli. */
 export type ParcheFicha = {
@@ -64,7 +62,7 @@ const DE_DONDE: Record<keyof ParcheFicha, string> = {
     direccion: 'direccion_actuacion',
 }
 
-function limpio(v: CampoExtraido | undefined): string | null {
+function limpio(v: ValorCampo | undefined): string | null {
     if (!v || !MIRADOS.has(v.estado)) return null
     const texto = String(v.valor ?? '').trim()
     return texto || null

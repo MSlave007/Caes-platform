@@ -495,3 +495,144 @@ create policy "Solo la agencia cambia los ajustes"
 -- algo que enseñar desde el primer día.
 insert into public.ajustes (id) values ('agencia')
 on conflict (id) do nothing;
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  Lo que el lector acierta, y lo que no
+--
+--  Cada vez que quien revisa confirma o corrige un campo está diciendo
+--  si el modelo acertó. Hasta hoy eso se tiraba: el valor bueno
+--  sobrescribía al leído y no quedaba nada.
+--
+--  Es el único dato que permite decir si la lectura automática
+--  funciona, y en qué campos. Sin él solo se puede creer que va bien.
+--
+--  Lo que abre, cuando haya unos cientos de filas:
+--
+--    * acierto medido campo por campo, en vez de una impresión
+--    * umbral por campo en lugar de uno solo. Hoy es 0,8 para todo:
+--      puede que el NIF aguante 0,93 y que el SCOP nunca se libre de
+--      una mirada
+--    * ejemplos reales para meter en el prompt, que es la forma más
+--      barata de que lea mejor
+--
+--  No guarda el valor en sí cuando es un dato personal: para medir
+--  acierto basta saber SI coincidían, no qué ponía. Ver `coincide`.
+-- ════════════════════════════════════════════════════════════════════
+
+create table if not exists public.lecturas (
+  id           uuid primary key default gen_random_uuid(),
+
+  proyecto_id  text not null,
+  /* El hueco de documento del que salió: factura, ficha, rite... */
+  documento    text not null,
+  campo        text not null,
+
+  /* Lo que dijo el modelo y con cuánta seguridad. */
+  confianza    numeric(4, 3),
+  /* true si el humano lo dio por bueno tal cual; false si lo corrigió. */
+  coincide     boolean not null,
+
+  /* Los valores, solo para campos que no son datos personales. En los
+     que lo son se queda en null: para medir acierto basta `coincide`, y
+     guardar un NIF aquí sería guardarlo dos veces. */
+  valor_leido  text,
+  valor_final  text,
+
+  /* Quién leyó: gemini, claude... y con qué modelo. Cambiando de
+     lector, sin esto no se puede comparar antes y después. */
+  lector       text,
+  modelo       text,
+
+  revisado_por uuid references auth.users on delete set null,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists lecturas_campo_idx on public.lecturas (campo, created_at desc);
+create index if not exists lecturas_proyecto_idx on public.lecturas (proyecto_id);
+
+alter table public.lecturas enable row level security;
+
+-- Solo la agencia. Es material de calidad interna, y además dice qué
+-- expedientes han tenido que corregirse.
+drop policy if exists "Solo la agencia ve las lecturas" on public.lecturas;
+create policy "Solo la agencia ve las lecturas"
+  on public.lecturas for all
+  to authenticated
+  using (
+    exists (select 1 from public.profiles p
+            where p.id = auth.uid() and p.role = 'admin')
+  )
+  with check (
+    exists (select 1 from public.profiles p
+            where p.id = auth.uid() and p.role = 'admin')
+  );
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  El catálogo de equipos, que se escribe solo
+--
+--  La ficha RES060 necesita SCOP, SCOP de ACS y potencia. Hoy se leen
+--  de la ficha técnica en cada expediente, uno por uno.
+--
+--  Pero los modelos se repiten: una Daikin Altherma 3 es una Daikin
+--  Altherma 3. Cada expediente aprobado deja aquí lo que se confirmó, y
+--  al siguiente que monte ese modelo no hay nada que leer: hay que
+--  mirar.
+--
+--  Es lo que más vale a largo plazo. Es más rápido, no cuesta llamadas
+--  al modelo, es comprobable — y es una ventaja que quien empiece
+--  después no tiene, porque se construye con el uso.
+--
+--  `veces` es el número de expedientes que han confirmado estos
+--  valores: un modelo visto ocho veces se propone con más motivo que
+--  uno visto una.
+-- ════════════════════════════════════════════════════════════════════
+
+create table if not exists public.equipos (
+  id            uuid primary key default gen_random_uuid(),
+
+  /* Normalizados en el servidor: sin acentos, sin dobles espacios, en
+     mayúsculas. Si no, DAIKIN y Daikin son dos equipos distintos. */
+  marca         text not null,
+  modelo        text not null,
+
+  scop          numeric(4, 2),
+  scop_acs      numeric(4, 2),
+  potencia_kw   numeric(6, 2),
+
+  /* Cuántos expedientes han confirmado estos valores. */
+  veces         integer not null default 1,
+
+  visto_por_ultima_vez timestamptz not null default now(),
+  created_at    timestamptz not null default now(),
+
+  unique (marca, modelo)
+);
+
+create index if not exists equipos_busqueda_idx on public.equipos (marca, modelo);
+
+alter table public.equipos enable row level security;
+
+-- Leer lo puede cualquiera que haya entrado: no es un dato de nadie, es
+-- una ficha de producto. El instalador se beneficia igual.
+drop policy if exists "Cualquiera autenticado lee el catalogo" on public.equipos;
+create policy "Cualquiera autenticado lee el catalogo"
+  on public.equipos for select
+  to authenticated
+  using (true);
+
+-- Escribir, solo la agencia: entra al aprobar, con valores que alguien
+-- ha verificado mirando la ficha técnica.
+drop policy if exists "Solo la agencia escribe el catalogo" on public.equipos;
+create policy "Solo la agencia escribe el catalogo"
+  on public.equipos for all
+  to authenticated
+  using (
+    exists (select 1 from public.profiles p
+            where p.id = auth.uid() and p.role = 'admin')
+  )
+  with check (
+    exists (select 1 from public.profiles p
+            where p.id = auth.uid() and p.role = 'admin')
+  );

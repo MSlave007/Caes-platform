@@ -43,3 +43,4 @@ next-env.d.ts
 .caes-demo.drafts.json
 .caes-demo.clientes.json
 .caes-demo.ajustes.json
+.caes-demo.equipos.json
