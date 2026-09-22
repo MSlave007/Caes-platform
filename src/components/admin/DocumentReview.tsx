@@ -1,17 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import {
-    AlertTriangle,
-    Check,
-    CheckCheck,
-    ChevronRight,
-    Loader2,
-    Paperclip,
-    ScanText,
-    Upload,
-    X,
-} from 'lucide-react'
+import type { ProjectDoc } from '@/lib/mockDb'
+import { AlertTriangle, Check, CheckCheck, ChevronRight, Loader2, Paperclip, ScanText, Sparkles, Upload, X } from 'lucide-react'
 import DocumentViewer from './DocumentViewer'
 import {
     senales,
@@ -124,7 +115,18 @@ type Props = {
     borrando: string | null
 }
 
-type Archivo = { id: string; name: string; path?: string }
+/**
+ * Un file dentro una casella.
+ *
+ * Non ridichiarato a mano: è lo stesso `ProjectDoc` del fascicolo. Così,
+ * quando quello impara un campo nuovo — come «chi l'ha messo qui e
+ * perché» — questo lo sa senza che nessuno debba ricordarsene.
+ */
+type Archivo = Omit<ProjectDoc, 'verified'> & {
+    // Qui dentro «verificato» non si sa: lo decide chi rivede, campo per
+    // campo, non file per file. Resta opzionale invece di inventarlo.
+    verified?: boolean
+}
 
 /* ==================================================================== *
  *  CAMPI
@@ -588,11 +590,34 @@ function Archivos({
                                 : 'border-[var(--caes-line)] text-[var(--caes-mut)] hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]'
                             }`}
                     >
+                        {/**
+                          * Chi ha messo questo file in questa casella.
+                          *
+                          * La stellina vuol dire «l'ha smistato il
+                          * lettore, non una persona», e passandoci sopra
+                          * si legge cosa ci ha visto. Il modello quella
+                          * riga la scriveva già e si buttava: chi rivede
+                          * è l'unico che può accorgersi che ha sbagliato
+                          * casella, e senza doveva riaprire il file per
+                          * capirlo.
+                          */}
+                        {d.auto && (
+                            <Sparkles
+                                className="h-3 w-3 shrink-0 opacity-70"
+                                strokeWidth={2}
+                            />
+                        )}
                         <button
                             type="button"
                             onClick={() => setCual(i)}
                             className="min-w-0 truncate"
-                            title={d.name}
+                            title={
+                                d.auto && d.porque
+                                    ? `${d.name}
+
+Lo ha colocado el lector: ${d.porque}`
+                                    : d.name
+                            }
                         >
                             {d.name}
                         </button>

@@ -1,5 +1,6 @@
 import { senales, type Extraccion } from '@/lib/caes/extraction'
 import { DOCUMENTS } from '@/lib/documents'
+import { CAJON } from '@/lib/caes/clasificar'
 import type { Project } from '@/lib/mockDb'
 
 /**
@@ -47,6 +48,14 @@ export type Riesgo = {
     faltanDocs: number
     /** Letture sotto la soglia. */
     dudosos: number
+    /**
+     * File che il lettore non ha saputo collocare.
+     *
+     * Sono finiti in «Otras fotos o documentos» perché il modello non
+     * era sicuro — e fa bene a non indovinare. Ma qualcuno deve
+     * spostarli, e finora nessuno lo veniva a sapere.
+     */
+    sinColocar: number
 }
 
 /**
@@ -76,6 +85,17 @@ export function riesgoDe(p: Project): Riesgo {
             v.confianza < CONFIANZA_MINIMA
     ).length
 
+    /**
+     * Quello che il lettore ha messo nel cassetto senza esserne sicuro.
+     *
+     * `auto` distingue chi l'ha messo lì: un file che una persona ha
+     * caricato apposta in «otras» è a posto dov'è, uno smistato dal
+     * modello con poca confidenza è una domanda in attesa di risposta.
+     */
+    const sinColocar = (p.docs ?? []).filter(
+        (d) => d.auto && d.id === CAJON
+    ).length
+
     const motivos: string[] = []
     if (faltanDocs > 0) {
         motivos.push(
@@ -92,19 +112,28 @@ export function riesgoDe(p: Project): Riesgo {
             `${dudosos} ${dudosos === 1 ? 'lectura poco segura' : 'lecturas poco seguras'}`
         )
     }
+    if (sinColocar > 0) {
+        motivos.push(
+            `${sinColocar} ${sinColocar === 1 ? 'archivo sin colocar' : 'archivos sin colocar'}`
+        )
+    }
 
     // L'ordine conta: «mancano carte» batte «c'e un allarme», perche nel
     // primo caso non si puo fare niente comunque, e aprire il fascicolo
     // e tempo buttato.
     const nivel: Nivel =
-        faltanDocs > 0 ? 'parado' : alarmas > 0 || dudosos > 0 ? 'mirar' : 'limpio'
+        faltanDocs > 0
+            ? 'parado'
+            : alarmas > 0 || dudosos > 0 || sinColocar > 0
+              ? 'mirar'
+              : 'limpio'
 
-    return { nivel, motivos, alarmas, faltanDocs, dudosos }
+    return { nivel, motivos, alarmas, faltanDocs, dudosos, sinColocar }
 }
 
 /** Quanto pesa, per ordinare dentro lo stesso livello. */
 function peso(r: Riesgo): number {
-    return r.alarmas * 10 + r.dudosos
+    return r.alarmas * 10 + r.dudosos + r.sinColocar
 }
 
 const ORDEN: Record<Nivel, number> = { limpio: 0, mirar: 1, parado: 2 }

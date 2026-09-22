@@ -282,6 +282,10 @@ export async function POST(
         {
             id: clasificacion.documento,
             name: archivo.name.slice(0, 180),
+            // Chi l'ha messo lì e perché. Vedi `ProjectDoc`.
+            auto: true,
+            confianza: clasificacion.confianza,
+            porque: clasificacion.porque || undefined,
             // Mai verificato: lo ha mandato qualcuno senza entrare, e
             // «verificato» vuol dire che una persona lo ha guardato.
             verified: false,

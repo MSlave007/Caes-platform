@@ -30,6 +30,25 @@ export type ProjectDoc = {
      * aprire: era il pezzo che mancava per poter verificare guardando.
      */
     path?: string
+    /**
+     * Chi ha deciso in che casella va: una persona, o il lettore.
+     *
+     * Serve a sapere di cosa fidarsi. Un file messo a mano da chi carica
+     * e uno smistato dal modello si guardano in modo diverso, e finora
+     * si vedevano uguali.
+     */
+    auto?: boolean
+    /** Quanto era sicuro il modello, da 0 a 1. */
+    confianza?: number
+    /**
+     * Cosa ha visto per deciderlo, in una riga.
+     *
+     * Il modello la scriveva, si mostrava a chi caricava, e poi si
+     * buttava. Ma chi rivede è l'unico che può accorgersi che ha
+     * sbagliato casella — e senza questa riga deve riaprire il file per
+     * capirlo.
+     */
+    porque?: string
 }
 
 export type Project = {
