@@ -48,6 +48,51 @@ import type { Datos, Plantilla } from './plantillas'
 
 export type Metodo = 'trazo' | 'escrito' | 'guardada'
 
+/**
+ * Come sta il tratto dentro il suo riquadro.
+ *
+ * Tre numeri e niente di più: una firma non si trascina dove capita.
+ * I riquadri li decide il modello — nel Convenio il Cedente a sinistra
+ * e il Cesionario a destra — e una firma che finisce sopra una clausola
+ * o nella colonna dell'altra parte è una firma di cui non si sa più che
+ * cosa dica.
+ *
+ * `escala` moltiplica la dimensione che il riquadro le darebbe da sola;
+ * `dx` e `dy` la spostano di qualche punto, in giù positivo come in un
+ * PDF si conta al contrario ma qui si ragiona come si guarda.
+ */
+export type Ajuste = { escala: number; dx: number; dy: number }
+
+export const AJUSTE_NEUTRO: Ajuste = { escala: 1, dx: 0, dy: 0 }
+
+/** I limiti. Oltre, il tratto esce dal suo spazio e invade il vicino. */
+export const LIMITES = {
+    escala: { min: 0.5, max: 1.6, paso: 0.1 },
+    dx: { min: -40, max: 40, paso: 4 },
+    dy: { min: -22, max: 22, paso: 3 },
+}
+
+function entre(v: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, v))
+}
+
+/**
+ * Un aggiustamento che arriva da fuori, riportato dentro i limiti.
+ *
+ * Non si rifiuta: si stringe. Un numero fuori scala è quasi sempre un
+ * dito che ha tenuto premuto, e rispondere con un errore a chi sta
+ * spostando una firma di due punti alla volta non serve a niente.
+ */
+export function ajusteValido(crudo: unknown): Ajuste {
+    const a = (crudo ?? {}) as Partial<Ajuste>
+    const n = (v: unknown, p: number) => (Number.isFinite(Number(v)) ? Number(v) : p)
+    return {
+        escala: entre(n(a.escala, 1), LIMITES.escala.min, LIMITES.escala.max),
+        dx: entre(n(a.dx, 0), LIMITES.dx.min, LIMITES.dx.max),
+        dy: entre(n(a.dy, 0), LIMITES.dy.min, LIMITES.dy.max),
+    }
+}
+
 export type Firma = {
     /** Chi firma, nei termini del documento: «El Cedente», «El Cesionario». */
     rol: string
@@ -66,14 +111,68 @@ export type Firma = {
      */
     ip?: string
     agente?: string
+    /**
+     * Come sta nel riquadro. Assente = come viene.
+     *
+     * Si può cambiare anche dopo aver firmato: non è un dato del
+     * documento, è come si disegna il tratto sopra — e l'impronta è del
+     * documento senza firme. Vedi `presentado()`.
+     */
+    ajuste?: Ajuste
 }
 
 export type RegistroFirma = {
     /** L'istante della prima firma: da lì il documento non si muove più. */
     congelado: string
-    /** SHA-256 del documento come si presentava alla firma. */
+    /**
+     * SHA-256 del PDF come si presentava alla firma.
+     *
+     * È quella stampata sulla pagina di prova: dice a cosa corrispondeva
+     * esattamente il foglio quel giorno. NON serve a controllare se i
+     * dati sono cambiati — per quello c'è `huellaDatos`, e il perché sta
+     * lì sotto.
+     */
     huella: string
+    /**
+     * SHA-256 dei DATI, senza impaginazione.
+     *
+     * Perché due: con la sola impronta del PDF, bastava allargare un
+     * margine nel renderer perché ogni firma mai raccolta risultasse su
+     * un documento diverso. È successo — trenta punti in più nel
+     * riquadro di firma e un espediente intatto che diceva «los datos
+     * han cambiado».
+     *
+     * Questa non si muove quando cambiamo noi qualcosa. Si muove solo
+     * quando cambia un dato, che è l'unica domanda che valeva la pena
+     * fare.
+     *
+     * Assente sulle firme raccolte prima che esistesse: allora la
+     * domanda non si può fare, e si dice che non si sa.
+     */
+    huellaDatos?: string
     firmas: Firma[]
+}
+
+/**
+ * L'impronta dei dati, in ordine e senza impaginazione.
+ *
+ * Le chiavi ordinate perché un oggetto tornato da jsonb non ha lo stesso
+ * ordine di quello che ci era entrato, e due volte gli stessi dati
+ * devono dare due volte la stessa impronta.
+ *
+ * I vuoti si ignorano: un campo assente e un campo con la stringa vuota
+ * sono la stessa cosa per chi legge il documento, e distinguerli
+ * significherebbe far scattare l'allarme per un salvataggio che non ha
+ * cambiato niente.
+ */
+export function huellaDeDatos(datos: Datos): string {
+    const filas = Object.keys(datos)
+        .sort()
+        .map((k) => [k, String(datos[k] ?? '').trim()])
+        .filter(([, v]) => v !== '')
+        .map(([k, v]) => `${k}=${v}`)
+        .join('\n')
+    return createHash('sha256').update(filas, 'utf8').digest('hex')
 }
 
 /** Per plantilla: `convenio`, `res060`, `anexo1`. */
@@ -116,6 +215,7 @@ export async function firmado(
             png: f.png,
             nombre: f.nombre,
             fecha: enPalabras(f.fecha),
+            ajuste: f.ajuste,
         }
     }
 

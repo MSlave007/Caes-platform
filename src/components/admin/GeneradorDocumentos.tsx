@@ -283,6 +283,13 @@ function Texto({
     )
 }
 
+type Trazo = {
+    nombre: string
+    cuando: string
+    png?: string
+    ajuste?: { escala: number; dx: number; dy: number }
+}
+
 function titulo(hueco: Hueco | undefined, id: string, aMano: boolean): string {
     if (aMano) return `${hueco?.label ?? id} · escrito a mano`
     return hueco?.nota ?? hueco?.label ?? id
@@ -302,7 +309,7 @@ function BloqueVista({
     onRetocar: (id: string, v: string) => void
     bloqueado?: boolean
     /** Per ruolo: il tratto già raccolto, se c'è. */
-    firmas?: Record<string, { nombre: string; cuando: string; png?: string }>
+    firmas?: Record<string, Trazo>
 }) {
     // Niente componente scorciatoia definito qui dentro: React lo
     // rimonterebbe a ogni render, e un contentEditable rimontato perde
@@ -400,19 +407,46 @@ function BloqueVista({
                                   * ragionevole è che non fosse successo
                                   * niente.
                                   */}
-                                <span className="flex h-[52px] items-end">
+                                {/**
+                                  * L'anteprima si muove mentre si aggiusta.
+                                  *
+                                  * Le stesse tre misure che usa il PDF, in
+                                  * proporzione: il riquadro qui è più largo,
+                                  * quindi gli spostamenti si scalano invece
+                                  * di essere copiati in pixel — se no si
+                                  * centra la firma qui e nel PDF sta altrove.
+                                  */}
+                                {/* Il tratto cresce verso l'alto dalla
+                                    riga, come nel PDF: quindi ancorato
+                                    in basso, con lo stesso punto di
+                                    origine, e con abbastanza aria sopra
+                                    da non tagliarsi. */}
+                                <span className="flex h-[76px] items-end">
                                     {puesta?.png && (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
                                             src={`data:image/png;base64,${puesta.png}`}
                                             alt={`Firma de ${puesta.nombre}`}
-                                            className="max-h-[48px] max-w-full object-contain object-left"
+                                            className="max-h-[48px] max-w-full origin-bottom-left object-contain object-left"
+                                            style={{
+                                                transform: `translate(${(puesta.ajuste?.dx ?? 0) * 1.6}px, ${(puesta.ajuste?.dy ?? 0) * 1.6}px) scale(${puesta.ajuste?.escala ?? 1})`,
+                                            }}
                                         />
                                     )}
                                 </span>
 
+                                {/* Firmato: il nome è quello di chi ha
+                                    firmato, non quello che il modello si
+                                    aspettava. È così che esce nel PDF, e
+                                    due nomi diversi fra schermo e foglio
+                                    sono il genere di differenza che si
+                                    scopre quando è già stampato. */}
                                 <span className="mt-2 block border-t border-[var(--caes-ink)] pt-2 text-[12.5px] text-[var(--caes-ink)]">
-                                    <Texto texto={p.nombre} {...propsTexto} />
+                                    {puesta ? (
+                                        puesta.nombre
+                                    ) : (
+                                        <Texto texto={p.nombre} {...propsTexto} />
+                                    )}
                                 </span>
 
                                 {puesta && (
@@ -588,11 +622,16 @@ export default function GeneradorDocumentos({
         [activa]
     )
 
-    /** Per ruolo: il tratto e la data, come li vuole il foglio. */
+    /** Per ruolo: il tratto, la data e come sta nel riquadro. */
     const trazos = useMemo(() => {
-        const m: Record<string, { nombre: string; cuando: string; png?: string }> = {}
+        const m: Record<string, Trazo> = {}
         for (const f of estadoFirmas?.firmas ?? []) {
-            m[f.rol] = { nombre: f.nombre, cuando: f.cuando, png: f.png }
+            m[f.rol] = {
+                nombre: f.nombre,
+                cuando: f.cuando,
+                png: f.png,
+                ajuste: f.ajuste,
+            }
         }
         return m
     }, [estadoFirmas])

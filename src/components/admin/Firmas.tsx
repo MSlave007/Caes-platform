@@ -1,18 +1,27 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
     AlertTriangle,
     Check,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
     Copy,
     Link2,
     Loader2,
     MessageCircle,
+    Minus,
+    Move,
     PenLine,
+    Plus,
+    RotateCcw,
     Trash2,
     X,
 } from 'lucide-react'
 import Firmar from '@/components/firma/Firmar'
+import { AJUSTE_NEUTRO, LIMITES, type Ajuste } from '@/lib/caes/firma'
 
 export type FirmaPuesta = {
     rol: string
@@ -21,6 +30,8 @@ export type FirmaPuesta = {
     cuando: string
     /** Il tratto, per disegnarlo sul foglio. */
     png?: string
+    /** Come sta nel riquadro. Assente = come viene. */
+    ajuste?: Ajuste
 }
 
 export type Estado = {
@@ -77,6 +88,9 @@ export default function Firmas({
     const [copiado, setCopiado] = useState(false)
     const [ocupado, setOcupado] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    /** Quale firma si sta aggiustando, se se ne sta aggiustando una. */
+    const [ajustando, setAjustando] = useState<string | null>(null)
+    const guardarAjuste = useRef<number | null>(null)
 
     const cargar = useCallback(async () => {
         try {
@@ -175,6 +189,53 @@ export default function Firmas({
         }
     }
 
+    /**
+     * Muovere la firma: a schermo subito, sul fascicolo dopo.
+     *
+     * Si preme il più e il meno cinque volte di fila. Salvando a ogni
+     * clic sarebbero cinque scritture per una decisione sola, e la
+     * quinta che arriva prima della terza.
+     */
+    const mover = (rol: string, cambio: Partial<Ajuste>) => {
+        /**
+         * Lo stato nuovo si calcola QUI, non dentro l'updater.
+         *
+         * Le funzioni passate a `setState` React le esegue durante il
+         * render, e avvisare il padre da lì è «Cannot update a component
+         * while rendering a different component»: funzionava, e intanto
+         * rompeva la regola che esiste apposta perché un giorno smetta
+         * di funzionare.
+         */
+        if (!estado) return
+        const nuevo: Estado = {
+            ...estado,
+            firmas: estado.firmas.map((f) =>
+                f.rol === rol
+                    ? { ...f, ajuste: { ...(f.ajuste ?? AJUSTE_NEUTRO), ...cambio } }
+                    : f
+            ),
+        }
+        setEstado(nuevo)
+        onEstado?.(nuevo)
+
+        // Si preme il più e il meno cinque volte di fila: una scrittura
+        // per la decisione, non cinque per i cinque clic.
+        const ajuste = nuevo.firmas.find((f) => f.rol === rol)?.ajuste
+        if (guardarAjuste.current) window.clearTimeout(guardarAjuste.current)
+        guardarAjuste.current = window.setTimeout(() => {
+            void fetch('/api/firmas', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: expedienteId,
+                    plantilla: plantillaId,
+                    rol,
+                    ajuste,
+                }),
+            }).catch(() => setError('No se ha podido guardar la posición.'))
+        }, 500)
+    }
+
     const quitar = async (rol: string) => {
         setOcupado(true)
         try {
@@ -222,11 +283,15 @@ export default function Firmas({
                     </span>
                 </p>
             )}
+            {/* Non sapere non è sapere di sì: le firme raccolte prima
+                che esistesse l'impronta dei dati non si possono
+                controllare, e la schermata lo dice. */}
             {estado.firmas.length > 0 && estado.coincide === null && (
                 <p className="flex items-start gap-2.5 rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-4 py-3 text-[13px] leading-[1.5] text-[var(--caes-falta-deep)]">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                    No se ha podido comprobar si el documento sigue siendo el que se
-                    firmó. Vuelve a abrir esta pantalla.
+                    Esta firma es anterior a esta comprobación, así que no se puede
+                    saber si los datos han cambiado desde entonces. Las nuevas sí se
+                    comprueban.
                 </p>
             )}
 
@@ -261,7 +326,7 @@ export default function Firmas({
                     {estado.firmas.map((f) => (
                         <li
                             key={f.rol}
-                            className="flex flex-wrap items-center justify-between gap-3 bg-[var(--caes-paper)] px-4 py-3"
+                            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 bg-[var(--caes-paper)] px-4 py-3"
                         >
                             <div className="min-w-0">
                                 <p className="flex items-center gap-2 text-[13.5px] font-medium">
@@ -278,15 +343,35 @@ export default function Firmas({
                                     {f.cuando} · {METODOS[f.metodo] ?? f.metodo}
                                 </p>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => void quitar(f.rol)}
-                                disabled={ocupado}
-                                className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-mal)] hover:underline disabled:opacity-40"
-                            >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                Quitarla
-                            </button>
+                            <span className="flex items-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setAjustando((a) => (a === f.rol ? null : f.rol))
+                                    }
+                                    aria-expanded={ajustando === f.rol}
+                                    className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+                                >
+                                    <Move className="h-3.5 w-3.5" />
+                                    {ajustando === f.rol ? 'Listo' : 'Colocarla'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void quitar(f.rol)}
+                                    disabled={ocupado}
+                                    className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-mal)] hover:underline disabled:opacity-40"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Quitarla
+                                </button>
+                            </span>
+
+                            {ajustando === f.rol && (
+                                <Colocar
+                                    ajuste={f.ajuste ?? AJUSTE_NEUTRO}
+                                    onMover={(c) => mover(f.rol, c)}
+                                />
+                            )}
                         </li>
                     ))}
                 </ul>
@@ -482,6 +567,123 @@ function EnlacePendiente({
                     Anularlo
                 </button>
             </div>
+        </div>
+    )
+}
+
+/**
+ * Dove sta la firma nel suo riquadro.
+ *
+ * L'anteprima non è qui: è sul foglio, sopra. Quello che si sta
+ * aggiustando è come sta la firma SUL DOCUMENTO, e un'anteprima dentro
+ * al pannello la mostrerebbe dentro un riquadro che non esiste da
+ * nessuna parte — si finirebbe a centrarla lì invece che dove finisce
+ * davvero.
+ *
+ * Non sposta il riquadro: quello lo decide il modello. Il Cedente firma
+ * a sinistra e il Cesionario a destra perché così dice il Convenio, e
+ * una firma trascinata sopra una clausola è una firma di cui non si sa
+ * più che cosa dica.
+ */
+function Colocar({
+    ajuste,
+    onMover,
+}: {
+    ajuste: Ajuste
+    onMover: (c: Partial<Ajuste>) => void
+}) {
+    const paso = (
+        campo: 'escala' | 'dx' | 'dy',
+        signo: 1 | -1
+    ): Partial<Ajuste> => {
+        const l = LIMITES[campo]
+        const v = Math.round((ajuste[campo] + signo * l.paso) * 100) / 100
+        return { [campo]: Math.min(l.max, Math.max(l.min, v)) }
+    }
+
+    const boton =
+        'flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--caes-line)] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)] disabled:opacity-30 disabled:hover:border-[var(--caes-line)]'
+
+    return (
+        <div className="flex w-full flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-[var(--caes-line)] bg-[var(--caes-band)] px-4 py-3">
+            <span className="flex items-center gap-2">
+                <span className="label-mono text-[var(--caes-faint)]">Tamaño</span>
+                <button
+                    type="button"
+                    className={boton}
+                    aria-label="Más pequeña"
+                    disabled={ajuste.escala <= LIMITES.escala.min}
+                    onClick={() => onMover(paso('escala', -1))}
+                >
+                    <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="w-[3.5rem] text-center text-[12.5px] tabular text-[var(--caes-mut)]">
+                    {Math.round(ajuste.escala * 100)}%
+                </span>
+                <button
+                    type="button"
+                    className={boton}
+                    aria-label="Más grande"
+                    disabled={ajuste.escala >= LIMITES.escala.max}
+                    onClick={() => onMover(paso('escala', 1))}
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                </button>
+            </span>
+
+            <span className="flex items-center gap-2">
+                <span className="label-mono text-[var(--caes-faint)]">Posición</span>
+                <button
+                    type="button"
+                    className={boton}
+                    aria-label="Izquierda"
+                    disabled={ajuste.dx <= LIMITES.dx.min}
+                    onClick={() => onMover(paso('dx', -1))}
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                    type="button"
+                    className={boton}
+                    aria-label="Arriba"
+                    disabled={ajuste.dy <= LIMITES.dy.min}
+                    onClick={() => onMover(paso('dy', -1))}
+                >
+                    <ChevronUp className="h-4 w-4" />
+                </button>
+                <button
+                    type="button"
+                    className={boton}
+                    aria-label="Abajo"
+                    disabled={ajuste.dy >= LIMITES.dy.max}
+                    onClick={() => onMover(paso('dy', 1))}
+                >
+                    <ChevronDown className="h-4 w-4" />
+                </button>
+                <button
+                    type="button"
+                    className={boton}
+                    aria-label="Derecha"
+                    disabled={ajuste.dx >= LIMITES.dx.max}
+                    onClick={() => onMover(paso('dx', 1))}
+                >
+                    <ChevronRight className="h-4 w-4" />
+                </button>
+            </span>
+
+            <button
+                type="button"
+                onClick={() => onMover(AJUSTE_NEUTRO)}
+                className="ml-auto inline-flex items-center gap-1.5 text-[12.5px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+            >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Como estaba
+            </button>
+
+            <p className="w-full text-[12px] leading-[1.45] text-[var(--caes-faint)]">
+                Se mueve dentro de su recuadro, que lo decide el documento. Y no
+                afecta a la huella: esa es del documento sin las firmas encima.
+            </p>
         </div>
     )
 }

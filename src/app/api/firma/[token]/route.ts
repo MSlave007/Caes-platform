@@ -7,6 +7,7 @@ import {
     agenteCorto,
     enPalabras,
     huella,
+    huellaDeDatos,
     presentado,
     sinCabecera,
     trazoValido,
@@ -166,6 +167,9 @@ export async function POST(
         const registro: RegistroFirma = {
             congelado,
             huella: impronta,
+            // L'impronta dei dati si rifà a ogni firma: sono gli stessi
+            // dati, e ricalcolarla costa niente.
+            huellaDatos: huellaDeDatos(datos),
             firmas: [...(previo?.firmas ?? []), firma],
         }
         todas[pedido.plantillaId] = registro

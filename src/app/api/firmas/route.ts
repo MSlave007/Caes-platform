@@ -4,8 +4,10 @@ import { plantillaPorId } from '@/lib/caes/pdf'
 import { faltanEn } from '@/lib/caes/plantillas'
 import {
     agenteCorto,
+    ajusteValido,
     enPalabras,
     huella,
+    huellaDeDatos,
     presentado,
     sinCabecera,
     trazoValido,
@@ -155,24 +157,21 @@ export async function GET(request: Request) {
             },
         })
     }
-    let coincide = true
-    try {
-        const ahora = huella(
-            await presentado(plantilla, datos, numeroCorto(p.id), registro.congelado)
-        )
-        coincide = ahora === registro.huella
-    } catch (error) {
-        // Non sapere se coincide non è come sapere che coincide: senza
-        // risposta si dice che non si sa, non che va tutto bene.
-        console.error('GET /api/firmas:', error)
-        return NextResponse.json({
-            data: {
-                firmas: registro.firmas.map(resumir),
-                faltan: partes.filter((x) => !registro.firmas.some((f) => f.rol === x.rol)),
-                coincide: null,
-            },
-        })
-    }
+    /**
+     * Sono cambiati i DATI, non il foglio.
+     *
+     * Si confronta l'impronta dei dati e non quella del PDF composto:
+     * bastava allargare un margine nel renderer perché ogni firma mai
+     * raccolta risultasse su un documento diverso. È successo — trenta
+     * punti in più nel riquadro di firma e un espediente intatto che
+     * diceva «los datos han cambiado». Vedi `huellaDeDatos`.
+     *
+     * `null` sulle firme raccolte prima che questa impronta esistesse:
+     * la domanda non si può fare, e non sapere non è come sapere di sì.
+     */
+    const coincide = registro.huellaDatos
+        ? huellaDeDatos(datos) === registro.huellaDatos
+        : null
 
     return NextResponse.json({
         data: {
@@ -210,7 +209,60 @@ function resumir(f: Firma) {
         metodo: f.metodo,
         cuando: enPalabras(f.fecha),
         png: f.png,
+        ajuste: f.ajuste,
     }
+}
+
+/**
+ * Spostare o ridimensionare una firma dentro il suo riquadro.
+ *
+ * Si può anche dopo aver firmato, e non è una scappatoia: l'impronta è
+ * del documento COME È STATO PRESENTATO — senza firme sopra e senza la
+ * pagina di prova. Come disegniamo il tratto non entra nel calcolo, e
+ * quindi non c'è niente da invalidare.
+ *
+ * Quello che NON si può cambiare da qui è tutto il resto: chi ha
+ * firmato, quando, con che metodo, il tratto stesso. Questa rotta
+ * scrive tre numeri.
+ */
+export async function PATCH(request: Request) {
+    const quien = await soloAgencia()
+    if (!quien) return negado()
+
+    const body = (await request.json().catch(() => null)) as {
+        id?: string
+        plantilla?: string
+        rol?: string
+        ajuste?: unknown
+    } | null
+
+    const id = String(body?.id ?? '').trim()
+    const cual = String(body?.plantilla ?? '').trim()
+    const rol = String(body?.rol ?? '').trim()
+
+    if (!id || !plantillaPorId(cual) || !rol) {
+        return NextResponse.json({ error: 'Falta el documento' }, { status: 400 })
+    }
+
+    const p = await cargarProyecto(id)
+    if (!p) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+    const todas: Firmas = { ...(p.firmas ?? {}) }
+    const registro = todas[cual]
+    if (!registro?.firmas.some((f) => f.rol === rol)) {
+        return NextResponse.json({ error: 'Esa firma no está' }, { status: 404 })
+    }
+
+    const ajuste = ajusteValido(body?.ajuste)
+    todas[cual] = {
+        ...registro,
+        firmas: registro.firmas.map((f) => (f.rol === rol ? { ...f, ajuste } : f)),
+    }
+
+    if (!(await guardarEnProyecto(id, { firmas: todas }))) {
+        return NextResponse.json({ error: 'No se ha podido guardar.' }, { status: 502 })
+    }
+    return NextResponse.json({ data: { rol, ajuste } })
 }
 
 export async function POST(request: Request) {
@@ -292,6 +344,9 @@ export async function POST(request: Request) {
         const registro: RegistroFirma = {
             congelado,
             huella: impronta,
+            // L'impronta dei dati si rifà a ogni firma: sono gli stessi
+            // dati, e ricalcolarla costa niente.
+            huellaDatos: huellaDeDatos(datos),
             firmas: [...(previo?.firmas ?? []).filter((f) => f.rol !== rol), firma],
         }
         todas[plantilla.id] = registro

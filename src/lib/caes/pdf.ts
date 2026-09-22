@@ -527,6 +527,8 @@ export type FirmaGrafica = {
     fecha: string
     /** La riga di prova: chi, quando, da dove. */
     prueba?: string
+    /** Come sta nel riquadro: dimensione e spostamento. */
+    ajuste?: { escala: number; dx: number; dy: number }
 }
 
 async function firmas(
@@ -534,7 +536,15 @@ async function firmas(
     partes: { rol: string; nombre: string }[],
     puestas: Record<string, FirmaGrafica>
 ) {
-    const ALTO = 108
+    /**
+     * Alto del riquadro di firma.
+     *
+     * Largo abbastanza perché una firma ingrandita ci stia: il tratto
+     * cresce verso l'alto dalla riga, e senza spazio finiva sopra
+     * l'etichetta del ruolo — cioè tagliato.
+     */
+    const ALTO = 140
+    const ALTO_TRAZO = 74
     const columnas = Math.min(partes.length, 2)
     const anchoCol = (ANCHO - 26 * (columnas - 1)) / columnas
 
@@ -570,14 +580,46 @@ async function firmas(
                     // Mai ingrandire oltre il vero: un tratto tirato
                     // su sgrana, e un tratto sgranato sembra un tratto
                     // rifatto.
-                    const escala = Math.min(
+                    const natural = Math.min(
                         (anchoCol - 16) / img.width,
                         46 / img.height,
                         1
                     )
+
+                    /**
+                     * E poi quello che ha deciso una persona.
+                     *
+                     * Aggiustare la dimensione e la posizione del tratto
+                     * si può anche dopo la firma: l'impronta è del
+                     * documento SENZA firme, quindi questo non la tocca.
+                     * Vedi `presentado()` in firma.ts.
+                     *
+                     * Resta dentro il riquadro comunque: `a.dx` e `a.dy`
+                     * arrivano già stretti nei limiti, e la larghezza si
+                     * ferma a quella della colonna — una firma che sconfina
+                     * nella colonna dell'altra parte è una firma di cui non
+                     * si sa più cosa dica.
+                     */
+                    const a = firma.ajuste
+
+                    /**
+                     * Una scala sola, non due limiti separati.
+                     *
+                     * Limitando larghezza e altezza ognuna per conto
+                     * suo, una firma arrivata al bordo della colonna
+                     * smetteva di allargarsi e continuava a salire: e
+                     * una firma schiacciata non è più la firma di
+                     * nessuno.
+                     */
+                    const tope = Math.min(
+                        (anchoCol - 8) / img.width,
+                        ALTO_TRAZO / img.height
+                    )
+                    const escala = Math.min(natural * (a?.escala ?? 1), tope)
+
                     l.pagina.drawImage(img, {
-                        x,
-                        y: desde(l, 52),
+                        x: x + (a?.dx ?? 0),
+                        y: desde(l, 80 + (a?.dy ?? 0)),
                         width: img.width * escala,
                         height: img.height * escala,
                     })
@@ -586,7 +628,7 @@ async function firmas(
                 }
             }
 
-            l.y += 54
+            l.y += 82
             l.pagina.drawLine({
                 start: { x, y: desde(l) },
                 end: { x: x + anchoCol, y: desde(l) },
@@ -840,11 +882,23 @@ function paginaDePrueba(l: Lienzo, prueba: Prueba) {
     }
     l.y += 6
 
+    /**
+     * Quello che l'impronta dice davvero.
+     *
+     * Diceva: «qualunque cambiamento successivo fa sì che il documento
+     * smetta di riprodurre questa impronta». Vero fino a quando non
+     * tocchiamo noi l'impaginazione — e allora smette di riprodurla
+     * senza che nessuno abbia cambiato un dato.
+     *
+     * Su un foglio che qualcuno firma non si lascia una frase che è
+     * vera solo finché non facciamo manutenzione. Questa dice quello
+     * che l'impronta identifica, e basta.
+     */
     nota(
         l,
         'SHA-256 del documento tal y como se presentó a la firma. ' +
-            'Cualquier cambio posterior en los datos del expediente hace ' +
-            'que el documento deje de reproducir esta huella.'
+            'Identifica ese PDF exacto: dos ficheros con esta misma huella ' +
+            'son el mismo fichero.'
     )
 }
 
