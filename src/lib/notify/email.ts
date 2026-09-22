@@ -113,6 +113,22 @@ export function redactar(a: AvisoEstado, d: Destinatario) {
 /**
  * Manda — o registra, finché non c'è un trasporto.
  *
+ * ── COME SI ACCENDE ───────────────────────────────────────────────────
+ *
+ * Due variabili nell'ambiente del server, e niente altro nel codice:
+ *
+ *   EMAIL_API_KEY   la chiave del fornitore (Resend)
+ *   EMAIL_DESDE     il mittente, su un dominio verificato lì
+ *                   es. «CAES <avisos@tudominio.es>»
+ *
+ * Nessuna delle due porta il prefisso NEXT_PUBLIC_: con quello
+ * finirebbero nel pacchetto che scarica il browser, e una chiave di
+ * posta nel browser è una chiave di chiunque.
+ *
+ * Finché mancano, questa funzione registra nei log quello che avrebbe
+ * mandato e restituisce `false`. Così si vede che il richiamo è nel
+ * punto giusto senza scrivere a nessuno per sbaglio.
+ *
  * Restituisce `false` quando non ha mandato niente, così chi chiama può
  * decidere se è un problema o no. Non solleva eccezioni: una notifica che
  * non parte non deve far fallire l'approvazione di un fascicolo.
@@ -139,14 +155,51 @@ export async function enviar(a: AvisoEstado, d: Destinatario): Promise<boolean> 
         return false
     }
 
+    const desde = process.env.EMAIL_DESDE
+    if (!desde) {
+        console.info(
+            `[notifica non inviata — manca EMAIL_DESDE, il mittente verificato] a: ${d.email} · ${asunto}`
+        )
+        return false
+    }
+
     try {
-        // DA COLLEGARE: chiamata al fornitore.
-        console.info(`[notifica] a: ${d.email} · ${asunto}`)
-        void texto
+        // Resend: una POST e basta, niente SDK. Un pacchetto per
+        // costruire un oggetto JSON è un pacchetto da aggiornare per
+        // sempre. Cambiando fornitore si riscrive questa funzione e
+        // nient'altro: fuori di qui nessuno sa chi manda le email.
+        const r = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${process.env.EMAIL_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                from: desde,
+                to: [d.email],
+                subject: asunto,
+                text: texto,
+            }),
+            // Se il fornitore è lento non si tiene in ostaggio
+            // l'approvazione di un fascicolo.
+            signal: AbortSignal.timeout(10_000),
+        })
+
+        if (!r.ok) {
+            // Il corpo dell'errore è utile e non contiene segreti: dice
+            // cose tipo «dominio non verificato», che è esattamente il
+            // problema che si ha il primo giorno.
+            console.error(
+                `[notifica rifiutata dal fornitore] ${r.status} · ${(await r.text()).slice(0, 300)}`
+            )
+            return false
+        }
+
         return true
-    } catch {
+    } catch (e) {
         // Una notifica persa non deve mai far fallire l'operazione che
         // l'ha generata.
+        console.error('[notifica fallita]', e instanceof Error ? e.message : e)
         return false
     }
 }

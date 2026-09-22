@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# …tranne l'esempio, che non ha chiavi dentro: sono solo i nomi delle
+# variabili. Serve a chi installa il progetto per sapere cosa manca,
+# invece di scoprirlo da un errore.
+!.env.example
 
 # vercel
 .vercel

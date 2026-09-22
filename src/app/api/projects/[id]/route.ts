@@ -137,6 +137,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // verificato e un dato che qualcuno ribattera a mano.
     void llevarALaFicha(data, escritor)
 
+    // L'avviso all'installatore. Su questo percorso — quello con il
+    // database vero — non veniva nemmeno tentato: la chiamata esisteva
+    // solo nel ripiego della dimostrazione. Cioe funzionava solo dove
+    // non serviva.
+    if (body.status && debeAvisar(body.status)) {
+        void avisarAlInstalador(data, body.status, body.admin_feedback, escritor)
+    }
+
     // E quello che il sistema impara da questa revisione: se il lettore
     // aveva indovinato, e che SCOP ha quel modello di macchina. Vedi
     // src/lib/caes/aprendizaje.ts.
@@ -194,6 +202,56 @@ async function llevarALaFicha(
         await escritor.from('clientes').update(parche).eq('id', clienteId)
     } catch {
         /* la rubrica non deve far fallire una revisione */
+    }
+}
+
+
+/**
+ * Dice all'installatore che qualcosa e cambiato.
+ *
+ * ── PERCHE' L'INDIRIZZO SI CERCA QUI ──────────────────────────────────
+ *
+ * Perche l'espediente porta il NOME dell'installatore, non la sua
+ * email: `installer_name` e una stringa, e a una stringa non si scrive.
+ * L'indirizzo sta sul profilo, e senza questa ricerca `enviar()`
+ * riceveva la stringa vuota e registrava «notifica senza destinatario»
+ * per sempre.
+ *
+ * ── NON ASPETTATA E SENZA ECCEZIONI ───────────────────────────────────
+ *
+ * Come la rubrica e l'apprendimento: far fallire l'approvazione di un
+ * fascicolo perche una email non e partita sarebbe sproporzionato. Se
+ * non parte, resta nei log.
+ */
+async function avisarAlInstalador(
+    proyecto: { id?: string; client_name?: string; installer_id?: string | null } | null,
+    estado: string,
+    motivo: string | undefined,
+    escritor: Awaited<ReturnType<typeof createClient>>
+) {
+    try {
+        if (!proyecto?.installer_id) return
+
+        const { data: perfil } = await escritor
+            .from('profiles')
+            .select('email, name')
+            .eq('id', proyecto.installer_id)
+            .maybeSingle()
+
+        if (!perfil?.email) return
+
+        await enviar(
+            {
+                expedienteId: String(proyecto.id ?? ''),
+                clienteNombre: proyecto.client_name ?? 'tu cliente',
+                estado: estado as Parameters<typeof enviar>[0]['estado'],
+                motivo,
+                enlace: `/installer/project/${proyecto.id}`,
+            },
+            { email: perfil.email, nombre: perfil.name ?? undefined, rol: 'installer' }
+        )
+    } catch {
+        /* una notifica persa non fa fallire una revisione */
     }
 }
 
