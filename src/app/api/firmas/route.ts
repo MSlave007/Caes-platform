@@ -53,6 +53,15 @@ import {
 
 export const maxDuration = 60
 
+/**
+ * I modi ammessi, elencati.
+ *
+ * Arriva dal browser e finisce stampato nel registro di prova: senza
+ * elenco, chi manda la richiesta decide cosa si legge su un documento
+ * firmato.
+ */
+const METODOS = new Set<Metodo>(['trazo', 'escrito', 'guardada'])
+
 type Cuerpo = {
     id?: string
     plantilla?: string
@@ -215,7 +224,8 @@ export async function POST(request: Request) {
     const plantilla = plantillaPorId(String(body?.plantilla ?? '').trim())
     const rol = String(body?.rol ?? '').trim()
     const nombre = String(body?.nombre ?? '').trim().slice(0, 140)
-    const metodo: Metodo = body?.metodo === 'escrito' ? 'escrito' : 'trazo'
+    const metodoPedido = String(body?.metodo ?? '') as Metodo
+    const metodo: Metodo = METODOS.has(metodoPedido) ? metodoPedido : 'trazo'
 
     if (!id || !plantilla) {
         return NextResponse.json({ error: 'Falta el documento' }, { status: 400 })

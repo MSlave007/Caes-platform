@@ -804,3 +804,20 @@ alter table public.projects
 create unique index if not exists projects_firma_token_idx
   on public.projects (firma_token)
   where firma_token is not null;
+
+-- ── La firma guardada de quien revisa ───────────────────────────────
+--
+--  El cliente firma una vez en la vida. Quien revisa firma como
+--  Cesionario en CADA expediente —diez a la semana— y cada vez la
+--  vuelve a dibujar con el ratón, y cada vez le sale un poco distinta.
+--  Diez firmas distintas de la misma persona sobre el mismo tipo de
+--  contrato es justo lo que no interesa tener en un expediente.
+--
+--  Se guarda al firmar, con una casilla, no en una pantalla de ajustes:
+--  nadie va a cargarse la firma en el perfil antes de necesitarla.
+--
+--  Solo la de quien tiene cuenta. La del cliente no se guarda nunca —
+--  firma una vez, y su firma no es nuestra para conservarla.
+
+alter table public.profiles
+  add column if not exists firma_png text;

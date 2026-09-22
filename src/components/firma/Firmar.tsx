@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Allura, Caveat, Great_Vibes } from 'next/font/google'
-import { Check, Eraser, Loader2, PenLine, Type } from 'lucide-react'
+import { Check, Eraser, Loader2, PenLine, Trash2, Type, UserCheck } from 'lucide-react'
 
 /**
  * Il riquadro dove si firma.
@@ -53,7 +53,7 @@ const TINTA = '#16233b'
 
 const ALTO = 172
 
-export type Metodo = 'trazo' | 'escrito'
+export type Metodo = 'trazo' | 'escrito' | 'guardada'
 
 export default function Firmar({
     rol,
@@ -70,6 +70,16 @@ export default function Firmar({
     onFirmar: (firma: { png: string; nombre: string; metodo: Metodo }) => void
 }) {
     const [modo, setModo] = useState<Metodo>('trazo')
+    /**
+     * La firma salvata nel profilo, se ce n'è una.
+     *
+     * `undefined` mentre si cerca, `null` quando non c'è. I due stati
+     * non sono lo stesso: durante la ricerca non si può ancora dire che
+     * non c'è, e mostrare «guarda, non ne hai» per mezzo secondo a chi
+     * ne ha una è il modo di farlo disegnare per niente.
+     */
+    const [guardada, setGuardada] = useState<string | null | undefined>(undefined)
+    const [guardarla, setGuardarla] = useState(false)
     const [nombre, setNombre] = useState(nombreSugerido)
     const [caracter, setCaracter] = useState<(typeof CARACTERES)[number]['id']>('vibes')
     const [acepta, setAcepta] = useState(false)
@@ -114,6 +124,29 @@ export default function Firmar({
         window.addEventListener('resize', preparar)
         return () => window.removeEventListener('resize', preparar)
     }, [preparar])
+
+    /**
+     * Si cerca la firma salvata, e se c'è si parte da lì.
+     *
+     * Sulla pagina pubblica del cliente non c'è nessuna sessione, quindi
+     * non ne arriva nessuna e i modi restano due. Non c'è niente da
+     * spegnere: la funzione semplicemente non compare dove non serve.
+     */
+    useEffect(() => {
+        let vivo = true
+        fetch('/api/mi-firma')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => {
+                if (!vivo) return
+                const png = j?.data?.png ?? null
+                setGuardada(png)
+                if (png) setModo('guardada')
+            })
+            .catch(() => vivo && setGuardada(null))
+        return () => {
+            vivo = false
+        }
+    }, [])
 
     const punto = (e: React.PointerEvent<HTMLCanvasElement>) => {
         const c = lienzo.current
@@ -277,16 +310,51 @@ export default function Firmar({
 
     const firmar = async () => {
         if (ocupado) return
+
         const png =
-            modo === 'trazo' ? (lienzo.current ? recortar(lienzo.current) : null) : await escrito()
+            modo === 'guardada'
+                ? guardada
+                    ? `data:image/png;base64,${guardada}`
+                    : null
+                : modo === 'trazo'
+                  ? lienzo.current
+                      ? recortar(lienzo.current)
+                      : null
+                  : await escrito()
         if (!png) return
+
+        /**
+         * Salvarla non deve poter far fallire la firma.
+         *
+         * Sono due cose diverse: una obbliga, l'altra è una comodità.
+         * Se il profilo non si scrive, si è firmato lo stesso — e
+         * fermare la firma per non aver potuto salvare una preferenza
+         * sarebbe il tipo di errore che fa perdere un cliente a metà
+         * strada.
+         */
+        if (guardarla && modo !== 'guardada') {
+            await fetch('/api/mi-firma', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ png }),
+            }).catch(() => {
+                /* firmato comunque */
+            })
+        }
+
         onFirmar({ png, nombre: nombre.trim(), metodo: modo })
+    }
+
+    const olvidarla = async () => {
+        await fetch('/api/mi-firma', { method: 'DELETE' }).catch(() => {})
+        setGuardada(null)
+        setModo('trazo')
     }
 
     const listo =
         acepta &&
         nombre.trim().length > 1 &&
-        (modo === 'escrito' || hayTrazo) &&
+        (modo === 'escrito' || modo === 'guardada' || hayTrazo) &&
         !ocupado
 
     return (
@@ -299,6 +367,12 @@ export default function Firmar({
                 <div className="flex items-center gap-1 rounded-full border border-[var(--caes-line)] p-1">
                     {(
                         [
+                            // Solo se ce n'è una: un modo vuoto è un modo
+                            // che si prova, non funziona, e insegna a non
+                            // fidarsi degli altri due.
+                            ...(guardada
+                                ? [{ id: 'guardada' as const, t: 'Mi firma', icono: UserCheck }]
+                                : []),
                             { id: 'trazo' as const, t: 'Dibujarla', icono: PenLine },
                             { id: 'escrito' as const, t: 'Escribirla', icono: Type },
                         ]
@@ -333,7 +407,26 @@ export default function Firmar({
                 />
             </label>
 
-            {modo === 'trazo' ? (
+            {modo === 'guardada' && guardada ? (
+                <div className="mt-4">
+                    <div className="flex min-h-[7rem] items-center rounded-xl border border-[var(--caes-line)] bg-white px-6 py-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={`data:image/png;base64,${guardada}`}
+                            alt="Tu firma guardada"
+                            className="max-h-[72px] max-w-full object-contain object-left"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => void olvidarla()}
+                        className="mt-2.5 inline-flex items-center gap-1.5 text-[12.5px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-mal)] hover:underline"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Olvidar esta firma y hacer otra
+                    </button>
+                </div>
+            ) : modo === 'trazo' ? (
                 <div className="mt-4">
                     <div className="relative overflow-hidden rounded-xl border border-[var(--caes-line)] bg-white">
                         <canvas
@@ -400,6 +493,32 @@ export default function Firmar({
                         </button>
                     ))}
                 </div>
+            )}
+
+            {/**
+              * Salvarla si offre qui, non in una schermata di impostazioni.
+              *
+              * Nessuno va a caricarsi la firma nel profilo prima di
+              * averne avuto bisogno. Il momento in cui serve è questo, e
+              * sta sotto quella che ha appena fatto.
+              *
+              * Solo dove c'è una sessione: sulla pagina del cliente
+              * `guardada` resta `null` perché la rotta non risponde, e
+              * la casella non compare. Il cliente firma una volta nella
+              * vita, e la sua firma non è roba nostra da conservare.
+              */}
+            {modo !== 'guardada' && guardada === null && (
+                <label className="mt-5 flex cursor-pointer items-start gap-3">
+                    <input
+                        type="checkbox"
+                        checked={guardarla}
+                        onChange={(e) => setGuardarla(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--caes-green)]"
+                    />
+                    <span className="text-[13px] leading-[1.5] text-[var(--caes-mut)]">
+                        Guardar esta firma para la próxima vez.
+                    </span>
+                </label>
             )}
 
             {/* ── quello che fa di un tratto una firma ─────────────── */}

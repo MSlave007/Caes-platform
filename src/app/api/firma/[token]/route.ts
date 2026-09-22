@@ -45,6 +45,15 @@ import {
 
 export const maxDuration = 60
 
+/**
+ * I modi ammessi, elencati.
+ *
+ * Arriva dal browser e finisce stampato nel registro di prova: senza
+ * elenco, chi manda la richiesta decide cosa si legge su un documento
+ * firmato.
+ */
+const METODOS = new Set<Metodo>(['trazo', 'escrito', 'guardada'])
+
 export async function GET(
     _request: Request,
     { params }: { params: Promise<{ token: string }> }
@@ -105,7 +114,8 @@ export async function POST(
     } | null
 
     const nombre = String(body?.nombre ?? '').trim().slice(0, 140)
-    const metodo: Metodo = body?.metodo === 'escrito' ? 'escrito' : 'trazo'
+    const metodoPedido = String(body?.metodo ?? '') as Metodo
+    const metodo: Metodo = METODOS.has(metodoPedido) ? metodoPedido : 'trazo'
 
     if (nombre.length < 2) {
         return NextResponse.json({ error: 'Falta tu nombre' }, { status: 400 })
