@@ -17,7 +17,14 @@ export type StepDef = {
  * è ancora arrivata all'account. Va distinto da `saved`, altrimenti chi
  * cambia dispositivo scopre solo lì che non c'era.
  */
-export type SaveState = 'idle' | 'saving' | 'saved' | 'local' | 'error'
+/**
+ * `vacio` non e un errore.
+ *
+ * Premere «Guardar borrador» senza aver messo niente dentro non e una
+ * cosa andata storta: non c'e niente da salvare. Dirlo «No se ha podido
+ * guardar» manderebbe qualcuno a cercare un problema che non esiste.
+ */
+export type SaveState = 'idle' | 'saving' | 'saved' | 'local' | 'error' | 'vacio'
 
 /**
  * Cornice del percorso: passi navigabili in alto, stato del salvataggio a
@@ -151,6 +158,8 @@ export default function WizardShell({
                     >
                         {save === 'error'
                             ? 'No se ha podido guardar.'
+                            : save === 'vacio'
+                            ? 'Todavía no hay nada que guardar: sube un archivo o ponle nombre.'
                             : save === 'local'
                                 ? 'Guardado en este dispositivo. Lo subimos a tu cuenta en cuanto haya conexión.'
                                 : savedAt

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, Loader2, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowRight, ChevronDown, Loader2, Plus, Search, Trash2 } from 'lucide-react'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
 import TeToca, { type Pendiente } from '@/components/platform/TeToca'
 import { esperaAlInstalador, estado } from '@/lib/caes/status'
@@ -87,6 +87,36 @@ export default function InstallerDashboard() {
                 p.status?.toLowerCase().includes(q)
         )
     }, [projects, search])
+
+    /**
+     * Vivi e chiusi, separati.
+     *
+     * Erano tutti in fila. Con ventidue espedienti gli otto gia
+     * incassati stavano in mezzo al lavoro di oggi; con cento la lista
+     * non si usa piu. «Chiuso» non vuol dire «da nascondere», vuol dire
+     * «non e di oggi»: resta a un clic, con il conto scritto sopra.
+     *
+     * Lo dice il modello degli stati, non un elenco a parte:
+     * `terminal` e vero per «Cobrado y repartido» e «Rechazado».
+     */
+    const [vivos, cerrados] = useMemo(() => {
+        const a: Project[] = []
+        const b: Project[] = []
+        for (const p of filtered) {
+            ;(estado(normalize(p.status)).terminal ? b : a).push(p)
+        }
+        return [a, b]
+    }, [filtered])
+
+    /**
+     * Cercando si guardano tutti.
+     *
+     * Chi scrive un nome sta cercando una cosa precisa, e nasconderla
+     * perche e chiusa vorrebbe dire far credere che non esiste.
+     */
+    const buscando = search.trim().length > 0
+    const [verCerrados, setVerCerrados] = useState(false)
+    const mostrarCerrados = buscando || verCerrados
 
     /**
      * Quelli fermi in attesa di lui.
@@ -285,74 +315,141 @@ export default function InstallerDashboard() {
                     ) : filtered.length === 0 ? (
                         <EmptyState searching={search.length > 0} />
                     ) : (
-                        <ul className="flex flex-col gap-3">
-                            {filtered.map((p, i) => (
-                                <motion.li
-                                    key={p.id}
-                                    initial={{ opacity: 0, y: 12 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.5, delay: Math.min(i, 8) * 0.04, ease: EASE }}
-                                >
-                                    <Link
-                                        href={`/installer/project/${p.id}`}
-                                        className="group grid grid-cols-1 items-center gap-4 rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-5 transition-all duration-300 hover:border-[var(--caes-ink)]/25 hover:shadow-[0_18px_40px_-26px_rgba(6,35,26,.35)] sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:p-6"
-                                    >
-                                        <div className="min-w-0">
-                                            <h2 className="truncate text-[16px] font-semibold tracking-[-0.02em]">
-                                                {p.client_name || 'Sin nombre'}
-                                            </h2>
-                                            <p className="mt-1 truncate text-[13px] text-[var(--caes-mut)]">
-                                                {p.address || 'Sin dirección'}
-                                            </p>
+                        <>
+                            {vivos.length > 0 && (
+                                <ul className="flex flex-col gap-3">
+                                    {vivos.map((p, i) => (
+                                        <Fila key={p.id} p={p} i={i} />
+                                    ))}
+                                </ul>
+                            )}
 
-                                            {/* Di chi e' la palla adesso.
-                                                La pastiglia dice in che STATO e',
-                                                che non e' la stessa domanda: da
-                                                «Aprobado» non si capisce se c'e'
-                                                qualcosa da fare o se si aspetta.
-                                                Questa riga risponde a quella. */}
-                                            {(() => {
-                                                const e = estado(normalize(p.status))
-                                                const mio = e.actor === 'installer' && normalize(p.status) !== 'draft'
-                                                return (
-                                                    <p
-                                                        className={`mt-2 truncate text-[12.5px] ${mio
-                                                            ? 'font-medium text-[var(--caes-falta-ink)]'
-                                                            : 'text-[var(--caes-faint)]'
-                                                            }`}
-                                                    >
-                                                        {mio
-                                                            ? 'Te toca a ti'
-                                                            : e.actor === 'agency'
-                                                                ? 'Lo está revisando la agencia'
-                                                                : e.actor === 'external'
-                                                                    ? 'En trámite con el sujeto delegado'
-                                                                    : 'Cerrado'}
-                                                    </p>
-                                                )
-                                            })()}
-                                        </div>
+                            {cerrados.length > 0 && (
+                                <div className={vivos.length > 0 ? 'mt-8' : ''}>
+                                    {/*
+                                        Il bottone dice quanti sono anche da
+                                        chiuso: «Cerrados» da solo non fa
+                                        sapere se dietro c'e uno o quaranta.
+                                    */}
+                                    {!buscando && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setVerCerrados((v) => !v)}
+                                            aria-expanded={verCerrados}
+                                            className="flex items-center gap-2 text-[13px] text-[var(--caes-mut)] transition-colors hover:text-[var(--caes-ink)]"
+                                        >
+                                            <ChevronDown
+                                                className={`h-4 w-4 transition-transform ${
+                                                    verCerrados ? 'rotate-180' : ''
+                                                }`}
+                                            />
+                                            {cerrados.length}{' '}
+                                            {cerrados.length === 1
+                                                ? 'expediente cerrado'
+                                                : 'expedientes cerrados'}
+                                        </button>
+                                    )}
 
-                                        <span className="font-mono text-[12px] text-[var(--caes-faint)]">
-                                            {formatDate(p.project_date || p.created_at)}
-                                        </span>
-
-                                        <span className="font-mono tabular text-[15px] font-medium sm:w-[110px] sm:text-right">
-                                            {p.savings_eur ? eur(p.savings_eur) : '—'}
-                                        </span>
-
-                                        <span className="flex items-center gap-4">
-                                            <StatusChip status={p.status} />
-                                            <ArrowRight className="hidden h-4 w-4 shrink-0 text-[var(--caes-faint)] transition-transform duration-300 group-hover:translate-x-1 group-hover:text-[var(--caes-ink)] sm:block" />
-                                        </span>
-                                    </Link>
-                                </motion.li>
-                            ))}
-                        </ul>
+                                    {mostrarCerrados && (
+                                        <ul
+                                            className={`flex flex-col gap-3 ${
+                                                buscando ? '' : 'mt-4'
+                                            }`}
+                                        >
+                                            {cerrados.map((p, i) => (
+                                                <Fila key={p.id} p={p} i={i} apagado />
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
         </div>
+    )
+}
+
+/**
+ * Una riga della lista.
+ *
+ * Serviva in due posti — i vivi e i chiusi — e ricopiarla sarebbe il
+ * modo in cui fra un mese le due liste mostrano cose diverse.
+ *
+ * `apagado` la smorza: i chiusi si leggono, ma non devono pesare quanto
+ * il lavoro di oggi.
+ */
+function Fila({
+    p,
+    i,
+    apagado,
+}: {
+    p: Project
+    i: number
+    apagado?: boolean
+}) {
+    const e = estado(normalize(p.status))
+    const mio = e.actor === 'installer' && normalize(p.status) !== 'draft'
+
+    return (
+        <motion.li
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: Math.min(i, 8) * 0.04, ease: EASE }}
+        >
+            <Link
+                href={`/installer/project/${p.id}`}
+                className={`group grid grid-cols-1 items-center gap-4 rounded-2xl border border-[var(--caes-line)] p-5 transition-all duration-300 hover:border-[var(--caes-ink)]/25 hover:shadow-[0_18px_40px_-26px_rgba(6,35,26,.35)] sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:p-6 ${
+                    apagado
+                        ? 'bg-[var(--caes-panel)]/55 hover:bg-[var(--caes-panel)]'
+                        : 'bg-[var(--caes-panel)]'
+                }`}
+            >
+                <div className="min-w-0">
+                    <h2 className="truncate text-[16px] font-semibold tracking-[-0.02em]">
+                        {p.client_name || 'Sin nombre'}
+                    </h2>
+                    <p className="mt-1 truncate text-[13px] text-[var(--caes-mut)]">
+                        {p.address || 'Sin dirección'}
+                    </p>
+
+                    {/* Di chi e' la palla adesso.
+                        La pastiglia dice in che STATO e', che non e' la
+                        stessa domanda: da «Aprobado» non si capisce se
+                        c'e' qualcosa da fare o se si aspetta. Questa
+                        riga risponde a quella. */}
+                    <p
+                        className={`mt-2 truncate text-[12.5px] ${
+                            mio
+                                ? 'font-medium text-[var(--caes-falta-ink)]'
+                                : 'text-[var(--caes-faint)]'
+                        }`}
+                    >
+                        {mio
+                            ? 'Te toca a ti'
+                            : e.actor === 'agency'
+                              ? 'Lo está revisando la agencia'
+                              : e.actor === 'external'
+                                ? 'En trámite con el sujeto delegado'
+                                : 'Cerrado'}
+                    </p>
+                </div>
+
+                <span className="font-mono text-[12px] text-[var(--caes-faint)]">
+                    {formatDate(p.project_date || p.created_at)}
+                </span>
+
+                <span className="font-mono tabular text-[15px] font-medium sm:w-[110px] sm:text-right">
+                    {p.savings_eur ? eur(p.savings_eur) : '—'}
+                </span>
+
+                <span className="flex items-center gap-4">
+                    <StatusChip status={p.status} />
+                    <ArrowRight className="hidden h-4 w-4 shrink-0 text-[var(--caes-faint)] transition-transform duration-300 group-hover:translate-x-1 group-hover:text-[var(--caes-ink)] sm:block" />
+                </span>
+            </Link>
+        </motion.li>
     )
 }
 

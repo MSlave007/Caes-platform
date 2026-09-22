@@ -23,6 +23,7 @@ import {
     loadDraft,
     nuevoId,
     saveDraft,
+    estaVacia,
     timeAgo,
     type Draft,
 } from '@/lib/draft'
@@ -186,8 +187,8 @@ function Documentos() {
         (next?: Partial<{ role: Role; step: number; files: FileMap; nombre: string }>) => {
             const v = ahora.current
             if (!v.id) return
-            setSave('saving')
-            void guardar({
+
+            const carga = {
                 id: v.id,
                 nombre: next?.nombre ?? v.nombre,
                 role: next?.role ?? v.role,
@@ -211,7 +212,24 @@ function Documentos() {
                         // riaprendo la bozza sembrerebbe pieno e vuoto insieme.
                         .filter(([, arr]) => (arr as unknown[]).length > 0)
                 ),
-            })
+            }
+
+            /**
+             * Una bozza senza niente dentro non si salva.
+             *
+             * Aprire questa pagina e cambiare passo bastava a crearne
+             * una: l'elenco «Sin terminar» si riempiva di righe tutte
+             * uguali con zero file, e in mezzo ci stava anche il lavoro
+             * vero. Una lista in cui quasi niente vuol dire qualcosa e
+             * una lista che si smette di leggere.
+             */
+            if (estaVacia(carga)) {
+                setSave('vacio')
+                return
+            }
+
+            setSave('saving')
+            void guardar(carga)
         },
         [guardar]
     )

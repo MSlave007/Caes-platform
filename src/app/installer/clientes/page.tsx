@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Loader2, Plus, Search, UserRound } from 'lucide-react'
 import FichaClienteForm, {
@@ -115,6 +115,21 @@ export default function ClientesPage() {
 
     const conAbiertos = clientes.filter((c) => (c.abiertos ?? 0) > 0).length
 
+    /**
+     * Dove finisce il lavoro vivo.
+     *
+     * L'elenco e gia ordinato con chi ha qualcosa di aperto davanti, ma
+     * senza un segno le due meta si leggevano come una lista sola: il
+     * titolo diceva «11 con algo en marcha» e sotto c'erano sedici
+     * schede, senza niente che spiegasse le altre cinque.
+     *
+     * Un separatore, non un nascondiglio: un cliente senza niente di
+     * aperto resta un cliente da chiamare. E il contrario di quello che
+     * si fa con un espediente chiuso, che invece e finito.
+     */
+    const primerDormido = lista.findIndex((c) => (c.abiertos ?? 0) === 0)
+    const hayCorte = primerDormido > 0 && primerDormido < lista.length
+
     return (
         <div className="flex flex-col gap-9">
             {/* ------------------------------------------------ testa */}
@@ -124,7 +139,7 @@ export default function ClientesPage() {
                     <h1 className="mt-4 text-balance text-[clamp(28px,3.6vw,40px)] font-semibold leading-[1.06] tracking-[-0.038em]">
                         {conAbiertos > 0 ? (
                             <>
-                                {conAbiertos} con algo{' '}
+                                {clientes.length} clientes, {conAbiertos} con algo{' '}
                                 <em className="serif-accent">en marcha</em>.
                             </>
                         ) : clientes.length > 0 ? (
@@ -197,10 +212,22 @@ export default function ClientesPage() {
                 </div>
             ) : (
                 <ul className="grid gap-3 sm:grid-cols-2">
-                    {lista.map((c) => {
+                    {lista.map((c, i) => {
                         const abiertos = c.abiertos ?? 0
                         return (
-                            <li key={c.id}>
+                            <Fragment key={c.id}>
+                            {hayCorte && i === primerDormido && (
+                                <li
+                                    className="mt-4 flex items-center gap-4 sm:col-span-2"
+                                    aria-hidden
+                                >
+                                    <span className="label-mono shrink-0 text-[var(--caes-faint)]">
+                                        Sin nada abierto · {lista.length - primerDormido}
+                                    </span>
+                                    <span className="h-px flex-1 bg-[var(--caes-line)]" />
+                                </li>
+                            )}
+                            <li>
                                 <Link
                                     href={`/installer/clientes/${c.id}`}
                                     className={`group flex h-full flex-col gap-4 rounded-2xl border bg-[var(--caes-panel)] p-5 transition-all duration-300 hover:shadow-[0_18px_40px_-28px_rgba(6,35,26,.35)] ${abiertos > 0
@@ -256,6 +283,7 @@ export default function ClientesPage() {
                                     </div>
                                 </Link>
                             </li>
+                            </Fragment>
                         )
                     })}
                 </ul>

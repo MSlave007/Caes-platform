@@ -74,8 +74,19 @@ export function nuevoId(): string {
  * compila non ne ha scritto uno. La data da sola non basta — «Borrador»
  * per tre volte non distingue niente — ma è meglio del vuoto.
  */
+/**
+ * Il principio del nome automatico.
+ *
+ * Sta in una costante perché `estaVacia()` deve poter riconoscere un
+ * nome che **non ha scritto nessuno**: la bozza si battezza da sola
+ * appena nasce, quindi «ha un nome» non vuol dire «ha qualcosa dentro».
+ * È esattamente l'errore per cui le bozze vuote continuavano a
+ * comparire dopo il primo tentativo di toglierle.
+ */
+export const SIN_NOMBRE = 'Sin nombre'
+
 export function nombrePorDefecto(d = new Date()): string {
-    return `Sin nombre · ${d.toLocaleDateString('es-ES', {
+    return `${SIN_NOMBRE} · ${d.toLocaleDateString('es-ES', {
         day: 'numeric',
         month: 'short',
     })}`
@@ -227,7 +238,20 @@ export async function listDrafts(): Promise<Draft[]> {
         }
     }
 
-    const lista = [...mapa.values()].sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+    const todas = [...mapa.values()].sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+
+    /**
+     * Le vuote di prima si tolgono di mezzo.
+     *
+     * Non si perde niente: dentro non c'e nessun file, nessun nome,
+     * nessun cliente e nessuna nota — solo l'ora in cui qualcuno ha
+     * premuto «Continuar». Si cancellano anche dal server, se no
+     * tornano al prossimo giro.
+     */
+    const lista = todas.filter((d) => !estaVacia(d))
+    for (const d of todas) {
+        if (estaVacia(d)) void deleteDraft(d.id)
+    }
 
     // Quelle che il server non ha ancora: si mandano adesso, senza far
     // aspettare chi sta guardando la pagina.
@@ -264,6 +288,16 @@ export async function saveDraft(d: Omit<Draft, 'savedAt'>): Promise<Draft | null
     // Prima il locale: è la scrittura che non fallisce per colpa della rete.
     const lista = leerLocal()
     const i = lista.findIndex((x) => x.id === d.id)
+
+    /**
+     * Una bozza vuota non si CREA. Aggiornarne una che esiste gia si
+     * puo: se qualcuno ha tolto tutto quello che aveva messo, e una sua
+     * decisione, e cancellargliela sotto le dita sarebbe peggio.
+     *
+     * Il controllo sta qui e non nella pagina apposta: le chiamate sono
+     * sei, e prima o poi qualcuna se ne dimentica.
+     */
+    if (i < 0 && estaVacia(full)) return null
     if (i >= 0) lista[i] = full
     else lista.push(full)
     if (!escribirLocal(lista)) return null
@@ -286,6 +320,36 @@ export async function deleteDraft(id: string): Promise<boolean> {
         // ricomparire che sparire dall'account senza che nessuno lo sappia.
     }
     return ok
+}
+
+/**
+ * Una bozza senza niente dentro.
+ *
+ * ── PERCHE' SERVE ─────────────────────────────────────────────────────
+ *
+ * Aprire `/documentos` e premere «Continuar» due volte bastava a creare
+ * una bozza: si salva a ogni cambio di passo. Il risultato era un
+ * elenco pieno di «Sin nombre · 21 sept — 0 archivos», tutte uguali,
+ * fra cui stava anche il lavoro vero.
+ *
+ * Un elenco in cui la maggior parte delle righe non vuol dire niente e
+ * un elenco che si smette di leggere — e allora anche la riga buona e
+ * persa.
+ *
+ * ── COS'E' «NIENTE» ───────────────────────────────────────────────────
+ *
+ * Nessun file, nessun nome scritto a mano, nessun cliente scelto,
+ * nessuna nota. Il passo a cui si e arrivati non conta: essere al passo
+ * due senza aver caricato niente non e lavoro fatto, e camminare.
+ */
+export function estaVacia(d: Pick<Draft, 'nombre' | 'files' | 'notas' | 'cliente_id'>): boolean {
+    // Un nome conta solo se l'ha scritto qualcuno. Quello automatico
+    // («Sin nombre · 21 sept») lo mette `normalizar()` alla nascita.
+    const nombre = d.nombre?.trim() ?? ''
+    if (nombre && !nombre.startsWith(SIN_NOMBRE)) return false
+    if (d.notas?.trim()) return false
+    if (d.cliente_id) return false
+    return Object.values(d.files ?? {}).every((v) => !v || v.length === 0)
 }
 
 /** Quanti file ci sono dentro. Serve a mostrare l'avanzamento. */
