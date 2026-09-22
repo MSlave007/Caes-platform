@@ -7,6 +7,7 @@ import Avisos, { type Aviso } from '@/components/admin/Avisos'
 import DocumentReview from '@/components/admin/DocumentReview'
 import {
     CAMPOS,
+    senales,
     type Extraccion,
 } from '@/lib/caes/extraction'
 import type { EstadoId } from '@/lib/caes/status'
@@ -383,6 +384,24 @@ export default function AdminReviewDetail({
             )
         }
 
+        // I controlli automatici, in cima. Stavano solo in fondo:
+        // chi apriva il fascicolo non sapeva che c'era un NIF che non
+        // torna finche non ci arrivava scorrendo, e a quel punto aveva
+        // gia spuntato dodici campi.
+        const noCuadran = senales(extraccion).filter((s) => s.estado === 'alarma')
+        if (noCuadran.length > 0) {
+            lista.push({
+                tipo: 'falta',
+                titulo:
+                    noCuadran.length === 1
+                        ? 'Una comprobación no cuadra'
+                        : `${noCuadran.length} comprobaciones no cuadran`,
+                detalle:
+                    'Lo dicen los documentos entre ellos. Está abajo, con los dos valores al lado.',
+                piezas: noCuadran.map((s) => s.titulo),
+            })
+        }
+
         if (missing.length > 0) {
             lista.push({
                 tipo: 'falta',
@@ -398,7 +417,7 @@ export default function AdminReviewDetail({
         }
 
         return lista
-    }, [belowMinimum, sinCalcular, missing, cuantos, p?.savings_pct])
+    }, [belowMinimum, sinCalcular, missing, cuantos, p?.savings_pct, extraccion])
 
 
     // Ripartizione: l'installatore ha bloccato la sua quota all'invio;

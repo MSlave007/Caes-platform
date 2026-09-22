@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
+import { ordenarPorRiesgo, type Nivel } from '@/lib/caes/riesgo'
 import { useSearchParams } from 'next/navigation'
 import { ESTADOS, type EstadoId } from '@/lib/caes/status'
 import { motion } from 'framer-motion'
@@ -77,6 +78,15 @@ function ColaDeRevision() {
             )
         })
     }, [projects, source, status, q])
+
+    /**
+     * La coda in ordine di lavoro, non di arrivo.
+     *
+     * Vedi src/lib/caes/riesgo.ts: chi rivede, aprendo a caso, non sa
+     * mai se sta per perdere due minuti o mezz'ora. Separati, i puliti
+     * si chiudono di fila e il tempo vero va dove serve.
+     */
+    const enOrden = useMemo(() => ordenarPorRiesgo(filtered), [filtered])
 
     const pending = projects.filter((p) =>
         normalize(p.status) === 'submitted'
@@ -174,18 +184,82 @@ function ColaDeRevision() {
                 </div>
             ) : (
                 <ul className="flex flex-col gap-3">
-                    {filtered.map((p, i) => (
-                        <motion.li
-                            key={p.id}
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.45, delay: Math.min(i, 8) * 0.04, ease: EASE }}
-                        >
-                            <ProjectRow p={p} />
-                        </motion.li>
-                    ))}
+                    {enOrden.map(({ proyecto: p, riesgo }, i) => {
+                        // Il titolo del gruppo compare solo quando il
+                        // livello cambia: tre intestazioni fisse su una
+                        // coda di quattro fascicoli sarebbero piu
+                        // rumore che ordine.
+                        const anterior = enOrden[i - 1]?.riesgo.nivel
+                        return (
+                            <motion.li
+                                key={p.id}
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{
+                                    duration: 0.45,
+                                    delay: Math.min(i, 8) * 0.04,
+                                    ease: EASE,
+                                }}
+                            >
+                                {riesgo.nivel !== anterior && (
+                                    <TituloDeGrupo
+                                        nivel={riesgo.nivel}
+                                        cuantos={
+                                            enOrden.filter(
+                                                (x) => x.riesgo.nivel === riesgo.nivel
+                                            ).length
+                                        }
+                                        primero={i === 0}
+                                    />
+                                )}
+                                <ProjectRow p={p} />
+                                {riesgo.motivos.length > 0 && (
+                                    <p className="mt-1.5 pl-1 text-[12.5px] text-[var(--caes-falta-ink)]">
+                                        {riesgo.motivos.join(' · ')}
+                                    </p>
+                                )}
+                            </motion.li>
+                        )
+                    })}
                 </ul>
             )}
+        </div>
+    )
+}
+
+const GRUPOS: Record<Nivel, { titulo: string; hint: string }> = {
+    limpio: {
+        titulo: 'Sin nada pendiente',
+        hint: 'Todas las carpetas, ninguna comprobación en rojo. Míralos y confirma.',
+    },
+    mirar: {
+        titulo: 'Hay algo que mirar',
+        hint: 'Algo no cuadra entre documentos, o una lectura no es segura.',
+    },
+    parado: {
+        titulo: 'Faltan documentos',
+        hint: 'No se pueden aprobar aunque los abras: hay que pedírselos al instalador.',
+    },
+}
+
+function TituloDeGrupo({
+    nivel,
+    cuantos,
+    primero,
+}: {
+    nivel: Nivel
+    cuantos: number
+    primero: boolean
+}) {
+    const g = GRUPOS[nivel]
+    return (
+        <div className={primero ? 'mb-3' : 'mb-3 mt-8'}>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="label-mono text-[var(--caes-faint)]">
+                    {g.titulo} · {cuantos}
+                </span>
+                <span className="text-[12.5px] text-[var(--caes-faint)]">{g.hint}</span>
+            </div>
         </div>
     )
 }
