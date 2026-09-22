@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Phone } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { mockDb } from '@/lib/mockDb'
 import { vistaParaCliente, type VistaCliente } from '@/lib/caes/seguimiento'
@@ -27,6 +28,48 @@ import type { Project } from '@/lib/mockDb'
  */
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * Fuori da Google.
+ *
+ * L'indirizzo non si indovina, e contro chi prova a caso basta. Non
+ * basta contro un motore di ricerca che trova il link da qualche parte
+ * — una mail inoltrata, un messaggio in un gruppo — perche quello che
+ * c'e sopra e l'indirizzo di casa di una persona, chi gli ha fatto il
+ * lavoro e quanti soldi gli tocca. Nessuna di queste tre cose e sua
+ * intenzione mettere su internet.
+ *
+ * Il titolo serve a un'altra cosa: questa pagina si tiene nei
+ * preferiti, e «CAES — Certificados...» fra venti schede non si
+ * ritrova.
+ */
+export const metadata = {
+    title: 'Tu ayuda · CAES',
+    description: 'El estado de tu ayuda por la instalación.',
+    robots: { index: false, follow: false, nocache: true },
+}
+
+/**
+ * Il telefono di chi ha fatto il lavoro.
+ *
+ * Non e' un dato che si sta rivelando: il cliente lo ha gia', ce l'ha
+ * in rubrica da quando ha chiamato per il preventivo. Serve solo a non
+ * farglielo cercare — la pagina toglie telefonate, ma quando la
+ * telefonata serve dev'essere un tocco, non una caccia.
+ */
+async function telefonoDelInstalador(
+    installerId: string | null | undefined
+): Promise<string | null> {
+    if (!installerId) return null
+    const admin = createAdminClient()
+    if (!admin) return null
+    const { data } = await admin
+        .from('profiles')
+        .select('phone')
+        .eq('id', installerId)
+        .maybeSingle()
+    return data?.phone ?? null
+}
 
 async function buscar(token: string): Promise<Project | null> {
     // Le regole di riga su `projects` dicono «solo i tuoi», e qui non c'è
@@ -58,12 +101,22 @@ export default async function Seguimiento({
 
     if (!proyecto) return <NoHayNada />
 
-    return <Ficha v={vistaParaCliente(proyecto)} />
+    const telefono = await telefonoDelInstalador(
+        (proyecto as { installer_id?: string }).installer_id
+    )
+
+    return <Ficha v={vistaParaCliente(proyecto)} telefono={telefono} />
 }
 
 /* ------------------------------------------------------------ la ficha */
 
-function Ficha({ v }: { v: VistaCliente }) {
+function Ficha({
+    v,
+    telefono,
+}: {
+    v: VistaCliente
+    telefono: string | null
+}) {
     const fecha = new Intl.DateTimeFormat('es-ES', {
         day: 'numeric',
         month: 'long',
@@ -131,6 +184,16 @@ function Ficha({ v }: { v: VistaCliente }) {
                         // che non darne nessuna: diventa quella che il
                         // cliente ricorda.
                         apagado={v.suParte === null}
+                        // Una cifra senza una data e' una telefonata
+                        // garantita: il cliente la legge e la domanda
+                        // successiva e' sempre «e cuando?».
+                        nota={
+                            v.suParte === null
+                                ? undefined
+                                : v.cerrado
+                                  ? 'Ya ingresado'
+                                  : 'Se ingresa una sola vez, cuando el certificado se venda'
+                        }
                     />
                 </dl>
 
@@ -139,6 +202,18 @@ function Ficha({ v }: { v: VistaCliente }) {
                         Esto ya está cerrado. Si el ingreso no te ha llegado, habla
                         con tu instalador: es quien tiene el expediente.
                     </p>
+                )}
+
+                {/* La telefonata, quando serve davvero: un tocco, non
+                    una caccia al numero in rubrica. */}
+                {telefono && (
+                    <a
+                        href={`tel:${telefono.replace(/[^0-9+]/g, '')}`}
+                        className="mt-10 inline-flex items-center gap-2.5 rounded-full border border-[var(--caes-line)] bg-[var(--caes-panel)] px-5 py-3 text-[14.5px] transition-colors hover:border-[var(--caes-ink)]/40"
+                    >
+                        <Phone className="h-4 w-4 text-[var(--caes-mut)]" />
+                        Llamar a {v.instalador ?? 'tu instalador'}
+                    </a>
                 )}
 
                 <p className="mt-14 max-w-[52ch] text-[13.5px] leading-[1.6] text-[var(--caes-faint)]">
@@ -155,10 +230,12 @@ function Dato({
     etiqueta,
     valor,
     apagado,
+    nota,
 }: {
     etiqueta: string
     valor: string
     apagado?: boolean
+    nota?: string
 }) {
     return (
         <div className="bg-[var(--caes-panel)] px-6 py-5">
@@ -170,6 +247,11 @@ function Dato({
             >
                 {valor}
             </dd>
+            {nota && (
+                <p className="mt-1.5 text-[12.5px] leading-[1.45] text-[var(--caes-faint)]">
+                    {nota}
+                </p>
+            )}
         </div>
     )
 }
