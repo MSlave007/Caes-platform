@@ -22,6 +22,8 @@ import {
     guardarEnProyecto,
     numeroCorto,
 } from '@/lib/caes/servidor'
+import { firmado } from '@/lib/caes/firma'
+import { guardarFirmado } from '@/lib/caes/archivoFirmado'
 
 /**
  * Raccogliere una firma.
@@ -210,6 +212,9 @@ function resumir(f: Firma) {
         cuando: enPalabras(f.fecha),
         png: f.png,
         ajuste: f.ajuste,
+        // Non il percorso, solo se c'è: il percorso nel deposito non
+        // serve a nessuno in un elenco a schermo.
+        hayCopia: Boolean(f.archivo),
     }
 }
 
@@ -349,6 +354,25 @@ export async function POST(request: Request) {
             huellaDatos: huellaDeDatos(datos),
             firmas: [...(previo?.firmas ?? []).filter((f) => f.rol !== rol), firma],
         }
+
+        /**
+         * Il foglio com'è adesso, messo da parte.
+         *
+         * Dopo aver composto il registro, perché la copia deve
+         * contenere anche questa firma. Se il deposito non risponde si
+         * va avanti: la firma vale, la copia è un di più.
+         */
+        try {
+            const copia = await firmado(plantilla, datos, expediente, registro)
+            const ruta = await guardarFirmado(id, plantilla.id, rol, copia)
+            if (ruta) {
+                firma.archivo = ruta
+                firma.huellaArchivo = huella(copia)
+            }
+        } catch (error) {
+            console.error('archivo de la firma:', error)
+        }
+
         todas[plantilla.id] = registro
 
         if (!(await guardarEnProyecto(id, { firmas: todas }))) {

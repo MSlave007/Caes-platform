@@ -20,7 +20,11 @@ import {
     datosDelExpediente,
     guardarEnProyecto,
     numeroCorto,
+    revisores,
 } from '@/lib/caes/servidor'
+import { firmado } from '@/lib/caes/firma'
+import { guardarFirmado } from '@/lib/caes/archivoFirmado'
+import { avisarFirmado } from '@/lib/notify/email'
 
 /**
  * La porta per firmare senza entrare.
@@ -172,6 +176,24 @@ export async function POST(
             huellaDatos: huellaDeDatos(datos),
             firmas: [...(previo?.firmas ?? []), firma],
         }
+
+        // Il foglio com'era quando l'ha letto lui, messo da parte.
+        try {
+            const copia = await firmado(plantilla, datos, expediente, registro)
+            const ruta = await guardarFirmado(
+                String(pedido.p.id),
+                pedido.plantillaId,
+                pedido.rol,
+                copia
+            )
+            if (ruta) {
+                firma.archivo = ruta
+                firma.huellaArchivo = huella(copia)
+            }
+        } catch (error) {
+            console.error('archivo de la firma:', error)
+        }
+
         todas[pedido.plantillaId] = registro
 
         /**
@@ -195,6 +217,26 @@ export async function POST(
                 { status: 502 }
             )
         }
+
+        /**
+         * E si avvisa chi rivede.
+         *
+         * Dopo aver salvato, e senza aspettarlo: un avviso che non parte
+         * non deve far fallire una firma che è già registrata. Il
+         * cliente ha finito, e quello che succede dopo è affare nostro.
+         */
+        void avisarFirmado(
+            {
+                expedienteId: expediente,
+                documento: plantilla.nombre,
+                firmante: nombre,
+                rol: pedido.rol,
+                enlace: `/admin/review/${pedido.p.id}/documentos`,
+            },
+            await revisores()
+        ).catch(() => {
+            /* registrato nei log da `mandar` */
+        })
 
         return NextResponse.json({
             data: { cuando: enPalabras(firma.fecha), documento: plantilla.nombre },

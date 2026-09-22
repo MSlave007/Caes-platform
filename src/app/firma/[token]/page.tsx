@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
-import { Check, Download, FileText, Loader2 } from 'lucide-react'
+import { Check, Download, FileText, Loader2, Maximize2 } from 'lucide-react'
 import Firmar from '@/components/firma/Firmar'
 
 /**
@@ -157,8 +157,12 @@ export default function FirmaPublica({
                     {estado.queEs}
                 </p>
 
+                {/* Una riga scritta a mano da chi rivede, non un
+                    allarme: in ambra sembrava che ci fosse un problema
+                    con il documento. Un filo verde a lato basta a dire
+                    «questo te lo scrive una persona». */}
                 {estado.nota && (
-                    <p className="mt-6 rounded-xl border border-[var(--caes-falta)]/50 bg-[var(--caes-falta-bg)] px-4 py-3.5 text-[14px] leading-[1.55] text-[var(--caes-falta-deep)]">
+                    <p className="mt-6 border-l-2 border-[var(--caes-green)] bg-[var(--caes-panel)] px-4 py-3.5 text-[14.5px] leading-[1.55]">
                         {estado.nota}
                     </p>
                 )}
@@ -180,14 +184,28 @@ export default function FirmaPublica({
                                     <FileText className="h-3.5 w-3.5" />
                                     Léelo antes de firmar
                                 </p>
-                                <a
-                                    href={`/api/firma/${token}/pdf`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hidden text-[13px] text-[var(--caes-mut)] underline underline-offset-4 transition-colors hover:text-[var(--caes-ink)] sm:inline"
-                                >
-                                    Abrirlo aparte o guardarlo
-                                </a>
+                                {/* Scaricarlo è un bottone, non una riga
+                                    di testo: è il documento che quella
+                                    persona si tiene, e tenerselo è
+                                    ragionevole. */}
+                                <span className="hidden items-center gap-2 sm:flex">
+                                    <a
+                                        href={`/api/firma/${token}/pdf`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-3.5 py-2 text-[12.5px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]"
+                                    >
+                                        <Maximize2 className="h-3.5 w-3.5" />
+                                        A pantalla completa
+                                    </a>
+                                    <a
+                                        href={`/api/firma/${token}/pdf?descargar=1`}
+                                        className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-3.5 py-2 text-[12.5px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]"
+                                    >
+                                        <Download className="h-3.5 w-3.5" />
+                                        Guardarlo
+                                    </a>
+                                </span>
                             </div>
                             {/**
                               * Il riquadro solo dove c'è un visore.
@@ -202,30 +220,45 @@ export default function FirmaPublica({
                               * un bottone che apre il PDF con il visore del
                               * telefono, che funziona sempre.
                               */}
+                            {/**
+                              * Alto quanto lo schermo, non 34rem.
+                              *
+                              * Il visore del browser si adatta al riquadro
+                              * che gli dai: piccolo, apriva il Convenio al
+                              * 52% e il testo non si leggeva. Chi deve
+                              * firmare deve poter leggere, quindi il
+                              * documento si prende l'altezza della
+                              * finestra meno quello che sta sopra.
+                              */}
                             <object
-                                data={`/api/firma/${token}/pdf`}
+                                data={`/api/firma/${token}/pdf#view=FitH`}
                                 type="application/pdf"
-                                className="mt-3 hidden h-[34rem] w-full rounded-xl border border-[var(--caes-line)] bg-white sm:block"
+                                className="mt-3 hidden h-[calc(100vh-13rem)] min-h-[30rem] w-full rounded-xl border border-[var(--caes-line)] bg-white sm:block"
                             />
 
                             <a
                                 href={`/api/firma/${token}/pdf`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-[var(--caes-line)] bg-[var(--caes-panel)] px-5 py-4 transition-colors hover:border-[var(--caes-ink)]/30 sm:hidden"
+                                className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-[var(--caes-ink)] bg-[var(--caes-ink)] px-5 py-4 text-[var(--caes-paper)] transition-opacity hover:opacity-90 sm:hidden"
                             >
                                 <span>
-                                    <span className="block text-[14.5px] font-medium">
-                                        Abrir el documento
+                                    <span className="block text-[15px] font-medium">
+                                        Abrir y leer el documento
                                     </span>
-                                    <span className="mt-0.5 block text-[12.5px] text-[var(--caes-mut)]">
-                                        Se abre en otra pestaña · PDF
+                                    <span className="mt-0.5 block text-[12.5px] opacity-70">
+                                        Se abre a pantalla completa · PDF
                                     </span>
                                 </span>
-                                <FileText
-                                    className="h-5 w-5 shrink-0 text-[var(--caes-mut)]"
-                                    strokeWidth={1.7}
-                                />
+                                <FileText className="h-5 w-5 shrink-0" strokeWidth={1.7} />
+                            </a>
+
+                            <a
+                                href={`/api/firma/${token}/pdf?descargar=1`}
+                                className="mt-2.5 inline-flex items-center gap-2 text-[13px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline sm:hidden"
+                            >
+                                <Download className="h-3.5 w-3.5" />
+                                Guardarlo en el móvil
                             </a>
                         </div>
 

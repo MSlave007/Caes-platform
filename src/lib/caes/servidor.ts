@@ -144,6 +144,29 @@ export async function datosDelExpediente(
 }
 
 /**
+ * Chi rivede, per avvisarlo.
+ *
+ * Si leggono dal database e non da un'impostazione: un indirizzo scritto
+ * in un campo «email per gli avvisi» è un indirizzo che resta quello di
+ * chi è andato via due anni fa. Gli account con ruolo di agenzia sono
+ * sempre quelli veri.
+ *
+ * Vuoto non è un errore: in dimostrazione non c'è nessun account, e
+ * l'avviso finisce nei log invece che nel vuoto.
+ */
+export async function revisores(): Promise<{ email: string; nombre?: string }[]> {
+    const admin = createAdminClient()
+    if (!admin) return []
+    const { data } = await admin
+        .from('profiles')
+        .select('email, name')
+        .eq('role', 'admin')
+    return (data ?? [])
+        .filter((p) => p.email)
+        .map((p) => ({ email: String(p.email), nombre: p.name ?? undefined }))
+}
+
+/**
  * Il numero corto, quello che si dice al telefono.
  *
  * Sul database gli id sono UUID, e «expediente

@@ -49,6 +49,7 @@ next-env.d.ts
 .caes-demo.ajustes.json
 .caes-demo.equipos.json
 .caes-demo.firma.json
+.caes-demo-firmados/
 
 # Il log del server di sviluppo, quando lo si avvia staccato.
 dev-server.log

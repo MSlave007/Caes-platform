@@ -23,10 +23,13 @@ import { abrir } from '@/lib/caes/firmaEnlace'
 export const maxDuration = 60
 
 export async function GET(
-    _request: Request,
+    request: Request,
     { params }: { params: Promise<{ token: string }> }
 ) {
     const { token } = await params
+    // Aprirlo e tenerselo sono due gesti diversi, e chi firma un
+    // contratto ha ragione di volere il secondo.
+    const descargar = new URL(request.url).searchParams.get('descargar') === '1'
     const pedido = await abrir(token)
     if (!pedido) return NextResponse.json({ error: 'caducado' }, { status: 404 })
 
@@ -48,7 +51,7 @@ export async function GET(
         return new NextResponse(bytes as unknown as BodyInit, {
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `inline; filename="${plantilla.id}-${expediente}.pdf"`,
+                'Content-Disposition': `${descargar ? 'attachment' : 'inline'}; filename="${plantilla.id}-${expediente}.pdf"`,
                 'Cache-Control': 'no-store, max-age=0',
                 'X-Robots-Tag': 'noindex, nofollow',
             },

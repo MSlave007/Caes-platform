@@ -5,6 +5,7 @@ import {
     AlertTriangle,
     Check,
     Copy,
+    Download,
     Link2,
     Loader2,
     MessageCircle,
@@ -25,6 +26,8 @@ export type FirmaPuesta = {
     png?: string
     /** Come sta nel riquadro. Assente = come viene. */
     ajuste?: Ajuste
+    /** C'è la copia del foglio com'era quando ha firmato. */
+    hayCopia?: boolean
 }
 
 export type Estado = {
@@ -362,6 +365,30 @@ export default function Firmas({
                                 <p className="mt-0.5 pl-[22px] text-[12px] text-[var(--caes-faint)]">
                                     {f.cuando} · {METODOS[f.metodo] ?? f.metodo}
                                 </p>
+                                {/**
+                                  * La copia di quel momento, non il
+                                  * documento di adesso.
+                                  *
+                                  * Quello si scarica dalla barra in
+                                  * fondo e si ricompone con i dati di
+                                  * oggi. Questa è il foglio esatto che
+                                  * quella persona aveva davanti quando
+                                  * ha premuto «Firmar»: serve una volta
+                                  * ogni mille, e quella volta non c'è
+                                  * altro modo di averlo.
+                                  */}
+                                {f.hayCopia && (
+                                    <a
+                                        href={
+                                            `/api/firmas/copia?id=${encodeURIComponent(expedienteId)}` +
+                                            `&plantilla=${plantillaId}&rol=${encodeURIComponent(f.rol)}`
+                                        }
+                                        className="mt-1 inline-flex items-center gap-1.5 pl-[22px] text-[12px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+                                    >
+                                        <Download className="h-3 w-3" />
+                                        Copia del papel que firmó
+                                    </a>
+                                )}
                             </div>
                             <span className="flex items-center gap-4">
                                 {/* Spostarla si fa sul foglio, prendendola
@@ -517,8 +544,11 @@ function EnlacePendiente({
         `desde aquí, desde el móvil, sin registrarte:\n\n${url}`
 
     return (
-        <div className="rounded-xl border border-[var(--caes-falta)]/50 bg-[var(--caes-falta-bg)] p-4">
-            <p className="flex items-center gap-2 text-[13px] font-medium text-[var(--caes-falta-deep)]">
+        // Verde e non ambra: un link mandato non è un problema, è la
+        // cosa che volevamo succedesse. L'ambra qui diceva «guarda che
+        // c'è qualcosa che non va» su un'azione riuscita.
+        <div className="rounded-xl border border-[var(--caes-green)]/30 bg-[var(--caes-green)]/[.06] p-4">
+            <p className="flex items-center gap-2 text-[13px] font-medium text-[var(--caes-green)]">
                 <Link2 className="h-3.5 w-3.5" />
                 Enlace de firma en marcha · {enlace.rol}
             </p>

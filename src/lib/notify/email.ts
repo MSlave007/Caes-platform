@@ -216,6 +216,55 @@ CAES`
 }
 
 /**
+ * Il cliente ha firmato: dirlo a chi rivede.
+ *
+ * ── PERCHÉ È IL PIÙ IMPORTANTE DEI TRE ────────────────────────────────
+ *
+ * Perché gli altri avvisi li riceve qualcuno che stava aspettando. Questo
+ * no: il link al cliente si manda e poi ci si dimentica, e la firma
+ * arriva un martedì alle nove di sera senza che nessuno guardi. Senza
+ * avviso, il fascicolo resta fermo finché a qualcuno non viene in mente
+ * di riaprirlo.
+ *
+ * ── PERCHÉ NON PORTA IL DOCUMENTO ALLEGATO ────────────────────────────
+ *
+ * Perché è un Convenio con dentro NIF, indirizzo e telefono di una
+ * persona, e la posta non è un posto dove mandare quelle cose. Porta il
+ * link al fascicolo, dove il documento sta già e dove per vederlo serve
+ * essere entrati.
+ */
+export async function avisarFirmado(
+    a: {
+        expedienteId: string
+        documento: string
+        firmante: string
+        rol: string
+        enlace: string
+    },
+    // Non `Destinatario`: quel tipo distingue installatore e cliente, e
+    // chi rivede non è né l'uno né l'altro. Qui serve solo un indirizzo.
+    destinatarios: { email: string; nombre?: string }[]
+): Promise<number> {
+    const asunto = `Firmado: ${a.documento} · expediente ${a.expedienteId}`
+    const texto = `${a.firmante} ha firmado ${a.documento} como ${a.rol}.
+
+El expediente ya tiene el documento firmado. Se guarda también una copia del papel tal y como estaba en ese momento.
+
+Verlo: ${a.enlace}
+
+CAES`
+
+    const conCorreo = destinatarios.filter((d) => d.email)
+    if (conCorreo.length === 0) {
+        console.info(`[firma sin destinatario — ningún revisor con correo] ${asunto}`)
+        return 0
+    }
+
+    const idos = await Promise.all(conCorreo.map((d) => mandar(d.email, asunto, texto)))
+    return idos.filter(Boolean).length
+}
+
+/**
  * Manda — o registra, finché non c'è un trasporto.
  *
  * ── COME SI ACCENDE ───────────────────────────────────────────────────

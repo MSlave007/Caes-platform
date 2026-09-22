@@ -119,6 +119,20 @@ export type Firma = {
      * documento senza firme. Vedi `presentado()`.
      */
     ajuste?: Ajuste
+    /**
+     * Dove sta la copia del foglio com'era in quel momento.
+     *
+     * Il PDF si sa ricomporre, ma con il renderer di oggi: allargare un
+     * margine cambia i byte, e la copia ricomposta non è più quella che
+     * quella persona ha letto. Vedi `archivoFirmado.ts`.
+     *
+     * Assente quando il deposito non ha risposto: la firma vale
+     * comunque, perderla perché non si è scritto un file sarebbe
+     * assurdo.
+     */
+    archivo?: string
+    /** SHA-256 di quella copia esatta. */
+    huellaArchivo?: string
 }
 
 export type RegistroFirma = {
