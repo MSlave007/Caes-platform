@@ -690,3 +690,43 @@ alter table public.ajustes
 alter table public.ajustes
   add constraint ajustes_meses_sensatos
   check (meses_presentacion is null or meses_presentacion between 1 and 120);
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  El enlace para subir papeles
+--
+--  Desde la revisión se genera un enlace atado a UN expediente y se le
+--  manda al instalador por WhatsApp. Él lo abre, suelta todo lo que
+--  tenga —sin entrar, sin buscar el expediente, sin acertar la casilla—
+--  y el lector automático los reparte por su sitio.
+--
+--  Hoy el camino es: el revisor pide los papeles, el instalador entra,
+--  busca entre sus cuarenta expedientes, y coloca cada archivo en una
+--  casilla. Equivocarse de casilla es justo el error que más se comete,
+--  y el que más cuesta: obliga a otra vuelta.
+--
+--  ── ESTO ES UNA PUERTA DE ESCRITURA SIN CONTRASEÑA ────────────────
+--
+--  Así que lleva tres frenos, y los tres importan:
+--
+--    token     uuid v4, 122 bits. No se adivina.
+--    caduca    un enlace de subida abierto para siempre es una
+--              responsabilidad para siempre. Muere solo.
+--    revocable poner la fecha en el pasado lo mata al instante
+--
+--  Y lo que NO puede hacer, por diseño: leer lo que ya hay, borrar
+--  nada, ver el nombre del cliente, la dirección o el dinero. Solo
+--  añadir archivos a un expediente concreto. Ver src/app/api/subida.
+-- ════════════════════════════════════════════════════════════════════
+
+alter table public.projects
+  add column if not exists subida_token   uuid,
+  add column if not exists subida_caduca  timestamptz,
+  -- Una línea que escribe quien revisa: «los dos certificados y la foto
+  -- del hueco». Es lo único identificable que sale en esa página, y lo
+  -- decide una persona en vez de salir solo.
+  add column if not exists subida_nota    text;
+
+create unique index if not exists projects_subida_token_idx
+  on public.projects (subida_token)
+  where subida_token is not null;

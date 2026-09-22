@@ -5,6 +5,7 @@ import StatusControl from '@/components/admin/StatusControl'
 import CabeceraExpediente from '@/components/admin/CabeceraExpediente'
 import Avisos, { type Aviso } from '@/components/admin/Avisos'
 import EquipoConocido from '@/components/admin/EquipoConocido'
+import PedirPapeles from '@/components/admin/PedirPapeles'
 import { motivoSugerido } from '@/lib/caes/motivo'
 import { corriendo, relojDe } from '@/lib/caes/reloj'
 import DocumentReview from '@/components/admin/DocumentReview'
@@ -682,6 +683,18 @@ export default function AdminReviewDetail({
 
             {/* --------------------------------------------------- avvisi */}
             <Avisos avisos={avisos} />
+
+            {/* Chiedere le carte con un link. Sta subito sotto
+                l'elenco di cosa manca, perche e li che si scopre di
+                doverle chiedere — non in un'altra scheda. */}
+            {missing.length > 0 && (
+                <PedirPapeles
+                    expedienteId={String(p.id)}
+                    faltan={missing.map((m) => m.label)}
+                    tokenActual={(p as { subida_token?: string }).subida_token}
+                    caducaActual={(p as { subida_caduca?: string }).subida_caduca}
+                />
+            )}
 
             {/* Quello che il catalogo sa gia di questa macchina. Vedi
                 src/components/admin/EquipoConocido.tsx: si propone, non

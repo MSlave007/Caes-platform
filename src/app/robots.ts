@@ -32,6 +32,9 @@ export default function robots(): MetadataRoute.Robots {
                 // Dati personali di clienti che non hanno mai scelto di
                 // essere su internet.
                 '/seguimiento/',
+                // La porta per caricare documenti: pubblica per forza,
+                // ma non e una cosa da far trovare a chi cerca.
+                '/subida/',
                 '/admin/',
                 '/installer/',
                 '/cuenta',
