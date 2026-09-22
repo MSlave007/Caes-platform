@@ -3,10 +3,11 @@
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Check, FileText, Loader2 } from 'lucide-react'
+import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import EnlaceCliente from '@/components/platform/EnlaceCliente'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
 import { DOCUMENTS } from '@/lib/documents'
+import SusDocumentos from '@/components/installer/SusDocumentos'
 import { AHORRO_MINIMO_PCT, eur } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
 
@@ -223,36 +224,11 @@ export default function InstallerProjectDetail({
                     />
 
                     {/* ------------------------------------------- documenti */}
-                    <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
-                        <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
-                            Lo que enviaste
-                        </h2>
-                        <ul className="mt-6 flex flex-col gap-2">
-                            {specs.map((s) => {
-                                const has = uploaded.has(s.id)
-                                return (
-                                    <li
-                                        key={s.id}
-                                        className={`flex items-center gap-3.5 rounded-xl border px-4 py-3 ${has
-                                                ? 'border-[var(--caes-line)]'
-                                                : 'border-dashed border-[var(--caes-line)] opacity-55'
-                                            }`}
-                                    >
-                                        <FileText
-                                            className="h-4 w-4 shrink-0 text-[var(--caes-faint)]"
-                                            strokeWidth={1.7}
-                                        />
-                                        <span className="min-w-0 flex-1 truncate text-[14px]">
-                                            {s.label}
-                                        </span>
-                                        <span className="shrink-0 text-[12px] text-[var(--caes-faint)]">
-                                            {has ? 'Enviado' : s.required ? 'Falta' : 'No aportado'}
-                                        </span>
-                                    </li>
-                                )
-                            })}
-                        </ul>
-                    </section>
+                    <SusDocumentos
+                        expedienteId={String(p.id)}
+                        specs={specs}
+                        puestos={[...uploaded]}
+                    />
                 </div>
 
                 {/* ------------------------------------------------ tu parte */}

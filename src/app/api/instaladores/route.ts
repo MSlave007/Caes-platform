@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { negado, soloAgencia } from '@/lib/auth/guard'
@@ -62,5 +63,126 @@ export async function GET() {
             nombre: p.company_name || p.name || p.email,
             email: p.email,
         })),
+    })
+}
+
+/* ==================================================================== *
+ *  DARE DI ALTA UN INSTALLATORE
+ * ==================================================================== */
+
+/**
+ * Una password che nessuno deve ricordare.
+ *
+ * Serve una volta: per entrare la prima volta e cambiarla. Quindi lunga
+ * e casuale, non «leggibile al telefono» — si copia e si incolla.
+ *
+ * `randomBytes` e non `Math.random()`: la seconda è prevedibile, e qui
+ * si sta aprendo l'accesso a un account.
+ */
+function contraseñaNueva(): string {
+    return randomBytes(12).toString('base64url')
+}
+
+export async function POST(request: Request) {
+    const quien = await soloAgencia()
+    if (!quien) return negado()
+
+    const body = (await request.json().catch(() => null)) as {
+        nombre?: string
+        email?: string
+        telefono?: string
+        empresa?: string
+    } | null
+
+    const nombre = String(body?.nombre ?? '').trim().slice(0, 140)
+    const email = String(body?.email ?? '').trim().toLowerCase().slice(0, 190)
+    const empresa = String(body?.empresa ?? '').trim().slice(0, 140)
+    const telefono = String(body?.telefono ?? '').trim().slice(0, 40)
+
+    if (nombre.length < 2) {
+        return NextResponse.json({ error: 'Falta el nombre' }, { status: 400 })
+    }
+    // Un controllo minimo, non una convalida di indirizzi: quella la fa
+    // il servizio di posta il giorno che gli si scrive, e le espressioni
+    // regolari per le email sbagliano sempre qualcosa di legittimo.
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return NextResponse.json(
+            { error: 'Ese correo no parece un correo' },
+            { status: 400 }
+        )
+    }
+
+    const admin = createAdminClient()
+    if (!admin) {
+        /**
+         * In dimostrazione non si creano account.
+         *
+         * Fingere che sia andata creerebbe un installatore che compare
+         * nell'elenco e non può entrare da nessuna parte — cioè la cosa
+         * peggiore, perché si scopre quando qualcuno ci prova.
+         */
+        return NextResponse.json(
+            {
+                error: 'Aquí no se pueden crear cuentas: es la versión de demostración.',
+            },
+            { status: 503 }
+        )
+    }
+
+    const contraseña = contraseñaNueva()
+
+    const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password: contraseña,
+        // Senza questo resterebbe in attesa di confermare un'email che
+        // non gli abbiamo mandato, e non potrebbe entrare.
+        email_confirm: true,
+        user_metadata: { full_name: nombre },
+    })
+
+    if (error || !data.user) {
+        const ya = /already|exist|registered|duplicate/i.test(error?.message ?? '')
+        console.error('POST /api/instaladores:', error)
+        return NextResponse.json(
+            {
+                error: ya
+                    ? 'Ya hay una cuenta con ese correo. Búscala en la lista.'
+                    : 'No se ha podido crear la cuenta.',
+            },
+            { status: ya ? 409 : 502 }
+        )
+    }
+
+    /**
+     * Il profilo lo crea il trigger, con ruolo `installer`.
+     *
+     * Qui si aggiunge solo quello che il trigger non sa: azienda e
+     * telefono. E NON il ruolo — questa rotta non ha nemmeno un campo
+     * dove qualcuno possa scrivere `admin`.
+     */
+    if (empresa || telefono) {
+        await admin
+            .from('profiles')
+            .update({
+                ...(empresa ? { company_name: empresa } : {}),
+                ...(telefono ? { phone: telefono } : {}),
+            })
+            .eq('id', data.user.id)
+    }
+
+    return NextResponse.json({
+        data: {
+            id: data.user.id,
+            nombre: empresa || nombre,
+            email,
+            /**
+             * Si vede una volta e non si salva.
+             *
+             * Un elenco di password in chiaro dentro la piattaforma
+             * sarebbe un elenco di password in chiaro dentro la
+             * piattaforma. Se si perde, si rigenera.
+             */
+            contraseña,
+        },
     })
 }

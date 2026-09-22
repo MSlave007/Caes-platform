@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Loader2, UserPlus } from 'lucide-react'
+import { Check, Loader2, Plus, UserPlus } from 'lucide-react'
+import AltaInstalador from '@/components/admin/AltaInstalador'
 
 type Instalador = { id: string; nombre: string; email: string | null }
 
@@ -35,6 +36,7 @@ export default function AsignarInstalador({
     const [ocupado, setOcupado] = useState(false)
     const [hecho, setHecho] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [dandoAlta, setDandoAlta] = useState(false)
 
     useEffect(() => {
         let vivo = true
@@ -71,6 +73,25 @@ export default function AsignarInstalador({
         } finally {
             setOcupado(false)
         }
+    }
+
+    /**
+     * Darlo di alta si fa da qui, non da un'altra schermata.
+     *
+     * Il momento in cui serve è questo: stai assegnando e la persona
+     * non è nell'elenco. Mandare in «Instaladores» a crearla e poi
+     * tornare vuol dire perdere l'espediente che stavi aprendo.
+     */
+    if (dandoAlta) {
+        return (
+            <AltaInstalador
+                onCreado={(i) => {
+                    setLista((l) => [...(l ?? []), i])
+                    setElegido(i.id)
+                }}
+                onCerrar={() => setDandoAlta(false)}
+            />
+        )
     }
 
     if (hecho) {
@@ -123,6 +144,15 @@ export default function AsignarInstalador({
                     Asignárselo
                 </button>
             </div>
+
+            <button
+                type="button"
+                onClick={() => setDandoAlta(true)}
+                className="inline-flex w-fit items-center gap-1.5 text-[12.5px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+            >
+                <Plus className="h-3.5 w-3.5" />
+                No está en la lista: darlo de alta
+            </button>
 
             {/* Chi assegna deve sapere che sta facendo squillare un
                 telefono — o che NON lo sta facendo, se manca l'email. */}
