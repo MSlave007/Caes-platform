@@ -381,6 +381,62 @@ export const CAMPOS: CampoDef[] = [
         destino: 'documentos',
         ayuda: 'Con esto el ahorro deja de ser una estimación.',
     },
+
+    // ── Seconde letture: lo stesso dato su un'altra carta ──
+    //
+    // Hanno `control: true`, quindi non si spuntano: esistono solo per
+    // essere confrontate con il valore buono. Chiedere a qualcuno di
+    // confermare un numero che serve solo a un paragone e lavoro finto.
+    //
+    // Sono la meta mancante dei controlli in fondo a questo file: senza
+    // un secondo valore, «il NIF della fattura non e quello del DNI» non
+    // e una cosa che il sistema puo accorgersi di dire.
+    {
+        id: 'nif_cliente_dni',
+        label: 'NIF del cliente, en el DNI',
+        documento: 'dni-cliente',
+        tipo: 'texto',
+        destino: 'documentos',
+        control: true,
+        ayuda: 'Solo para contrastarlo con el de la factura.',
+    },
+    {
+        id: 'nombre_cliente_dni',
+        label: 'Nombre del cliente, en el DNI',
+        documento: 'dni-cliente',
+        tipo: 'texto',
+        destino: 'documentos',
+        control: true,
+        ayuda: 'Solo para contrastarlo con el titular de la factura.',
+    },
+    {
+        id: 'direccion_titularidad',
+        label: 'Dirección en el documento de titularidad',
+        documento: 'titularidad',
+        tipo: 'texto',
+        destino: 'documentos',
+        control: true,
+        ayuda: 'Solo para contrastarla con la dirección de la actuación.',
+    },
+    {
+        id: 'modelo_factura',
+        label: 'Modelo, en la factura',
+        documento: 'factura',
+        tipo: 'texto',
+        destino: 'documentos',
+        control: true,
+        ayuda: 'Solo para contrastarlo con la placa del equipo instalado.',
+    },
+    {
+        id: 'potencia_factura',
+        label: 'Potencia, en la factura',
+        documento: 'factura',
+        tipo: 'numero',
+        unidad: 'kW',
+        destino: 'documentos',
+        control: true,
+        ayuda: 'Solo para contrastarla con la ficha técnica.',
+    },
 ]
 
 /** Stato di un campo durante la revisione. */
@@ -463,8 +519,16 @@ export type Comprobacion = {
     /** Perché è un problema. Si legge solo quando l'allarme scatta. */
     porque: string
     campos: [string, string]
-    /** Come si confrontano i due valori. */
-    modo: 'igual' | 'no_posterior'
+    /**
+     * Come si confrontano i due valori.
+     *
+     *   igual         stesso valore, con tolleranza per i numeri
+     *   igual_laxo    stesse parole, in qualunque ordine — per nomi e
+     *                 indirizzi, dove l'ordine cambia da un documento
+     *                 all'altro senza che sia un errore
+     *   no_posterior  il primo non deve venire dopo il secondo
+     */
+    modo: 'igual' | 'igual_laxo' | 'no_posterior'
     /** Scarto tollerato, per i numeri. Gli arrotondamenti non sono errori. */
     tolerancia?: number
 }
@@ -501,6 +565,158 @@ export const COMPROBACIONES: Comprobacion[] = [
         campos: ['fecha_factura', 'fecha_fin_obra'],
         modo: 'no_posterior',
     },
+
+    // -- Chi firma ----------------------------------------------------
+    //
+    // I due piu cari di tutto l'elenco. Il Convenio CAE lo firma il
+    // titolare, e il titolare e quello della fattura. Se il DNI dice un
+    // altro nome, il documento non ha un errore: non vale.
+    {
+        id: 'nif-cliente-coincide',
+        titulo: 'El NIF de la factura no coincide con el del DNI',
+        porque: 'El Convenio CAE lo firma el titular de la instalacion, y el titular es el de la factura. Si el DNI aportado es de otra persona, o falta un documento o lo va a firmar quien no debe, y un Convenio firmado por quien no es titular no vale.',
+        campos: ['nif_cliente', 'nif_cliente_dni'],
+        modo: 'igual',
+    },
+    {
+        id: 'nombre-cliente-coincide',
+        titulo: 'El nombre de la factura no coincide con el del DNI',
+        porque: 'Mismo motivo que el NIF. Muchas veces es solo el orden de los apellidos y se ve en un segundo; cuando no lo es, conviene saberlo antes de generar el Convenio, no despues de mandarlo a firmar.',
+        campos: ['nombre_cliente', 'nombre_cliente_dni'],
+        modo: 'igual_laxo',
+    },
+
+    // -- Dove ---------------------------------------------------------
+    {
+        id: 'direccion-coincide',
+        titulo: 'La direccion de la actuacion no coincide con la de titularidad',
+        porque: 'La ayuda es para la vivienda del titular. Si la obra esta en una direccion y la titularidad en otra, o hay dos inmuebles por medio o uno de los dos papeles es de otro expediente.',
+        campos: ['direccion_actuacion', 'direccion_titularidad'],
+        modo: 'igual_laxo',
+    },
+
+    // -- Cosa e stato installato --------------------------------------
+    {
+        id: 'modelo-coincide',
+        titulo: 'El modelo de la placa no coincide con el de la factura',
+        porque: 'La placa dice lo que hay puesto en la pared; la factura, lo que se ha cobrado. Si no coinciden, el SCOP con el que se ha calculado el ahorro puede ser el de otro equipo.',
+        campos: ['modelo', 'modelo_factura'],
+        modo: 'igual',
+    },
+    {
+        id: 'potencia-coincide',
+        titulo: 'La potencia de la ficha no coincide con la de la factura',
+        porque: 'Igual que el modelo, y mas facil de que se cuele: media unidad de diferencia es un redondeo, pero el doble o la mitad es otro equipo.',
+        campos: ['potencia_kw', 'potencia_factura'],
+        modo: 'igual',
+        tolerancia: 0.6,
+    },
+
+    // -- Quando -------------------------------------------------------
+    {
+        id: 'obra-empieza-antes-de-acabar',
+        titulo: 'La obra acaba antes de empezar',
+        porque: 'Casi siempre es una fecha mal copiada del RITE. Importa porque las dos van tal cual a la ficha RES060 y al Anexo I.',
+        campos: ['fecha_inicio_obra', 'fecha_fin_obra'],
+        modo: 'no_posterior',
+    },
+]
+
+/* ==================================================================== *
+ *  INTERVALLI PLAUSIBILI
+ * ==================================================================== */
+
+/**
+ * Un numero solo, fuori da quello che puo essere.
+ *
+ * -- PERCHE SERVE -----------------------------------------------------
+ *
+ * Il modo in cui un lettore automatico sbaglia piu spesso non e leggere
+ * una parola per un'altra: e la virgola. 9,2 diventa 92, e passa tutti i
+ * controlli incrociati, perche c'e una carta sola che lo dice e non c'e
+ * niente con cui confrontarlo.
+ *
+ * Uno SCOP di 92 non e un valore da discutere: e un errore di lettura.
+ *
+ * -- PERCHE SONO LARGHI -----------------------------------------------
+ *
+ * Gli estremi sono generosi apposta. Un allarme su un valore legittimo
+ * e peggio di un allarme mancato, perche insegna a ignorarli tutti:
+ * dopo il terzo falso allarme nessuno li legge piu. Devono scattare
+ * quando il numero e impossibile, non quando e insolito.
+ */
+export type Rango = {
+    campo: string
+    min: number
+    max: number
+    titulo: string
+    porque: string
+}
+
+export const RANGOS: Rango[] = [
+    {
+        campo: 'scop',
+        min: 1.5,
+        max: 7,
+        titulo: 'El SCOP esta fuera de lo que puede dar una aerotermia',
+        porque: 'Por debajo de 1,5 no existe, y por encima de 7 tampoco. Casi siempre es la coma: 9,2 leido como 92. Y el SCOP entra directo en la formula, asi que se lleva por delante todo el ahorro.',
+    },
+    {
+        campo: 'scop_acs',
+        min: 1.2,
+        max: 6,
+        titulo: 'El SCOP en ACS esta fuera de rango',
+        porque: 'Mismo motivo que el de calefaccion, y ademas siempre deberia quedar por debajo de aquel.',
+    },
+    {
+        campo: 'rendimiento_anterior',
+        min: 0.3,
+        max: 1.1,
+        titulo: 'El rendimiento del equipo anterior es imposible',
+        porque: 'Es una fraccion, no un porcentaje: 0,92, no 92. Una caldera de combustion no pasa de 1,1 ni baja de 0,3. Si entra como porcentaje, el ahorro sale cien veces mas pequeno.',
+    },
+    {
+        campo: 'superficie_m2',
+        min: 15,
+        max: 3000,
+        titulo: 'La superficie util esta fuera de lo razonable',
+        porque: 'La superficie multiplica toda la demanda de calefaccion: es el numero que mas mueve el resultado. Por debajo de 15 m2 no es una vivienda; por encima de 3.000 no es un certificado de vivienda.',
+    },
+    {
+        campo: 'potencia_kw',
+        min: 1,
+        max: 150,
+        titulo: 'La potencia nominal esta fuera de rango',
+        porque: 'Una aerotermia domestica va de 3 a 16 kW; una de edificio llega a bastante mas. Fuera de estos margenes suele ser que se ha leido la potencia electrica absorbida, o una cifra de otra linea.',
+    },
+    {
+        campo: 'dcal',
+        min: 5,
+        max: 400,
+        titulo: 'La demanda de calefaccion esta fuera de rango',
+        porque: 'Va en kWh por m2 y ano, no en total. Si se cuela el total de la vivienda, la formula lo vuelve a multiplicar por la superficie.',
+    },
+    {
+        campo: 'dacs',
+        min: 100,
+        max: 40000,
+        titulo: 'La demanda de ACS esta fuera de rango',
+        porque: 'Esta si es el total anual, no por m2. Confundir las dos unidades es el error mas facil de los dos certificados.',
+    },
+    {
+        campo: 'num_personas',
+        min: 1,
+        max: 30,
+        titulo: 'El numero de ocupantes no cuadra',
+        porque: 'De aqui sale la demanda de agua caliente cuando no consta en el certificado.',
+    },
+    {
+        campo: 'importe',
+        min: 300,
+        max: 500000,
+        titulo: 'El importe de la instalacion esta fuera de rango',
+        porque: 'Es la base de la deduccion del 30 % del cliente: un cero de mas o de menos se nota en su bolsillo, no en el nuestro.',
+    },
 ]
 
 export type EstadoAviso = 'ok' | 'alarma' | 'pendiente'
@@ -518,6 +734,45 @@ const num = (v: unknown) => {
     return Number.isFinite(n) ? n : null
 }
 
+/**
+ * Toglie tutto quello che cambia da un documento all'altro senza
+ * cambiare il dato: accenti, maiuscole, punti, trattini, spazi.
+ *
+ * Serve soprattutto ai NIF: «12345678-Z», «12345678 Z» e «12345678z»
+ * sono lo stesso documento d'identita, e segnalarli come diversi
+ * sarebbe un allarme che insegna a ignorare gli allarmi.
+ */
+function normalizarTexto(v: unknown): string {
+    return String(v)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, ' ')
+        .trim()
+}
+
+/**
+ * Le stesse parole, in qualunque ordine, ignorando quelle corte.
+ *
+ * Sui documenti ufficiali spagnoli il cognome va davanti: «MARIA GARCIA»
+ * sulla fattura e «GARCIA LOPEZ, MARIA» sul DNI sono la stessa persona.
+ * E negli indirizzi «C/», «de», «la» e i numeri civici scritti in due
+ * modi non dicono niente di utile.
+ */
+function mismasPalabras(a: unknown, b: unknown): boolean {
+    const partes = (v: unknown) =>
+        new Set(normalizarTexto(v).split(' ').filter((p) => p.length > 2))
+    const pa = partes(a)
+    const pb = partes(b)
+    if (pa.size === 0 || pb.size === 0) return normalizarTexto(a) === normalizarTexto(b)
+
+    // Il piu corto dev'essere contenuto nel piu lungo: un documento puo
+    // portare un cognome in piu, e non e una discordanza.
+    const [corto, largo] = pa.size <= pb.size ? [pa, pb] : [pb, pa]
+    for (const p of corto) if (!largo.has(p)) return false
+    return true
+}
+
 function evaluar(c: Comprobacion, e: Extraccion): EstadoAviso {
     const [a, b] = c.campos.map((id) => e[id]?.valor ?? null)
     if (a === null || a === '' || b === null || b === '') return 'pendiente'
@@ -529,13 +784,15 @@ function evaluar(c: Comprobacion, e: Extraccion): EstadoAviso {
         return fa > fb ? 'alarma' : 'ok'
     }
 
+    if (c.modo === 'igual_laxo') {
+        return mismasPalabras(a, b) ? 'ok' : 'alarma'
+    }
+
     const na = num(a)
     const nb = num(b)
     // Non numerici: si confrontano come testo, normalizzato.
     if (na === null || nb === null) {
-        const limpiar = (v: unknown) =>
-            String(v).trim().toLowerCase().replace(/\s+/g, ' ')
-        return limpiar(a) === limpiar(b) ? 'ok' : 'alarma'
+        return normalizarTexto(a) === normalizarTexto(b) ? 'ok' : 'alarma'
     }
     return Math.abs(na - nb) <= (c.tolerancia ?? 0) ? 'ok' : 'alarma'
 }
@@ -555,6 +812,62 @@ export function avisos(e: Extraccion): Aviso[] {
             String(e[c.campos[1]]?.valor ?? '—'),
         ] as [string, string],
     }))
+}
+
+/* ------------------------------------------------------------------ *
+ *  Un elenco solo, per chi rivede
+ * ------------------------------------------------------------------ */
+
+/**
+ * Tutto quello che non torna, confronti e intervalli insieme.
+ *
+ * Sono due meccanismi diversi — due carte che si contraddicono, un
+ * numero impossibile da solo — ma per chi rivede sono la stessa cosa:
+ * roba da guardare prima di approvare. Tenerli in due riquadri separati
+ * vorrebbe dire far cercare in due posti.
+ */
+export type Senal = {
+    id: string
+    titulo: string
+    porque: string
+    estado: EstadoAviso
+    /** I valori guardati: due per un confronto, uno per un intervallo. */
+    valores: string[]
+    /** Da dove viene: cambia solo come si scrive, non cosa si fa. */
+    tipo: 'contraste' | 'rango'
+}
+
+/** Gli intervalli, valutati. */
+export function avisosDeRango(e: Extraccion): Senal[] {
+    return RANGOS.map((r) => {
+        const bruto = e[r.campo]?.valor
+        const n = num(bruto)
+        return {
+            id: r.campo + '-rango',
+            titulo: r.titulo,
+            porque: r.porque,
+            estado: (n === null ? 'pendiente' : n < r.min || n > r.max ? 'alarma' : 'ok') as EstadoAviso,
+            valores: [n === null ? '—' : String(bruto)],
+            tipo: 'rango' as const,
+        }
+    })
+}
+
+/** Confronti e intervalli in un elenco solo, gli allarmi davanti. */
+export function senales(e: Extraccion): Senal[] {
+    const contrastes: Senal[] = avisos(e).map((a) => ({
+        id: a.comprobacion.id,
+        titulo: a.comprobacion.titulo,
+        porque: a.comprobacion.porque,
+        estado: a.estado,
+        valores: a.valores,
+        tipo: 'contraste' as const,
+    }))
+
+    const peso = { alarma: 0, pendiente: 1, ok: 2 }
+    return [...contrastes, ...avisosDeRango(e)].sort(
+        (x, y) => peso[x.estado] - peso[y.estado]
+    )
 }
 
 /**

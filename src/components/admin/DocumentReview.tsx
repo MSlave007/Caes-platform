@@ -14,11 +14,11 @@ import {
 } from 'lucide-react'
 import DocumentViewer from './DocumentViewer'
 import {
-    avisos,
+    senales,
     camposDe,
     otrasFuentes,
     CONFIANZA_BAJA,
-    type Aviso,
+    type Senal,
     type CampoDef,
     type Extraccion,
     type ValorCampo,
@@ -446,7 +446,7 @@ function Puntos({ total, hechos }: { total: number; hechos: number }) {
  * dice che due documenti si contraddicono — e quello, documento per
  * documento, non si vede.
  */
-function Avisos({ lista }: { lista: Aviso[] }) {
+function Avisos({ lista }: { lista: Senal[] }) {
     const alarmas = lista.filter((a) => a.estado === 'alarma')
     const cuadran = lista.filter((a) => a.estado === 'ok')
     const pendientes = lista.filter((a) => a.estado === 'pendiente')
@@ -454,24 +454,29 @@ function Avisos({ lista }: { lista: Aviso[] }) {
     return (
         <div className="flex flex-col gap-2.5">
             <span className="font-mono text-[9.5px] uppercase tracking-[.14em] text-[var(--caes-faint)]">
-                Contrastes entre documentos · automáticos
+                Comprobaciones automáticas
             </span>
 
             {alarmas.map((a) => (
                 <div
-                    key={a.comprobacion.id}
+                    key={a.id}
                     className="flex gap-3.5 rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta)]/[.07] px-4 py-3.5"
                 >
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--caes-falta-ink)]" />
                     <div className="flex min-w-0 flex-col gap-1.5">
                         <span className="text-[14px] font-medium text-[var(--caes-ink)]">
-                            {a.comprobacion.titulo}
+                            {a.titulo}
                         </span>
+                        {/* Un confronto mostra i due valori affiancati;
+                            un intervallo ne ha uno solo, e affiancarlo a
+                            niente con un ≠ non vorrebbe dire niente. */}
                         <span className="font-mono text-[12px] tabular-nums text-[var(--caes-falta-ink)]">
-                            {a.valores[0]} ≠ {a.valores[1]}
+                            {a.valores.length > 1
+                                ? `${a.valores[0]} ≠ ${a.valores[1]}`
+                                : a.valores[0]}
                         </span>
                         <span className="text-[12.5px] leading-[1.5] text-[var(--caes-mut)]">
-                            {a.comprobacion.porque}
+                            {a.porque}
                         </span>
                     </div>
                 </div>
@@ -488,12 +493,14 @@ function Avisos({ lista }: { lista: Aviso[] }) {
                                 strokeWidth={3}
                             />
                             {cuadran.length}{' '}
-                            {cuadran.length === 1 ? 'contraste cuadra' : 'contrastes cuadran'}
+                            {cuadran.length === 1
+                                ? 'comprobación pasada'
+                                : 'comprobaciones pasadas'}
                         </span>
                     )}
                     {pendientes.length > 0 && (
                         <span className="text-[12.5px] text-[var(--caes-faint)]">
-                            {pendientes.length} sin comprobar: falta alguno de los dos datos
+                            {pendientes.length} sin comprobar: todavía falta el dato
                         </span>
                     )}
                 </div>
@@ -1097,7 +1104,7 @@ export default function DocumentReview({
                 </div>
             )}
 
-            <Avisos lista={avisos(extraccion)} />
+            <Avisos lista={senales(extraccion)} />
 
             {/* A tutto schermo: la stessa roba, grande.
                 Il documento prende quasi tutta la finestra e i campi
