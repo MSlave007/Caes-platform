@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ProjectDoc } from '@/lib/mockDb'
 import { AlertTriangle, Check, CheckCheck, ChevronRight, Loader2, Paperclip, ScanText, Sparkles, Upload, X } from 'lucide-react'
 import DocumentViewer from './DocumentViewer'
@@ -113,6 +113,17 @@ type Props = {
     onBorrar: (docId: string, indice: number) => Promise<void>
     /** Slot in cui una cancellazione è in corso. */
     borrando: string | null
+    /**
+     * Una riga per casella, da chi rivede a chi ha caricato.
+     *
+     * Il motivo del «cambios solicitados» è uno per tutto il fascicolo:
+     * va bene per «faltan dos certificados», non per «la factura no se
+     * lee y la foto de la etiqueta está movida». Due cose su due
+     * documenti, e chi le riceve deve indovinare quale riga riguarda
+     * quale.
+     */
+    comentarios?: Record<string, string>
+    onComentar?: (casilla: string, texto: string) => void
 }
 
 /**
@@ -674,6 +685,8 @@ export default function DocumentReview({
     leyendo,
     onBorrar,
     borrando,
+    comentarios,
+    onComentar,
 }: Props) {
     const [abierto, setAbierto] = useState<string | null>(null)
     // Quale dei file dello slot aperto si sta guardando. Un riquadro puo
@@ -1042,6 +1055,12 @@ export default function DocumentReview({
                             due usabile. */}
                         <div className="flex min-h-[420px] flex-col lg:min-h-0">
                             {columnaDocumento(s, docs, has)}
+                            {onComentar && (
+                                <Comentario
+                                    valor={comentarios?.[s.id] ?? ''}
+                                    onGuardar={(t) => onComentar(s.id, t)}
+                                />
+                            )}
                         </div>
                         {columnaCampos(s, has)}
                     </div>
@@ -1171,6 +1190,68 @@ export default function DocumentReview({
                     </div>
                 </div>
             )}
+        </div>
+    )
+}
+
+/**
+ * Una riga per chi ha caricato questo documento.
+ *
+ * ── PERCHÉ NON BASTA IL MOTIVO DEL «CAMBIOS SOLICITADOS» ──────────────
+ *
+ * Perché quello è uno per tutto il fascicolo. Va bene per «faltan dos
+ * certificados»; non per «la factura no se lee y la foto de la etiqueta
+ * está movida» — due cose su due documenti, e chi le riceve deve
+ * indovinare quale riga riguarda quale.
+ *
+ * Scritto qui, appare accanto a QUEL documento nel pannello
+ * dell'installatore: non c'è niente da indovinare.
+ *
+ * ── PERCHÉ SI SALVA QUANDO SI ESCE DAL CAMPO ──────────────────────────
+ *
+ * Perché è una frase, non un interruttore: salvare a ogni lettera
+ * vorrebbe dire una chiamata per carattere. Uscendo dal campo si è
+ * finito di scriverla.
+ */
+function Comentario({
+    valor,
+    onGuardar,
+}: {
+    valor: string
+    onGuardar: (texto: string) => void
+}) {
+    const [texto, setTexto] = useState(valor)
+    const id = useId()
+
+    // Se cambia da fuori — si è ricaricato il fascicolo — si adotta,
+    // ma non mentre ci si sta scrivendo dentro.
+    const [visto, setVisto] = useState(valor)
+    if (valor !== visto) {
+        setVisto(valor)
+        setTexto(valor)
+    }
+
+    return (
+        <div className="mt-4 shrink-0">
+            <label
+                htmlFor={id}
+                className="label-mono block text-[var(--caes-faint)]"
+            >
+                Nota para el instalador
+            </label>
+            <textarea
+                id={id}
+                rows={2}
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                onBlur={() => texto !== valor && onGuardar(texto)}
+                placeholder="«La factura no se lee» · «La foto de la etiqueta está movida»"
+                className="mt-1.5 w-full resize-y rounded-xl border border-[var(--caes-line)] bg-[var(--caes-paper)] px-3.5 py-2.5 text-[13px] leading-[1.5] outline-none transition-colors placeholder:text-[var(--caes-faint)] focus:border-[var(--caes-green)]"
+            />
+            <p className="mt-1.5 text-[11.5px] leading-[1.45] text-[var(--caes-faint)]">
+                La verá junto a este documento en su panel. Déjala vacía si no hay
+                nada que decir.
+            </p>
         </div>
     )
 }

@@ -29,11 +29,21 @@ export default function SusDocumentos({
     expedienteId,
     specs,
     puestos,
+    comentarios,
 }: {
     expedienteId: string
     specs: DocSpec[]
     /** Gli id delle caselle già piene, al caricamento della pagina. */
     puestos: string[]
+    /**
+     * Quello che chi rivede ha scritto su una casella.
+     *
+     * Prima c'era una frase sola per tutto il fascicolo: «faltan dos
+     * certificados» va bene, «la factura no se lee y la foto de la
+     * etiqueta está movida» no — due cose su due documenti, e bisognava
+     * indovinare quale riga riguardava quale.
+     */
+    comentarios?: Record<string, string>
 }) {
     const [hechos, setHechos] = useState<Set<string>>(new Set(puestos))
     const [estados, setEstados] = useState<Record<string, Subido>>({})
@@ -140,6 +150,15 @@ export default function SusDocumentos({
                                 <p className="mt-1 text-[12.5px] leading-[1.5] text-[var(--caes-mut)]">
                                     {s.why}
                                 </p>
+                                {/* La nota di chi rivede, sulla riga che
+                                    riguarda. È l'unica cosa in questa
+                                    pagina che chiede di fare qualcosa,
+                                    quindi si vede. */}
+                                {comentarios?.[s.id] && (
+                                    <p className="mt-2 border-l-2 border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-3 py-2 text-[12.5px] leading-[1.5] text-[var(--caes-falta-deep)]">
+                                        {comentarios[s.id]}
+                                    </p>
+                                )}
                                 {estado?.estado === 'error' && (
                                     <p className="mt-1.5 text-[12.5px] text-[var(--caes-mal)]">
                                         {estado.error}

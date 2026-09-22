@@ -131,6 +131,19 @@ export type Project = {
         revisados?: Record<string, boolean>
     }
     /**
+     * Una riga di chi rivede per ogni casella, quando serve.
+     *
+     * Il motivo del «cambios solicitados» è uno per tutto il fascicolo:
+     * va bene per «faltan dos certificados», non per «la factura no se
+     * lee y la foto de la etiqueta está movida». Sono due cose su due
+     * documenti, e chi le riceve deve indovinare quale riga riguarda
+     * quale.
+     *
+     * Per casella, non per file: il problema è della casella («esta foto
+     * no vale, hazla otra vez»), e i file dentro cambiano.
+     */
+    comentarios?: Record<string, string>
+    /**
      * Le firme raccolte, documento per documento.
      *
      * Non solo il tratto: anche l istante in cui il documento si e

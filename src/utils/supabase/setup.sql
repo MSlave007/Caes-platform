@@ -821,3 +821,18 @@ create unique index if not exists projects_firma_token_idx
 
 alter table public.profiles
   add column if not exists firma_png text;
+
+-- ── Una nota por casilla, de quien revisa a quien subió ─────────────
+--
+--  El motivo del «cambios solicitados» es uno para todo el expediente.
+--  Vale para «faltan dos certificados»; no para «la factura no se lee y
+--  la foto de la etiqueta está movida» — dos cosas sobre dos documentos,
+--  y quien las recibe tiene que adivinar qué línea es cuál.
+--
+--  { "factura": "La factura no se lee: manda el PDF original." }
+--
+--  Por casilla y no por archivo: el problema es de la casilla («esta
+--  foto no vale, hazla otra vez»), y los archivos de dentro cambian.
+
+alter table public.projects
+  add column if not exists comentarios jsonb default '{}'::jsonb;

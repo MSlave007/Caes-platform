@@ -228,6 +228,7 @@ export default function InstallerProjectDetail({
                         expedienteId={String(p.id)}
                         specs={specs}
                         puestos={[...uploaded]}
+                        comentarios={p.comentarios}
                     />
                 </div>
 

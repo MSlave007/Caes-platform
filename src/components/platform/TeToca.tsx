@@ -103,8 +103,21 @@ function agrupar(pendientes: Pendiente[]): Grupo[] {
 
 export default function TeToca({ pendientes }: { pendientes: Pendiente[] }) {
     const grupos = agrupar(pendientes)
+    /**
+     * Aperto o chiuso: dedotto finché nessuno lo tocca.
+     *
+     * Era `useState(pendientes.length <= 2)`, e sembrava giusto. Ma lo
+     * stato iniziale si calcola al primo render, e al primo render i
+     * dati non sono ancora arrivati: la lista è vuota, `0 <= 2` è vero,
+     * e il pannello si apriva. Poi arrivavano sei pratiche e restava
+     * aperto — cioè proprio il caso in cui copre mezza pagina.
+     *
+     * `null` vuol dire «nessuno ha ancora deciso»: si guarda quanti ce
+     * ne sono ADESSO. Dal primo clic in poi comanda la persona.
+     */
+    const [tocado, setTocado] = useState<boolean | null>(null)
     // Fino a due non copre niente: tanto vale averli già davanti.
-    const [abierto, setAbierto] = useState(pendientes.length <= 2)
+    const abierto = tocado ?? pendientes.length <= 2
     const quieto = useReducedMotion()
     const idCuerpo = useId()
 
@@ -117,7 +130,7 @@ export default function TeToca({ pendientes }: { pendientes: Pendiente[] }) {
             {/* ------------------------------------------------- la testata */}
             <button
                 type="button"
-                onClick={() => setAbierto((v) => !v)}
+                onClick={() => setTocado(!abierto)}
                 aria-expanded={abierto}
                 aria-controls={idCuerpo}
                 className="flex w-full items-start gap-4 p-6 text-left transition-colors hover:bg-[var(--caes-falta)]/[.06] sm:p-7"

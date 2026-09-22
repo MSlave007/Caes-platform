@@ -51,6 +51,16 @@ export default function AdminReviewDetail({
     const [savings, setSavings] = useState(0)
     const [agencyPct, setAgencyPct] = useState(65)
     const [verified, setVerified] = useState<Record<string, boolean>>({})
+    /**
+     * Una riga per casella, da chi rivede a chi ha caricato.
+     *
+     * Il motivo del «cambios solicitados» è uno per tutto il fascicolo.
+     * Va bene per «faltan dos certificados», non per «la factura no se
+     * lee y la foto de la etiqueta está movida»: due cose su due
+     * documenti, e chi le riceve deve indovinare quale riga riguarda
+     * quale.
+     */
+    const [comentarios, setComentarios] = useState<Record<string, string>>({})
     // Il soggetto delegato e il prezzo pattuito. Non sono dettagli
     // commerciali: sono la controparte del Convenio e la clausola che il
     // cliente firma.
@@ -306,6 +316,7 @@ export default function AdminReviewDetail({
             .then((r) => r.json())
             .then((j) => {
                 const proj: Project = j.data
+                if (proj?.comentarios) setComentarios(proj.comentarios)
                 setP(proj)
                 setSavings(proj?.savings_eur ?? 0)
                 setAgencyPct(proj?.agency_pct ?? 65)
@@ -555,6 +566,7 @@ export default function AdminReviewDetail({
                     ...d,
                     verified: Boolean(verified[d.id]),
                 })),
+                comentarios,
             })
 
             /**
@@ -597,7 +609,7 @@ export default function AdminReviewDetail({
             setGuardado('error')
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [extraccion, verified, savings, agencyPct, prov, tarifa, p?.docs, id])
+    }, [extraccion, verified, savings, agencyPct, prov, tarifa, p?.docs, id, comentarios])
 
     useEffect(() => {
         // Il primo giro e' il caricamento, non una modifica: risalvare
@@ -745,13 +757,14 @@ export default function AdminReviewDetail({
                 </div>
 
                 <div className="mt-6">
+                    {/* `subidos` è il file INTERO, non tre campi: `auto`
+                        e `porque` si perdevano per strada, e la stellina
+                        che segna i file smistati dal lettore non compariva
+                        mai — il pezzo che li salvava funzionava, quello
+                        che li mostrava non li riceveva. */}
                     <DocumentReview
                         specs={specs}
-                        subidos={(p?.docs ?? []).map((d) => ({
-                            id: d.id,
-                            name: d.name,
-                            path: d.path,
-                        }))}
+                        subidos={p?.docs ?? []}
                         verified={verified}
                         onVerificar={(id) =>
                             setVerified((v) => ({ ...v, [id]: !v[id] }))
@@ -764,6 +777,18 @@ export default function AdminReviewDetail({
                         subiendo={subiendo}
                         onLeer={leerDocumento}
                         leyendo={leyendo}
+                        comentarios={comentarios}
+                        onComentar={(id, texto) =>
+                            setComentarios((c) => {
+                                // Vuoto vuol dire «non c'è commento», non
+                                // «c'è un commento vuoto»: se no
+                                // all'installatore compare un riquadro
+                                // giallo senza niente dentro.
+                                const { [id]: _, ...resto } = c
+                                void _
+                                return texto.trim() ? { ...c, [id]: texto } : resto
+                            })
+                        }
                         onBorrar={borrarDocumento}
                         borrando={borrando}
                     />
