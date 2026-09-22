@@ -100,7 +100,17 @@ export async function GET(
 
     return NextResponse.json({
         data: {
-            numero: p.id,
+            /**
+             * Una referencia corta, non l'id intero.
+             *
+             * Sul database gli id sono UUID, e «Expediente
+             * #f449b9de-2c85-45fd-a6a2-f97024fb4f58» non dice niente a
+             * nessuno: chi legge non lo riconosce e non lo puo ripetere
+             * al telefono. Otto caratteri bastano a distinguere, e
+             * quello che identifica davvero l'obra e la riga che scrive
+             * chi rivede.
+             */
+            numero: String(p.id).slice(0, 8).toUpperCase(),
             nota: p.subida_nota,
             faltan,
             // Quanti ne ha già mandati in questa sessione di lavoro: gli

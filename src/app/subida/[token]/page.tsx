@@ -151,7 +151,7 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                 </span>
 
                 <p className="label-mono mt-12 text-[var(--caes-mut)]">
-                    {estado ? `Expediente #${estado.numero}` : 'Cargando…'}
+                    {estado ? `Referencia ${estado.numero}` : 'Cargando…'}
                 </p>
                 <h1 className="mt-4 text-balance text-[clamp(28px,4vw,40px)] font-semibold leading-[1.06] tracking-[-0.04em]">
                     Suelta aquí los papeles.
