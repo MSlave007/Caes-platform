@@ -113,7 +113,7 @@ export default function InstallerProjectDetail({
                         </h2>
 
                         {rejected ? (
-                            <div className="mt-6 rounded-xl border border-[#E0B48C] bg-[#FBF1E7] p-5 text-[14px] leading-[1.6] text-[#7A4A12]">
+                            <div className="mt-6 rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] p-5 text-[14px] leading-[1.6] text-[var(--caes-falta-deep)]">
                                 La agencia ha rechazado este expediente.
                                 {below && (
                                     <>
@@ -135,11 +135,11 @@ export default function InstallerProjectDetail({
                                 {/* Se la palla è sua deve saltare all'occhio:
                                     è l'avviso che evita la telefonata. */}
                                 {tuTurno ? (
-                                    <div className="mt-6 rounded-[8px] border border-[#D8B26A] bg-[#FBF5E8] px-4 py-3.5">
-                                        <p className="text-[14px] font-semibold text-[#7A5A1C]">
+                                    <div className="mt-6 rounded-[8px] border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-4 py-3.5">
+                                        <p className="text-[14px] font-semibold text-[var(--caes-falta-ink)]">
                                             Te toca a ti: {detalle.label.toLowerCase()}
                                         </p>
-                                        <p className="mt-1 text-[13px] leading-[1.5] text-[#8A6A2C]">
+                                        <p className="mt-1 text-[13px] leading-[1.5] text-[var(--caes-falta-ink)]">
                                             {detalle.hint}
                                         </p>
                                     </div>
@@ -229,7 +229,7 @@ export default function InstallerProjectDetail({
 
                 {/* ------------------------------------------------ tu parte */}
                 <aside>
-                    <section className="rounded-2xl bg-[var(--caes-deep)] p-7 text-[#DDE9E1]">
+                    <section className="rounded-2xl bg-[var(--caes-deep)] p-7 text-[var(--caes-on-deep)]">
                         <h2 className="text-[16px] font-semibold tracking-[-0.02em] text-white">
                             Tu parte
                         </h2>
@@ -256,7 +256,7 @@ export default function InstallerProjectDetail({
                                     Ahorro verificado
                                 </span>
                                 <span
-                                    className={`font-mono tabular font-medium ${below ? 'text-[#F0B79E]' : 'text-white'}`}
+                                    className={`font-mono tabular font-medium ${below ? 'text-[var(--caes-bloqueo)]' : 'text-white'}`}
                                 >
                                     {p.savings_pct.toLocaleString('es-ES', {
                                         maximumFractionDigits: 1,

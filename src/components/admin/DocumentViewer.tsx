@@ -132,7 +132,7 @@ export default function DocumentViewer({
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-[var(--caes-band)]">
                 {mensaje ? (
                     <p className="flex max-w-[44ch] items-start gap-2.5 px-6 py-10 text-[13.5px] leading-[1.5] text-[var(--caes-mut)]">
-                        <AlertTriangle className="mt-[2px] h-4 w-4 shrink-0 text-[#C4863F]" />
+                        <AlertTriangle className="mt-[2px] h-4 w-4 shrink-0 text-[var(--caes-falta-ink)]" />
                         {mensaje}
                     </p>
                 ) : !url ? (

@@ -66,7 +66,7 @@ export default function ProjectRow({ p }: { p: Project }) {
             {/* risparmio verificato */}
             <span className="flex items-center gap-2">
                 <span
-                    className={`font-mono tabular text-[13.5px] ${below ? 'text-[#9B4526]' : 'text-[var(--caes-mut)]'}`}
+                    className={`font-mono tabular text-[13.5px] ${below ? 'text-[var(--caes-bloqueo-ink)]' : 'text-[var(--caes-mut)]'}`}
                 >
                     {pct === null
                         ? '— %'
@@ -74,7 +74,7 @@ export default function ProjectRow({ p }: { p: Project }) {
                 </span>
                 {below && (
                     <span
-                        className="rounded bg-[#C4643F]/14 px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-[.08em] text-[#9B4526]"
+                        className="rounded bg-[var(--caes-bloqueo)]/14 px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-[.08em] text-[var(--caes-bloqueo-ink)]"
                         title={`Por debajo del ${AHORRO_MINIMO_PCT} % mínimo`}
                     >
                         Bajo

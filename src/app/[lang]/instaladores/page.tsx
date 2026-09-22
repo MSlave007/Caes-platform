@@ -66,7 +66,7 @@ const STATUS_LABEL: Record<string, Record<string, string>> = {
 const STATUS_CLASS: Record<string, string> = {
     ok: 'bg-[rgba(199,240,74,.16)] text-[var(--caes-lime)]',
     wait: 'bg-[rgba(245,190,80,.14)] text-[#F0C264]',
-    rev: 'bg-[rgba(110,170,245,.14)] text-[#8CBBF5]',
+    rev: 'bg-[rgba(110,170,245,.14)] text-[var(--caes-info-hi)]',
 }
 
 /* Segnaposto del marchio: resta finché non si decide il nome. */
@@ -183,7 +183,7 @@ export default async function InstalladoresPage({
 
                     {/* colonna prodotto */}
                     <div>
-                        <div className="overflow-hidden rounded-[9px] bg-[var(--caes-deep)] text-[#DDE9E1] shadow-[0_2px_4px_rgba(6,35,26,.08),0_34px_60px_-28px_rgba(6,35,26,.55)]">
+                        <div className="overflow-hidden rounded-[9px] bg-[var(--caes-deep)] text-[var(--caes-on-deep)] shadow-[0_2px_4px_rgba(6,35,26,.08),0_34px_60px_-28px_rgba(6,35,26,.55)]">
                             <div className="flex items-center justify-between border-b border-white/10 px-[18px] py-3">
                                 <span className="label-mono text-[rgba(221,233,225,.5)]">
                                     {d.hero.panel.title} · {d.hero.panel.pending}
@@ -375,7 +375,7 @@ export default async function InstalladoresPage({
                                     key={s.n}
                                     className={
                                         last
-                                            ? 'flex flex-col rounded-2xl bg-[var(--caes-deep)] p-7 text-[#DDE9E1]'
+                                            ? 'flex flex-col rounded-2xl bg-[var(--caes-deep)] p-7 text-[var(--caes-on-deep)]'
                                             : 'flex flex-col rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7 transition-shadow duration-300 hover:shadow-[0_18px_40px_-24px_rgba(6,35,26,.35)]'
                                     }
                                 >
@@ -517,7 +517,7 @@ export default async function InstalladoresPage({
                         </div>
 
                         {/* agenzia — scuro */}
-                        <div className="rounded-lg bg-[var(--caes-deep)] p-8 text-[#DDE9E1]">
+                        <div className="rounded-lg bg-[var(--caes-deep)] p-8 text-[var(--caes-on-deep)]">
                             <span className="label-mono rounded-[3px] border border-white/15 px-2.5 py-1.5 text-[rgba(221,233,225,.7)]">
                                 {d.who.agency.tag}
                             </span>
@@ -586,7 +586,7 @@ export default async function InstalladoresPage({
 
             {/* ---------------------------------------------------- CTA FINALE */}
             <section id="empezar" className="scroll-mt-24 px-6 pb-16 pt-20 sm:px-10 lg:px-16">
-                <div className="mx-auto grid max-w-[1440px] gap-12 overflow-hidden rounded-xl bg-[var(--caes-deep)] px-8 py-14 text-[#DDE9E1] sm:px-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-20">
+                <div className="mx-auto grid max-w-[1440px] gap-12 overflow-hidden rounded-xl bg-[var(--caes-deep)] px-8 py-14 text-[var(--caes-on-deep)] sm:px-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-20">
                     <div>
                         <p className="label-mono text-[rgba(221,233,225,.5)]">{d.cta.eyebrow}</p>
                         <h2 className="mt-4 max-w-[18ch] text-[clamp(27px,3.6vw,40px)] font-semibold leading-[1.06] tracking-[-0.034em] text-white text-balance">

@@ -117,20 +117,20 @@ export default function AdminCartera() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.45, ease: EASE }}
-                    className="rounded-2xl border border-[#C4643F]/45 bg-[#C4643F]/[.06] p-6 sm:p-7"
+                    className="rounded-2xl border border-[var(--caes-bloqueo)]/45 bg-[var(--caes-bloqueo)]/[.06] p-6 sm:p-7"
                 >
                     <div className="flex items-start gap-3.5">
                         <AlertTriangle
-                            className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#9B4526]"
+                            className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[var(--caes-bloqueo-ink)]"
                             strokeWidth={2.2}
                         />
                         <div className="min-w-0">
-                            <h2 className="text-[17px] font-semibold tracking-[-0.024em] text-[#7E3A1F]">
+                            <h2 className="text-[17px] font-semibold tracking-[-0.024em] text-[var(--caes-bloqueo-deep)]">
                                 {resumen.necesitan.length === 1
                                     ? 'Hoy hay un instalador al que llamar.'
                                     : `Hoy hay ${resumen.necesitan.length} instaladores a los que llamar.`}
                             </h2>
-                            <p className="mt-1.5 text-[14px] leading-[1.55] text-[#7E3A1F]/80">
+                            <p className="mt-1.5 text-[14px] leading-[1.55] text-[var(--caes-bloqueo-deep)]/80">
                                 Tienen trabajo parado en su mano. Son{' '}
                                 <strong className="font-semibold">
                                     {eurRedondo(resumen.euroParado)}
@@ -142,10 +142,10 @@ export default function AdminCartera() {
                                 {resumen.necesitan.map((i) => (
                                     <li
                                         key={i.nombre}
-                                        className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-[14px] text-[#7E3A1F]"
+                                        className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-[14px] text-[var(--caes-bloqueo-deep)]"
                                     >
                                         <strong className="font-semibold">{i.nombre}</strong>
-                                        <span className="text-[#7E3A1F]/75">
+                                        <span className="text-[var(--caes-bloqueo-deep)]/75">
                                             {i.parados.length}{' '}
                                             {i.parados.length === 1 ? 'parado' : 'parados'} ·
                                             el más viejo, {i.diasPeor} días ·{' '}
@@ -189,7 +189,7 @@ export default function AdminCartera() {
                                 key={c.nombre}
                                 className={`rounded-2xl border bg-[var(--caes-panel)] p-5 sm:p-6 ${
                                     c.instaladores.length > 1
-                                        ? 'border-[#C4643F]/40'
+                                        ? 'border-[var(--caes-bloqueo)]/40'
                                         : 'border-[var(--caes-line)]'
                                 }`}
                             >
@@ -223,7 +223,7 @@ export default function AdminCartera() {
                                     ) : (
                                         // Il caso che nessun altro schermo mostra: lo
                                         // stesso cliente in mano a due installatori.
-                                        <span className="text-[#7E3A1F]">
+                                        <span className="text-[var(--caes-bloqueo-deep)]">
                                             Está en manos de{' '}
                                             <strong className="font-semibold">
                                                 {c.instaladores.length} instaladores

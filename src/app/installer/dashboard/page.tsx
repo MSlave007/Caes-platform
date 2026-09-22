@@ -317,7 +317,7 @@ export default function InstallerDashboard() {
                                                 return (
                                                     <p
                                                         className={`mt-2 truncate text-[12.5px] ${mio
-                                                            ? 'font-medium text-[#8A5B0B]'
+                                                            ? 'font-medium text-[var(--caes-falta-ink)]'
                                                             : 'text-[var(--caes-faint)]'
                                                             }`}
                                                     >

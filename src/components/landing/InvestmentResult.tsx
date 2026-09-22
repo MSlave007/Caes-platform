@@ -445,7 +445,7 @@ function LeadForm({
             </label>
 
             {state === 'error' && (
-                <p role="alert" className="mt-4 text-[13.5px] text-[#9B4526]">
+                <p role="alert" className="mt-4 text-[13.5px] text-[var(--caes-bloqueo-ink)]">
                     {L.error}
                 </p>
             )}

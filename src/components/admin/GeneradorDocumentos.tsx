@@ -225,7 +225,7 @@ function Texto({
                 // e tre i colori, invece di tre varianti da tenere
                 // allineate a mano.
                 const color = !valor
-                    ? 'border border-dashed border-[#C4863F] bg-[#D9A94F]/[.10] px-1.5 text-[#8A5B0B]'
+                    ? 'border border-dashed border-[var(--caes-falta-ink)] bg-[var(--caes-falta)]/[.10] px-1.5 text-[var(--caes-falta-ink)]'
                     : aMano
                         ? 'bg-[var(--caes-ink)]/[.07] px-[3px] text-[var(--caes-ink)] underline decoration-[var(--caes-ink)]/30 decoration-dotted underline-offset-[3px] print:no-underline'
                         : 'bg-[var(--caes-green)]/[.10] px-[3px] text-[var(--caes-ink)]'
@@ -372,7 +372,7 @@ function Desplegable({
 
     const borde =
         tono === 'aviso'
-            ? 'border-[#D9A94F] bg-[#D9A94F]/[.06]'
+            ? 'border-[var(--caes-falta)] bg-[var(--caes-falta)]/[.06]'
             : tono === 'bien'
                 ? 'border-[var(--caes-green)]/40 bg-[var(--caes-green)]/[.05]'
                 : 'border-[var(--caes-line-2)]'
@@ -453,7 +453,7 @@ function Leyenda() {
             texto: 'escrito a mano',
         },
         {
-            clase: 'border border-dashed border-[#C4863F] bg-[#D9A94F]/[.18]',
+            clase: 'border border-dashed border-[var(--caes-falta-ink)] bg-[var(--caes-falta)]/[.18]',
             texto: 'todavía falta',
         },
     ]
@@ -524,7 +524,7 @@ export default function GeneradorDocumentos({
                                 className={`font-mono text-[11px] ${sel
                                         ? 'opacity-70'
                                         : e === 'incompleto'
-                                            ? 'text-[#8A5B0B]'
+                                            ? 'text-[var(--caes-falta-ink)]'
                                             : 'text-[var(--caes-green)]'
                                     }`}
                             >
@@ -540,7 +540,7 @@ export default function GeneradorDocumentos({
             </div>
 
             {conEjemplo && (
-                <p className="flex items-center gap-2.5 rounded-xl border border-[#C4863F] bg-[#D9A94F]/[.10] px-4 py-3 text-[12.5px] text-[#8A5B0B] print:hidden">
+                <p className="flex items-center gap-2.5 rounded-xl border border-[var(--caes-falta-ink)] bg-[var(--caes-falta)]/[.10] px-4 py-3 text-[12.5px] text-[var(--caes-falta-ink)] print:hidden">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
                     Vista con datos de ejemplo del expediente de muestra. No son datos reales de
                     este expediente.
@@ -568,7 +568,7 @@ export default function GeneradorDocumentos({
                         resumen={
                             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                 <span className="flex items-center gap-2 text-[13px] font-medium text-[var(--caes-ink)]">
-                                    <AlertTriangle className="h-3.5 w-3.5 text-[#8A5B0B]" />
+                                    <AlertTriangle className="h-3.5 w-3.5 text-[var(--caes-falta-ink)]" />
                                     Faltan {faltan.length} datos para poder emitirlo
                                 </span>
                                 <span className="text-[12px] text-[var(--caes-mut)]">
@@ -661,7 +661,7 @@ export default function GeneradorDocumentos({
             <div className="sticky bottom-5 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-[var(--caes-line)] bg-[var(--caes-paper)]/95 px-2.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,.06),0_16px_40px_-16px_rgba(0,0,0,.22)] backdrop-blur print:hidden">
                 <span
                     className={`flex items-center gap-2 px-3 text-[12.5px] ${estado === 'incompleto'
-                            ? 'text-[#8A5B0B]'
+                            ? 'text-[var(--caes-falta-ink)]'
                             : estado === 'listo_firmar'
                                 ? 'text-[var(--caes-green)]'
                                 : 'text-[var(--caes-mut)]'

@@ -140,6 +140,45 @@
   --caes-green-hi: #0E8557;
   --caes-lime: #C7F04A;
   --caes-lime-ink: #3E5406;
+
+  /* ------------------------------------------------------------------
+     I tre stati che non sono «tutto bene».
+
+     Erano dodici esadecimali scritti a mano in duecento posti, e si
+     vedeva: lo stesso avviso cambiava tinta da una schermata all'altra
+     e a corpo piccolo non si leggeva. Sono tre famiglie, non una scala
+     di gravita, e la differenza e chi deve muoversi:
+
+       falta    manca qualcosa, ma non blocca ancora nessuno
+       bloqueo  e fermo: c'e qualcuno che deve agire, e si sa chi
+       mal      e finito male e non riparte
+
+     Di ognuna: il tono medio (bordi, pallini, fondi con alpha),
+     l'inchiostro (testo su fondo chiaro, contrasto >= 4.5:1 sul
+     nostro paper), la versione profonda per i titoli dentro un
+     riquadro gia colorato, e il fondo pieno.
+     ------------------------------------------------------------------ */
+  --caes-falta: #D9A94F;
+  --caes-falta-ink: #8A5B0B;
+  --caes-falta-deep: #6F4708;
+  --caes-falta-bg: #FBF1E7;
+
+  --caes-bloqueo: #C4643F;
+  --caes-bloqueo-ink: #9B4526;
+  --caes-bloqueo-deep: #7E3A1F;
+  --caes-bloqueo-bg: #FBF3EF;
+
+  --caes-mal: #8A2E2E;
+  --caes-mal-ink: #7A4646;
+  --caes-mal-bg: #FBF0F0;
+
+  /* E arrivato, sta andando: niente da fare, ma non e finito. */
+  --caes-info: #4B77A8;
+  --caes-info-ink: #2E6FB8;
+  --caes-info-hi: #8CBBF5;
+
+  /* Testo sopra il pannello scuro. */
+  --caes-on-deep: #DDE9E1;
 }
 
 @theme inline {
@@ -156,6 +195,12 @@
   --color-brandhi: var(--caes-green-hi);
   --color-lime: var(--caes-lime);
   --color-limeink: var(--caes-lime-ink);
+  --color-falta: var(--caes-falta);
+  --color-faltaink: var(--caes-falta-ink);
+  --color-bloqueo: var(--caes-bloqueo);
+  --color-bloqueoink: var(--caes-bloqueo-ink);
+  --color-mal: var(--caes-mal);
+  --color-malink: var(--caes-mal-ink);
   --font-serif: var(--font-instrument-serif), Georgia, serif;
 }
 

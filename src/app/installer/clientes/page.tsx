@@ -174,7 +174,7 @@ export default function ClientesPage() {
                     Cargando…
                 </div>
             ) : error ? (
-                <p className="rounded-xl border border-[#E0B48C] bg-[#FBF1E7] px-4 py-3 text-[13.5px] text-[#7A4A12]">
+                <p className="rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-4 py-3 text-[13.5px] text-[var(--caes-falta-deep)]">
                     {error}
                 </p>
             ) : lista.length === 0 ? (

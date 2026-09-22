@@ -268,7 +268,7 @@ export default function ClientePage({
                                     <Link
                                         href={`/installer/project/${e.id}`}
                                         className={`group flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border bg-[var(--caes-panel)] px-5 py-4 transition-all duration-300 hover:shadow-[0_18px_40px_-28px_rgba(6,35,26,.35)] ${mio
-                                            ? 'border-[#D9A94F]/55 hover:border-[#C4863F]'
+                                            ? 'border-[var(--caes-falta)]/55 hover:border-[var(--caes-falta-ink)]'
                                             : 'border-[var(--caes-line)] hover:border-[var(--caes-ink)]/25'
                                             }`}
                                     >
@@ -279,7 +279,7 @@ export default function ClientePage({
                                             {/* La riga che risponde al telefono. */}
                                             <span
                                                 className={`block text-[12.5px] ${mio
-                                                    ? 'font-medium text-[#8A5B0B]'
+                                                    ? 'font-medium text-[var(--caes-falta-ink)]'
                                                     : 'text-[var(--caes-faint)]'
                                                     }`}
                                             >

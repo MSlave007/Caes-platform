@@ -246,7 +246,7 @@ export default function InstallerProfilePage() {
                                         Aportado
                                     </span>
                                 ) : (
-                                    <span className="rounded-full border border-dashed border-[#C4863F] px-2.5 py-1 text-[11.5px] text-[#8A5B0B]">
+                                    <span className="rounded-full border border-dashed border-[var(--caes-falta-ink)] px-2.5 py-1 text-[11.5px] text-[var(--caes-falta-ink)]">
                                         Pendiente
                                     </span>
                                 )}
@@ -299,7 +299,7 @@ export default function InstallerProfilePage() {
                             />
 
                             {errorDni && (
-                                <p className="mt-3 flex items-start gap-2 text-[13px] leading-[1.5] text-[#8A5B0B]">
+                                <p className="mt-3 flex items-start gap-2 text-[13px] leading-[1.5] text-[var(--caes-falta-ink)]">
                                     <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
                                     {errorDni}
                                 </p>
@@ -353,7 +353,7 @@ export default function InstallerProfilePage() {
                 {error && (
                     <p
                         role="alert"
-                        className="rounded-xl border border-[#E0B48C] bg-[#FBF1E7] px-4 py-3 text-[13.5px] text-[#7A4A12]"
+                        className="rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-4 py-3 text-[13.5px] text-[var(--caes-falta-deep)]"
                     >
                         {error}
                     </p>

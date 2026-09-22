@@ -444,7 +444,7 @@ export default function SubmitStep({
                             Supera el 20 % mínimo ({r.ahorroPct.toFixed(1)} %)
                         </p>
                     ) : (
-                        <p className="mt-1 inline-flex items-start gap-2 text-[13px] leading-[1.45] text-[#9A6B1E]">
+                        <p className="mt-1 inline-flex items-start gap-2 text-[13px] leading-[1.45] text-[var(--caes-falta-ink)]">
                             <AlertTriangle className="mt-[2px] h-3.5 w-3.5 shrink-0" />
                             No llega al 20 % mínimo del BOE ({r.ahorroPct.toFixed(1)} %)
                         </p>
@@ -453,7 +453,7 @@ export default function SubmitStep({
             </div>
 
             {error ? (
-                <p className="rounded-[6px] border border-[#D8A0A0] bg-[#FBF0F0] px-4 py-3 text-[14px] text-[#8A3129]">
+                <p className="rounded-[6px] border border-[var(--caes-mal)] bg-[var(--caes-mal-bg)] px-4 py-3 text-[14px] text-[var(--caes-mal)]">
                     {error}
                 </p>
             ) : null}

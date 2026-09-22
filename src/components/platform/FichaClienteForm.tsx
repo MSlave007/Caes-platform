@@ -150,7 +150,7 @@ export default function FichaClienteForm({
                                 placeholder="00000000X"
                             />
                             {nifRaro && (
-                                <p className="mt-2 text-[12.5px] leading-[1.45] text-[#8A5B0B]">
+                                <p className="mt-2 text-[12.5px] leading-[1.45] text-[var(--caes-falta-ink)]">
                                     No tiene la forma habitual. Si es un CIF o un
                                     documento extranjero, déjalo así.
                                 </p>
@@ -204,7 +204,7 @@ export default function FichaClienteForm({
                     {error && (
                         <p
                             role="alert"
-                            className="flex items-start gap-2.5 rounded-xl border border-[#E0B48C] bg-[#FBF1E7] px-4 py-3 text-[13.5px] leading-[1.5] text-[#7A4A12]"
+                            className="flex items-start gap-2.5 rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-4 py-3 text-[13.5px] leading-[1.5] text-[var(--caes-falta-deep)]"
                         >
                             <AlertCircle className="mt-px h-4 w-4 shrink-0" />
                             {error}

@@ -94,7 +94,7 @@ export default function PestanasExpediente({
                         {t.aviso !== undefined && t.aviso > 0 && (
                             <span
                                 title={`${t.aviso} sin acabar`}
-                                className="ml-1 shrink-0 rounded-full bg-[#D9A94F]/20 px-2 py-0.5 font-mono text-[11px] tabular-nums text-[#8A5B0B]"
+                                className="ml-1 shrink-0 rounded-full bg-[var(--caes-falta)]/20 px-2 py-0.5 font-mono text-[11px] tabular-nums text-[var(--caes-falta-ink)]"
                             >
                                 {t.aviso}
                             </span>

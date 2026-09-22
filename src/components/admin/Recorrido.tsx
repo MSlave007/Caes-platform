@@ -141,7 +141,7 @@ export default function Recorrido({
                             key={e.id}
                             href={`/admin/review?estado=${e.id}`}
                             className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12.5px] transition-colors ${n > 0
-                                ? 'border-[#D9A94F]/55 bg-[#D9A94F]/[.08] text-[#7A5A16] hover:border-[#C4863F]'
+                                ? 'border-[var(--caes-falta)]/55 bg-[var(--caes-falta)]/[.08] text-[var(--caes-falta-ink)] hover:border-[var(--caes-falta-ink)]'
                                 : 'border-[var(--caes-line)] text-[var(--caes-faint)] hover:border-[var(--caes-line-2)]'
                                 }`}
                         >

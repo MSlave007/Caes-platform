@@ -24,14 +24,14 @@ const TONO: Record<string, { dot: string; bg: string; fg: string }> = {
         fg: 'text-[var(--caes-mut)]',
     },
     info: {
-        dot: 'bg-[#8CBBF5]',
-        bg: 'bg-[#8CBBF5]/14',
-        fg: 'text-[#2E6FB8]',
+        dot: 'bg-[var(--caes-info-hi)]',
+        bg: 'bg-[var(--caes-info-hi)]/14',
+        fg: 'text-[var(--caes-info-ink)]',
     },
     warn: {
-        dot: 'bg-[#D9A94F]',
-        bg: 'bg-[#D9A94F]/16',
-        fg: 'text-[#8A5B0B]',
+        dot: 'bg-[var(--caes-falta)]',
+        bg: 'bg-[var(--caes-falta)]/16',
+        fg: 'text-[var(--caes-falta-ink)]',
     },
     ok: {
         dot: 'bg-[var(--caes-green)]',
@@ -39,9 +39,9 @@ const TONO: Record<string, { dot: string; bg: string; fg: string }> = {
         fg: 'text-[var(--caes-green)]',
     },
     bad: {
-        dot: 'bg-[#C4643F]',
-        bg: 'bg-[#C4643F]/14',
-        fg: 'text-[#9B4526]',
+        dot: 'bg-[var(--caes-bloqueo)]',
+        bg: 'bg-[var(--caes-bloqueo)]/14',
+        fg: 'text-[var(--caes-bloqueo-ink)]',
     },
 }
 

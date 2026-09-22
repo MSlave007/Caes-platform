@@ -603,7 +603,7 @@ export default function AdminReviewDetail({
                         sapendo che il lavoro e al sicuro. */}
                     <span
                         className={`text-[12.5px] ${guardado === 'error'
-                            ? 'text-[#9B4526]'
+                            ? 'text-[var(--caes-bloqueo-ink)]'
                             : 'text-[var(--caes-faint)]'
                             }`}
                         role={guardado === 'error' ? 'alert' : undefined}
@@ -642,7 +642,7 @@ export default function AdminReviewDetail({
                         borrando={borrando}
                     />
                     {errorDoc && (
-                        <p className="mt-3 flex items-center gap-2 text-[13px] text-[#8A5B0B]">
+                        <p className="mt-3 flex items-center gap-2 text-[13px] text-[var(--caes-falta-ink)]">
                             <AlertTriangle className="h-3.5 w-3.5" />
                             {errorDoc}
                         </p>
@@ -684,7 +684,7 @@ export default function AdminReviewDetail({
                                         ? 'border-[var(--caes-green)]/40 bg-[var(--caes-green)]/[.05]'
                                         : listo
                                             ? 'border-[var(--caes-line)] hover:border-[var(--caes-ink)]/30'
-                                            : 'border-dashed border-[var(--caes-line)] hover:border-[#C4863F]'
+                                            : 'border-dashed border-[var(--caes-line)] hover:border-[var(--caes-falta-ink)]'
                                         }`}
                                 >
                                     <span
@@ -692,7 +692,7 @@ export default function AdminReviewDetail({
                                             ? 'border-[var(--caes-green)] bg-[var(--caes-green)] text-white'
                                             : listo
                                                 ? 'border-[var(--caes-line-2)] text-[var(--caes-faint)]'
-                                                : 'border-dashed border-[#C4863F] text-[#C4863F]'
+                                                : 'border-dashed border-[var(--caes-falta-ink)] text-[var(--caes-falta-ink)]'
                                             }`}
                                     >
                                         {revisado ? (
@@ -716,7 +716,7 @@ export default function AdminReviewDetail({
                                             ? 'text-[var(--caes-green)]'
                                             : listo
                                                 ? 'text-[var(--caes-mut)]'
-                                                : 'text-[#8A5B0B]'
+                                                : 'text-[var(--caes-falta-ink)]'
                                             }`}
                                     >
                                         {revisado
@@ -824,7 +824,7 @@ export default function AdminReviewDetail({
                         </div>
                     </section>
 
-                    <section className="rounded-2xl bg-[var(--caes-deep)] p-7 text-[#DDE9E1]">
+                    <section className="rounded-2xl bg-[var(--caes-deep)] p-7 text-[var(--caes-on-deep)]">
                         <h2 className="text-[16px] font-semibold tracking-[-0.02em] text-white">
                             Tu margen
                         </h2>
@@ -885,7 +885,7 @@ export default function AdminReviewDetail({
                         </div>
 
                         {p.installer_pct > COMISION_MAXIMA_PCT && (
-                            <p className="mt-5 rounded-lg bg-[#C4643F]/20 px-3.5 py-2.5 text-[12.5px] text-[#F0B79E]">
+                            <p className="mt-5 rounded-lg bg-[var(--caes-bloqueo)]/20 px-3.5 py-2.5 text-[12.5px] text-[var(--caes-bloqueo)]">
                                 La comisión del instalador supera el {COMISION_MAXIMA_PCT} %
                                 legal. El acuerdo CAES no sería válido.
                             </p>
@@ -896,7 +896,7 @@ export default function AdminReviewDetail({
             {error && (
                 <p
                     role="alert"
-                    className="rounded-xl border border-[#E0B48C] bg-[#FBF1E7] px-4 py-3 text-[13.5px] text-[#7A4A12]"
+                    className="rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-4 py-3 text-[13.5px] text-[var(--caes-falta-deep)]"
                 >
                     {error}
                 </p>
@@ -942,7 +942,7 @@ export default function AdminReviewDetail({
                         type="button"
                         onClick={() => decide('rejected')}
                         disabled={busy !== null}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-5 py-3 text-[14.5px] text-[var(--caes-mut)] transition-colors hover:border-[#C4643F]/50 hover:text-[#9B4526] disabled:opacity-40"
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-5 py-3 text-[14.5px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-bloqueo)]/50 hover:text-[var(--caes-bloqueo-ink)] disabled:opacity-40"
                     >
                         {busy === 'reject' ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

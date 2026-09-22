@@ -292,7 +292,7 @@ export default function DocumentChecklist({
                         quaranta pixel di distanza. Un fallimento invece va
                         detto dove si sta guardando. */}
                     {save === 'error' && (
-                        <span className="block text-[#8A5B0B]">
+                        <span className="block text-[var(--caes-falta-ink)]">
                             No se ha podido guardar en este navegador.
                         </span>
                     )}
@@ -308,7 +308,7 @@ export default function DocumentChecklist({
                         {save === 'saving' ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : save === 'error' ? (
-                            <CloudOff className="h-3.5 w-3.5 text-[#8A5B0B]" />
+                            <CloudOff className="h-3.5 w-3.5 text-[var(--caes-falta-ink)]" />
                         ) : (
                             <Cloud className="h-3.5 w-3.5" />
                         )}
@@ -391,7 +391,7 @@ function DocRow({
                     className={`mt-px flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${filled
                         ? 'bg-[var(--caes-green)] text-white'
                         : fallo
-                            ? 'bg-[#C4643F]/15 text-[#9B4526]'
+                            ? 'bg-[var(--caes-bloqueo)]/15 text-[var(--caes-bloqueo-ink)]'
                             : 'bg-[var(--caes-band)] text-[var(--caes-mut)]'
                         }`}
                 >
@@ -495,14 +495,14 @@ function DocRow({
                             <li
                                 key={f.clave ?? `${f.name}-${i}`}
                                 className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 ${f.state === 'error'
-                                    ? 'border-[#C4643F]/45 bg-[#C4643F]/[.05]'
+                                    ? 'border-[var(--caes-bloqueo)]/45 bg-[var(--caes-bloqueo)]/[.05]'
                                     : 'border-[var(--caes-line-2)] bg-[var(--caes-paper)]'
                                     }`}
                             >
                                 {f.state === 'reading' ? (
                                     <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--caes-faint)]" />
                                 ) : f.state === 'error' ? (
-                                    <AlertTriangle className="h-3 w-3 shrink-0 text-[#9B4526]" />
+                                    <AlertTriangle className="h-3 w-3 shrink-0 text-[var(--caes-bloqueo-ink)]" />
                                 ) : (
                                     <Paperclip className="h-3 w-3 shrink-0 text-[var(--caes-faint)]" />
                                 )}
@@ -512,12 +512,12 @@ function DocRow({
                                         {f.name}
                                     </span>
                                     {f.state === 'error' && (
-                                        <span className="block text-[11.5px] text-[#9B4526]">
+                                        <span className="block text-[11.5px] text-[var(--caes-bloqueo-ink)]">
                                             {f.error ?? 'No se ha podido subir'}
                                         </span>
                                     )}
                                     {f.state === 'done' && f.demo && (
-                                        <span className="block text-[11.5px] text-[#8A6A2C]">
+                                        <span className="block text-[11.5px] text-[var(--caes-falta-ink)]">
                                             Sin archivar · demo
                                         </span>
                                     )}

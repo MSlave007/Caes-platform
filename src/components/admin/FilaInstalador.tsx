@@ -50,7 +50,7 @@ export default function FilaInstalador({
             transition={{ duration: 0.4, delay: Math.min(indice, 8) * 0.04, ease: EASE }}
             className={`overflow-hidden rounded-2xl border bg-[var(--caes-panel)] transition-colors ${
                 urgente
-                    ? 'border-[#C4643F]/45'
+                    ? 'border-[var(--caes-bloqueo)]/45'
                     : 'border-[var(--caes-line)] hover:border-[var(--caes-line)]'
             }`}
         >
@@ -199,7 +199,7 @@ function Cifra({
             <div className="label-mono text-[var(--caes-faint)]">{label}</div>
             <div
                 className={`mt-1.5 font-mono tabular text-[15px] font-medium ${
-                    alerta ? 'text-[#9B4526]' : ''
+                    alerta ? 'text-[var(--caes-bloqueo-ink)]' : ''
                 }`}
             >
                 {valor}
@@ -211,7 +211,7 @@ function Cifra({
 function Chip({ situacion, dias }: { situacion: Situacion; dias: number }) {
     if (situacion === 'necesita') {
         return (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C4643F]/14 px-2.5 py-1 text-[11px] font-medium text-[#9B4526]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--caes-bloqueo)]/14 px-2.5 py-1 text-[11px] font-medium text-[var(--caes-bloqueo-ink)]">
                 <Clock className="h-3 w-3" strokeWidth={2.4} />
                 Te necesita · {dias} d
             </span>
@@ -275,8 +275,8 @@ function frase(i: Instalador): string {
 function color(estadoId: string): string {
     const tone = estado(estadoId).tone
     if (tone === 'ok') return 'var(--caes-green)'
-    if (tone === 'warn') return '#C4643F'
-    if (tone === 'bad') return '#9B4526'
+    if (tone === 'warn') return 'var(--caes-bloqueo)'
+    if (tone === 'bad') return 'var(--caes-mal)'
     if (tone === 'info') return 'var(--caes-mut)'
     return 'var(--caes-faint)'
 }

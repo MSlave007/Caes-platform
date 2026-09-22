@@ -187,7 +187,7 @@ export default function DocumentosDelExpediente({
                     <div className="flex flex-wrap items-center gap-4">
                         <span
                             className={`text-[12.5px] ${guardado === 'error'
-                                ? 'text-[#9B4526]'
+                                ? 'text-[var(--caes-bloqueo-ink)]'
                                 : 'text-[var(--caes-faint)]'
                                 }`}
                         >

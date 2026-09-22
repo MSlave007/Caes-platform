@@ -191,7 +191,7 @@ function Campo({
 
     return (
         <div
-            className={`flex flex-col gap-1 border-b border-[var(--caes-line-2)] px-2 py-2.5 last:border-b-0 ${inseguro ? 'bg-[#D9A94F]/[.06]' : ''
+            className={`flex flex-col gap-1 border-b border-[var(--caes-line-2)] px-2 py-2.5 last:border-b-0 ${inseguro ? 'bg-[var(--caes-falta)]/[.06]' : ''
                 }`}
         >
             <div className="flex items-center gap-2.5">
@@ -237,7 +237,7 @@ function Campo({
                                 def.tipo === 'texto'
                                     ? 'w-[168px] text-left'
                                     : 'w-[104px] text-right tabular-nums'
-                                } ${inseguro ? 'border-[#D9A94F]' : 'border-[var(--caes-line)]'}`}
+                                } ${inseguro ? 'border-[var(--caes-falta)]' : 'border-[var(--caes-line)]'}`}
                         />
                         <span className="w-[54px] font-mono text-[10px] text-[var(--caes-faint)]">
                             {def.unidad ?? ''}
@@ -283,7 +283,7 @@ function Campo({
             )}
 
             {inseguro && (
-                <span className="flex items-start gap-1.5 pr-[84px] text-[11.5px] leading-[1.4] text-[#8A5B0B]">
+                <span className="flex items-start gap-1.5 pr-[84px] text-[11.5px] leading-[1.4] text-[var(--caes-falta-ink)]">
                     <AlertTriangle className="mt-[2px] h-3 w-3 shrink-0" />
                     Lectura poco segura ({Math.round((v.confianza ?? 0) * 100)} %) · compruébala
                     contra el documento
@@ -351,7 +351,7 @@ function ConfirmarTodo({
                     type="button"
                     onClick={() => onConfirmar(dudosos)}
                     title="Solo si ya las has mirado contra el documento"
-                    className="text-[11.5px] text-[#8A5B0B] underline-offset-4 hover:underline"
+                    className="text-[11.5px] text-[var(--caes-falta-ink)] underline-offset-4 hover:underline"
                 >
                     {seguros.length > 0 ? 'y las ' : 'Confirmar las '}
                     {dudosos.length} dudosas
@@ -403,7 +403,7 @@ function Medidor({
                     className={`block h-full rounded-full transition-all duration-500 ${completo
                             ? 'bg-[var(--caes-green)]'
                             : acento
-                                ? 'bg-[#D9A94F]'
+                                ? 'bg-[var(--caes-falta)]'
                                 : 'bg-[var(--caes-ink)]'
                         }`}
                     style={{ width: `${pct}%` }}
@@ -460,14 +460,14 @@ function Avisos({ lista }: { lista: Aviso[] }) {
             {alarmas.map((a) => (
                 <div
                     key={a.comprobacion.id}
-                    className="flex gap-3.5 rounded-xl border border-[#D9A94F] bg-[#D9A94F]/[.07] px-4 py-3.5"
+                    className="flex gap-3.5 rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta)]/[.07] px-4 py-3.5"
                 >
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#8A5B0B]" />
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--caes-falta-ink)]" />
                     <div className="flex min-w-0 flex-col gap-1.5">
                         <span className="text-[14px] font-medium text-[var(--caes-ink)]">
                             {a.comprobacion.titulo}
                         </span>
-                        <span className="font-mono text-[12px] tabular-nums text-[#8A5B0B]">
+                        <span className="font-mono text-[12px] tabular-nums text-[var(--caes-falta-ink)]">
                             {a.valores[0]} ≠ {a.valores[1]}
                         </span>
                         <span className="text-[12.5px] leading-[1.5] text-[var(--caes-mut)]">
@@ -540,16 +540,16 @@ function Archivos({
                 confirmar === i ? (
                     <span
                         key={`c-${i}`}
-                        className="flex items-center gap-2 rounded-full border border-[#8A2E2E] bg-[#8A2E2E]/[.06] px-3 py-1.5 text-[12px]"
+                        className="flex items-center gap-2 rounded-full border border-[var(--caes-mal)] bg-[var(--caes-mal)]/[.06] px-3 py-1.5 text-[12px]"
                     >
-                        <span className="text-[#8A2E2E]">¿Borrarlo?</span>
+                        <span className="text-[var(--caes-mal)]">¿Borrarlo?</span>
                         <button
                             type="button"
                             onClick={() => {
                                 setConfirmar(null)
                                 onBorrar(i)
                             }}
-                            className="font-medium text-[#8A2E2E] underline-offset-2 hover:underline"
+                            className="font-medium text-[var(--caes-mal)] underline-offset-2 hover:underline"
                         >
                             Sí
                         </button>
@@ -828,7 +828,7 @@ export default function DocumentReview({
                         <span
                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${!has
                                     ? s.required
-                                        ? 'border-dashed border-[#C4863F] text-[#C4863F]'
+                                        ? 'border-dashed border-[var(--caes-falta-ink)] text-[var(--caes-falta-ink)]'
                                         : 'border-dashed border-[var(--caes-line)] text-[var(--caes-faint)]'
                                     : ok
                                         ? 'border-[var(--caes-green)] bg-[var(--caes-green)] text-white'
@@ -861,7 +861,7 @@ export default function DocumentReview({
                                 </span>
                             ) : !has ? (
                                 <span
-                                    className={`text-[12px] ${s.required ? 'text-[#8A5B0B]' : 'text-[var(--caes-faint)]'
+                                    className={`text-[12px] ${s.required ? 'text-[var(--caes-falta-ink)]' : 'text-[var(--caes-faint)]'
                                         }`}
                                 >
                                     {s.required
@@ -889,7 +889,7 @@ export default function DocumentReview({
                                 className={`font-mono text-[11.5px] tabular-nums ${pendientes === 0
                                         ? 'text-[var(--caes-green)]'
                                         : has
-                                            ? 'text-[#8A5B0B]'
+                                            ? 'text-[var(--caes-falta-ink)]'
                                             : 'text-[var(--caes-faint)]'
                                     }`}
                             >
@@ -1063,7 +1063,7 @@ export default function DocumentReview({
                             <>
                                 {todo.seguros.length + todo.dudosos.length} datos leídos sin
                                 confirmar.{' '}
-                                <span className="text-[#8A5B0B]">
+                                <span className="text-[var(--caes-falta-ink)]">
                                     {todo.dudosos.length}{' '}
                                     {todo.dudosos.length === 1
                                         ? 'es una lectura poco segura'

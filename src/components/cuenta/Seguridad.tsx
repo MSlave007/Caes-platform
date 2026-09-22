@@ -147,7 +147,7 @@ export default function Seguridad({ email }: { email: string | null }) {
                     </p>
                 )}
                 {correoError && (
-                    <p className="mt-3 flex items-start gap-2 text-[13px] leading-[1.5] text-[#9B4526]">
+                    <p className="mt-3 flex items-start gap-2 text-[13px] leading-[1.5] text-[var(--caes-bloqueo-ink)]">
                         <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
                         {correoError}
                     </p>
@@ -214,7 +214,7 @@ export default function Seguridad({ email }: { email: string | null }) {
                     </p>
                 )}
                 {passError && (
-                    <p className="mt-3 flex items-start gap-2 text-[13px] text-[#9B4526]">
+                    <p className="mt-3 flex items-start gap-2 text-[13px] text-[var(--caes-bloqueo-ink)]">
                         <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
                         {passError}
                     </p>

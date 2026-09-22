@@ -23,10 +23,10 @@ import {
 
 const TONO: Record<string, string> = {
     neutral: 'bg-[var(--caes-faint)]',
-    info: 'bg-[#4B77A8]',
-    warn: 'bg-[#C4863F]',
+    info: 'bg-[var(--caes-info)]',
+    warn: 'bg-[var(--caes-falta-ink)]',
     ok: 'bg-[var(--caes-green)]',
-    bad: 'bg-[#B4543A]',
+    bad: 'bg-[var(--caes-bloqueo)]',
 }
 
 const ACTOR_TEXTO: Record<string, string> = {
@@ -145,16 +145,16 @@ export default function StatusControl({
                 pulsante non si preme: la scorciatoia «mando indietro e
                 poi chiamo» e' quella che si prende sempre, se c'e'. */}
             {pidiendo && (
-                <div className="mt-4 rounded-xl border border-[#D9A94F]/55 bg-[#D9A94F]/[.07] p-5">
+                <div className="mt-4 rounded-xl border border-[var(--caes-falta)]/55 bg-[var(--caes-falta)]/[.07] p-5">
                     <label
                         htmlFor="motivo"
-                        className="text-[14px] font-semibold text-[#6F4708]"
+                        className="text-[14px] font-semibold text-[var(--caes-falta-deep)]"
                     >
                         {pidiendo === 'rejected'
                             ? '¿Por qué no sigue adelante?'
                             : '¿Qué tiene que corregir?'}
                     </label>
-                    <p className="mt-1.5 max-w-[62ch] text-[13px] leading-[1.5] text-[#7A5A16]">
+                    <p className="mt-1.5 max-w-[62ch] text-[13px] leading-[1.5] text-[var(--caes-falta-ink)]">
                         Lo lee el instalador tal cual, en su panel. Sé concreto: «falta
                         la foto de la etiqueta, no se lee el número de serie» le ahorra
                         una llamada y a ti otra vuelta.
@@ -166,7 +166,7 @@ export default function StatusControl({
                         autoFocus
                         value={motivo}
                         onChange={(ev) => setMotivo(ev.target.value)}
-                        className="mt-3.5 w-full resize-y rounded-xl border border-[#D9A94F]/55 bg-[var(--caes-paper)] px-4 py-3 text-[14px] leading-[1.55] text-[var(--caes-ink)] outline-none transition-colors focus:border-[#C4863F]"
+                        className="mt-3.5 w-full resize-y rounded-xl border border-[var(--caes-falta)]/55 bg-[var(--caes-paper)] px-4 py-3 text-[14px] leading-[1.55] text-[var(--caes-ink)] outline-none transition-colors focus:border-[var(--caes-falta-ink)]"
                     />
 
                     <div className="mt-4 flex flex-wrap items-center gap-2.5">
@@ -190,7 +190,7 @@ export default function StatusControl({
                             Dejarlo
                         </button>
                         {motivo.trim().length < 10 && (
-                            <span className="text-[12.5px] text-[#8A5B0B]">
+                            <span className="text-[12.5px] text-[var(--caes-falta-ink)]">
                                 Escribe qué falta antes de mandarlo.
                             </span>
                         )}

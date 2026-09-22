@@ -76,13 +76,13 @@ export default function AccionesHoy({ acciones }: { acciones: Accion[] }) {
                         <Link
                             href={a.href}
                             className={`group flex h-full items-start gap-4 rounded-2xl border p-5 transition-all duration-300 hover:shadow-[0_18px_40px_-28px_rgba(6,35,26,.35)] ${viejo
-                                ? 'border-[#D9A94F]/55 bg-[#D9A94F]/[.07] hover:border-[#C4863F]'
+                                ? 'border-[var(--caes-falta)]/55 bg-[var(--caes-falta)]/[.07] hover:border-[var(--caes-falta-ink)]'
                                 : 'border-[var(--caes-line)] bg-[var(--caes-panel)] hover:border-[var(--caes-ink)]/30'
                                 }`}
                         >
                             <span
                                 className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${viejo
-                                    ? 'bg-[#D9A94F]/25 text-[#8A5B0B]'
+                                    ? 'bg-[var(--caes-falta)]/25 text-[var(--caes-falta-ink)]'
                                     : 'bg-[var(--caes-band)] text-[var(--caes-mut)]'
                                     }`}
                             >
@@ -105,7 +105,7 @@ export default function AccionesHoy({ acciones }: { acciones: Accion[] }) {
 
                                 {a.diasMasViejo !== undefined && a.diasMasViejo > 0 && (
                                     <span
-                                        className={`mt-2.5 inline-flex items-center gap-1.5 text-[12.5px] ${viejo ? 'text-[#8A5B0B]' : 'text-[var(--caes-faint)]'
+                                        className={`mt-2.5 inline-flex items-center gap-1.5 text-[12.5px] ${viejo ? 'text-[var(--caes-falta-ink)]' : 'text-[var(--caes-faint)]'
                                             }`}
                                     >
                                         <Clock className="h-3 w-3" />

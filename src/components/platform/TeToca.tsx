@@ -39,19 +39,19 @@ export default function TeToca({ pendientes }: { pendientes: Pendiente[] }) {
     if (pendientes.length === 0) return null
 
     return (
-        <section className="rounded-2xl border border-[#D9A94F]/55 bg-[#D9A94F]/[.08] p-6 sm:p-7">
+        <section className="rounded-2xl border border-[var(--caes-falta)]/55 bg-[var(--caes-falta)]/[.08] p-6 sm:p-7">
             <div className="flex items-start gap-4">
-                <span className="mt-px flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#D9A94F]/25 text-[#8A5B0B]">
+                <span className="mt-px flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--caes-falta)]/25 text-[var(--caes-falta-ink)]">
                     <AlertTriangle className="h-4 w-4" strokeWidth={2.2} />
                 </span>
 
                 <div className="min-w-0 flex-1">
-                    <h2 className="text-[16px] font-semibold tracking-[-0.018em] text-[#6F4708]">
+                    <h2 className="text-[16px] font-semibold tracking-[-0.018em] text-[var(--caes-falta-deep)]">
                         {pendientes.length === 1
                             ? 'Hay un expediente esperándote'
                             : `Hay ${pendientes.length} expedientes esperándote`}
                     </h2>
-                    <p className="mt-1.5 max-w-[62ch] text-[13.5px] leading-[1.55] text-[#7A5A16]">
+                    <p className="mt-1.5 max-w-[62ch] text-[13.5px] leading-[1.55] text-[var(--caes-falta-ink)]">
                         Hasta que no los toques no se mueven. Nadie más puede hacerlo
                         por ti.
                     </p>
@@ -63,7 +63,7 @@ export default function TeToca({ pendientes }: { pendientes: Pendiente[] }) {
                                 <li key={p.id}>
                                     <Link
                                         href={`/installer/project/${p.id}`}
-                                        className="group flex flex-wrap items-start gap-x-4 gap-y-2 rounded-xl border border-[#D9A94F]/45 bg-[var(--caes-paper)] px-4 py-3.5 transition-colors hover:border-[#C4863F]"
+                                        className="group flex flex-wrap items-start gap-x-4 gap-y-2 rounded-xl border border-[var(--caes-falta)]/45 bg-[var(--caes-paper)] px-4 py-3.5 transition-colors hover:border-[var(--caes-falta-ink)]"
                                     >
                                         <span className="min-w-0 flex-1">
                                             <span className="flex flex-wrap items-baseline gap-x-2.5">
@@ -73,7 +73,7 @@ export default function TeToca({ pendientes }: { pendientes: Pendiente[] }) {
                                                 <span className="font-mono text-[11px] text-[var(--caes-faint)]">
                                                     #{String(p.id).slice(0, 8)}
                                                 </span>
-                                                <span className="rounded-full bg-[#D9A94F]/20 px-2 py-0.5 text-[11px] text-[#8A5B0B]">
+                                                <span className="rounded-full bg-[var(--caes-falta)]/20 px-2 py-0.5 text-[11px] text-[var(--caes-falta-ink)]">
                                                     {e.label}
                                                 </span>
                                             </span>

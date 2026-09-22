@@ -275,7 +275,7 @@ export default function InstallerEarnings({ dict, locale }: Props) {
     const shell =
         'overflow-hidden rounded-[12px] shadow-[0_2px_4px_rgba(6,35,26,.05),0_34px_60px_-30px_rgba(6,35,26,.4)]'
     const shellClaro = `${shell} border border-[var(--caes-line)] bg-[var(--caes-panel)]`
-    const shellOscuro = `${shell} bg-[var(--caes-deep)] text-[#DDE9E1]`
+    const shellOscuro = `${shell} bg-[var(--caes-deep)] text-[var(--caes-on-deep)]`
 
     return (
         <div>
@@ -428,7 +428,7 @@ export default function InstallerEarnings({ dict, locale }: Props) {
                                 <span className="label-mono text-[rgba(221,233,225,.62)]">
                                     {t.controls.comision}
                                 </span>
-                                <span className="tabular shrink-0 text-[17px] font-semibold tracking-[-0.02em] text-[#DDE9E1]">
+                                <span className="tabular shrink-0 text-[17px] font-semibold tracking-[-0.02em] text-[var(--caes-on-deep)]">
                                     {r.repartoInstaladorPct} %
                                 </span>
                             </label>
@@ -479,7 +479,7 @@ export default function InstallerEarnings({ dict, locale }: Props) {
                         <button
                             type="button"
                             onClick={() => setPaso(1)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[.18] px-3 py-1.5 text-[12.5px] text-[rgba(221,233,225,.82)] transition-colors hover:border-white/[.4] hover:text-[#DDE9E1]"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[.18] px-3 py-1.5 text-[12.5px] text-[rgba(221,233,225,.82)] transition-colors hover:border-white/[.4] hover:text-[var(--caes-on-deep)]"
                         >
                             <Pencil className="h-3 w-3" />
                             {w.edit}

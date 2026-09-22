@@ -54,12 +54,12 @@ export default function Avisos({ avisos }: { avisos: Aviso[] }) {
                         key={i}
                         role="status"
                         className={`flex gap-4 rounded-2xl border p-5 ${bloqueo
-                            ? 'border-[#C4643F]/45 bg-[#C4643F]/[.06]'
-                            : 'border-[#D9A94F]/55 bg-[#D9A94F]/[.08]'
+                            ? 'border-[var(--caes-bloqueo)]/45 bg-[var(--caes-bloqueo)]/[.06]'
+                            : 'border-[var(--caes-falta)]/55 bg-[var(--caes-falta)]/[.08]'
                             }`}
                     >
                         <span
-                            className={`mt-px flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${bloqueo ? 'bg-[#C4643F]/15 text-[#9B4526]' : 'bg-[#D9A94F]/25 text-[#8A5B0B]'
+                            className={`mt-px flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${bloqueo ? 'bg-[var(--caes-bloqueo)]/15 text-[var(--caes-bloqueo-ink)]' : 'bg-[var(--caes-falta)]/25 text-[var(--caes-falta-ink)]'
                                 }`}
                         >
                             {bloqueo ? (
@@ -71,7 +71,7 @@ export default function Avisos({ avisos }: { avisos: Aviso[] }) {
 
                         <div className="min-w-0 flex-1">
                             <p
-                                className={`text-[14.5px] font-semibold tracking-[-0.014em] ${bloqueo ? 'text-[#7A3418]' : 'text-[#6F4708]'
+                                className={`text-[14.5px] font-semibold tracking-[-0.014em] ${bloqueo ? 'text-[var(--caes-bloqueo-deep)]' : 'text-[var(--caes-falta-deep)]'
                                     }`}
                             >
                                 {a.titulo}
@@ -79,7 +79,7 @@ export default function Avisos({ avisos }: { avisos: Aviso[] }) {
 
                             {a.detalle && (
                                 <p
-                                    className={`mt-1.5 max-w-[68ch] text-[13.5px] leading-[1.55] ${bloqueo ? 'text-[#8A4526]' : 'text-[#7A5A16]'
+                                    className={`mt-1.5 max-w-[68ch] text-[13.5px] leading-[1.55] ${bloqueo ? 'text-[var(--caes-bloqueo-ink)]' : 'text-[var(--caes-falta-ink)]'
                                         }`}
                                 >
                                     {a.detalle}
@@ -94,8 +94,8 @@ export default function Avisos({ avisos }: { avisos: Aviso[] }) {
                                         <li
                                             key={t}
                                             className={`rounded-full border px-2.5 py-1 text-[12.5px] ${bloqueo
-                                                ? 'border-[#C4643F]/35 bg-[#FBF3EF] text-[#8A4526]'
-                                                : 'border-[#D9A94F]/45 bg-[#FCF7EC] text-[#7A5A16]'
+                                                ? 'border-[var(--caes-bloqueo)]/35 bg-[var(--caes-bloqueo-bg)] text-[var(--caes-bloqueo-ink)]'
+                                                : 'border-[var(--caes-falta)]/45 bg-[var(--caes-falta-bg)] text-[var(--caes-falta-ink)]'
                                                 }`}
                                         >
                                             {t}

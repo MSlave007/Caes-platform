@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
         >
             {listo === false ? (
                 <div className="flex flex-col gap-6">
-                    <p className="flex items-start gap-2.5 rounded-xl border border-[#E0B48C] bg-[#FBF1E7] px-4 py-3.5 text-[13.5px] leading-[1.55] text-[#7A4A12]">
+                    <p className="flex items-start gap-2.5 rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-4 py-3.5 text-[13.5px] leading-[1.55] text-[var(--caes-falta-deep)]">
                         <AlertCircle className="mt-px h-4 w-4 shrink-0" />
                         Este enlace ya no vale: o ha caducado, o se ha usado antes. Pide
                         uno nuevo, tarda un segundo.
@@ -170,7 +170,7 @@ export default function ResetPasswordPage() {
                     {error && (
                         <p
                             role="alert"
-                            className="flex items-start gap-2.5 rounded-xl border border-[#E0B48C] bg-[#FBF1E7] px-4 py-3 text-[13.5px] leading-[1.5] text-[#7A4A12]"
+                            className="flex items-start gap-2.5 rounded-xl border border-[var(--caes-falta)] bg-[var(--caes-falta-bg)] px-4 py-3 text-[13.5px] leading-[1.5] text-[var(--caes-falta-deep)]"
                         >
                             <AlertCircle className="mt-px h-4 w-4 shrink-0" />
                             {error}

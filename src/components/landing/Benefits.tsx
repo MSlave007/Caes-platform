@@ -62,7 +62,7 @@ export default function Benefits({ dict }: { dict: ConsumerDict }) {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: '-80px' }}
                     transition={{ duration: 0.8, ease: EASE }}
-                    className="relative overflow-hidden rounded-2xl bg-[var(--caes-deep)] p-9 text-[#DDE9E1] lg:col-span-2 lg:p-11"
+                    className="relative overflow-hidden rounded-2xl bg-[var(--caes-deep)] p-9 text-[var(--caes-on-deep)] lg:col-span-2 lg:p-11"
                 >
                     <div
                         aria-hidden
