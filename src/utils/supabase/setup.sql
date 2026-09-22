@@ -730,3 +730,77 @@ alter table public.projects
 create unique index if not exists projects_subida_token_idx
   on public.projects (subida_token)
   where subida_token is not null;
+
+-- ════════════════════════════════════════════════════════════════════
+--  Las firmas
+--
+--  Firma electrónica simple (eIDAS art. 3.10): ni avanzada ni
+--  cualificada. Lo que la sostiene no es un certificado, es la traza —
+--  quién, cuándo, desde dónde, y sobre QUÉ documento exacto.
+--
+--  ── POR QUÉ UNA COLUMNA Y NO UNA TABLA ────────────────────────────
+--
+--  Porque una firma no existe sin su expediente, no se consulta por
+--  separado y no se comparte entre expedientes. Vive y muere con la
+--  fila, y las reglas de fila que ya protegen `projects` la protegen
+--  sin escribir ninguna nueva.
+--
+--  ── QUÉ HAY DENTRO ────────────────────────────────────────────────
+--
+--  Una entrada por documento (`convenio`, `res060`, `anexo1`):
+--
+--    {
+--      "convenio": {
+--        "congelado": "2026-09-22T13:39:31.192Z",
+--        "huella":    "c1642123791add2e...",
+--        "firmas": [
+--          { "rol": "EL CEDENTE", "nombre": "...", "metodo": "trazo",
+--            "png": "<base64>", "fecha": "...",
+--            "ip": "...", "agente": "Chrome · Android" }
+--        ]
+--      }
+--    }
+--
+--  `congelado` es el instante de la primera firma. Desde ahí el PDF se
+--  recompone siempre con esa fecha en los metadatos, así que sale
+--  idéntico byte a byte — y `huella` (SHA-256 del documento tal y como
+--  se presentó) se puede recalcular y comparar cuando sea.
+--
+--  De ahí sale la propiedad que hace que todo esto valga algo: si
+--  alguien cambia un dato del expediente después de firmar, el
+--  documento deja de reproducir su huella, y la pantalla lo dice.
+--
+--  ⚠️ `png` es el trazo, en base64 dentro del JSON. Son unos pocos KB
+--  por firma. Si algún día pesa, se muda al bucket privado — pero
+--  entonces el PDF firmado deja de poder recomponerse sin él, y esa es
+--  la propiedad que no conviene perder.
+-- ════════════════════════════════════════════════════════════════════
+
+alter table public.projects
+  add column if not exists firmas jsonb default '{}'::jsonb;
+
+-- ── El enlace con el que el cliente firma desde su casa ─────────────
+--
+--  Mismos tres frenos que el de subida: uuid v4, caduca solo, y se mata
+--  poniendo la fecha en el pasado. Y uno más que aquel no necesita: el
+--  token dice QUÉ documento y QUÉ firmante, así que quien lo abre no
+--  elige nada. Sin eso, un enlace para firmar el Anexo serviría para
+--  descargar el Convenio, que es donde están las cifras.
+--
+--  Se borra solo en cuanto se firma: un sitio donde se escribe que
+--  sigue abierto después de haber servido es una responsabilidad que ya
+--  no sirve para nada. Ver src/app/api/firma.
+
+alter table public.projects
+  add column if not exists firma_token     uuid,
+  add column if not exists firma_caduca    timestamptz,
+  -- Cuál de los tres, y quién de las partes.
+  add column if not exists firma_plantilla text,
+  add column if not exists firma_rol       text,
+  -- Una línea que escribe quien revisa. Es lo único que sale en esa
+  -- página además del número de expediente y el nombre del documento.
+  add column if not exists firma_nota      text;
+
+create unique index if not exists projects_firma_token_idx
+  on public.projects (firma_token)
+  where firma_token is not null;
