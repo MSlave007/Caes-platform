@@ -56,6 +56,8 @@ const TIPOS = new Set([
 
 type Proyecto = {
     id: string
+    /** Chi ha aperto il fascicolo, se ha un account. */
+    installer_id?: string | null
     source: Role
     docs: { id: string; name: string; verified: boolean; path?: string }[] | null
     subida_caduca: string | null
@@ -72,7 +74,7 @@ async function abrir(token: string): Promise<Proyecto | null> {
     if (admin) {
         const { data } = await admin
             .from('projects')
-            .select('id, source, docs, subida_caduca, subida_nota')
+            .select('id, source, docs, subida_caduca, subida_nota, installer_id')
             .eq('subida_token', token)
             .maybeSingle()
 
@@ -95,6 +97,7 @@ async function abrir(token: string): Promise<Proyecto | null> {
 
     return {
         id: demo.id,
+        installer_id: demo.installer_id ?? null,
         source: demo.source as Role,
         docs: demo.docs ?? null,
         subida_caduca: demo.subida_caduca ?? null,
@@ -117,10 +120,30 @@ export async function GET(
     const p = await abrir(token)
     if (!p) return NextResponse.json({ error: 'caducado' }, { status: 404 })
 
+    /**
+     * Tutta la lista, non solo quello che manca.
+     *
+     * Prima si mandava solo `faltan`, e chi apriva il link vedeva
+     * l'elenco di quello che non aveva ancora fatto e niente di quello
+     * che aveva fatto. Cioè: nessuna idea di quanto manca alla fine, e
+     * la stessa sensazione di partire da zero ogni volta che si riapre.
+     *
+     * Dire cosa c'è già non svela niente: sono le etichette dei nostri
+     * riquadri, non il contenuto di nessun documento.
+     */
     const puestos = new Set((p.docs ?? []).map((d) => d.id))
-    const faltan = (DOCUMENTS[p.source] ?? DOCUMENTS.installer)
-        .filter((d) => d.required && !puestos.has(d.id))
-        .map((d) => ({ id: d.id, label: d.label, why: d.why }))
+    const lista = (DOCUMENTS[p.source] ?? DOCUMENTS.installer).map((d) => ({
+        id: d.id,
+        label: d.label,
+        why: d.why,
+        obligatorio: Boolean(d.required),
+        // `onSite` dice che conviene scattarla in cantiere: a chi sta in
+        // un pianerottolo serve sapere quali sono le foto e quali le
+        // carte, perché sono due viaggi diversi.
+        foto: Boolean(d.onSite),
+        hecho: puestos.has(d.id),
+    }))
+    const faltan = lista.filter((d) => d.obligatorio && !d.hecho)
 
     return NextResponse.json({
         data: {
@@ -136,6 +159,16 @@ export async function GET(
              */
             numero: String(p.id).slice(0, 8).toUpperCase(),
             nota: p.subida_nota,
+            /**
+             * Il suo pannello, se ha un account.
+             *
+             * Da qui non si entra: senza sessione quella pagina non
+             * apre. Serve a chi un account ce l'ha e sta guardando
+             * questo link su WhatsApp — da lì al suo espediente ci si
+             * arriva senza cercarlo fra quaranta.
+             */
+            panel: p.installer_id ? `/installer/project/${p.id}` : null,
+            lista,
             faltan,
             // Quanti ne ha già mandati in questa sessione di lavoro: gli
             // dice che sono arrivati, senza dirgli cosa c'era prima.

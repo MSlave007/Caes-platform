@@ -1,7 +1,16 @@
 'use client'
 
 import { use, useEffect, useRef, useState } from 'react'
-import { Camera, Check, Loader2, Upload, X } from 'lucide-react'
+import {
+    Camera,
+    Check,
+    ExternalLink,
+    FileText,
+    ImageIcon,
+    Loader2,
+    Upload,
+    X,
+} from 'lucide-react'
 
 /**
  * «Suelta aquí los papeles».
@@ -35,8 +44,25 @@ import { Camera, Check, Loader2, Upload, X } from 'lucide-react'
  * Il file e client, quindi il meta si mette con le regole del layout:
  * il robots.txt lo copre comunque, e li e dove conta.
  */
-type Falta = { id: string; label: string; why: string }
-type Estado = { numero: string; nota: string | null; faltan: Falta[]; recibidos: number }
+type Casilla = {
+    id: string
+    label: string
+    why: string
+    obligatorio: boolean
+    /** Conviene scattarla in cantiere: è un lavoro diverso da cercare un PDF. */
+    foto: boolean
+    hecho: boolean
+}
+type Estado = {
+    numero: string
+    nota: string | null
+    /** Il suo pannello, se ha un account. `null` se no. */
+    panel: string | null
+    /** Tutte le caselle, non solo quelle vuote. */
+    lista: Casilla[]
+    faltan: Casilla[]
+    recibidos: number
+}
 type Subido = {
     /** Chiave stabile: due file possono chiamarsi uguale. */
     id: string
@@ -56,6 +82,7 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
     const [encima, setEncima] = useState(false)
     const input = useRef<HTMLInputElement>(null)
     const camara = useRef<HTMLInputElement>(null)
+    const suelto = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         let vivo = true
@@ -121,17 +148,18 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                      * cercare quel documento.
                      */
                     if (j.data?.seguro && j.data?.casillaId) {
-                        setEstado((e) =>
-                            e
-                                ? {
-                                      ...e,
-                                      recibidos: e.recibidos + 1,
-                                      faltan: e.faltan.filter(
-                                          (f) => f.id !== j.data.casillaId
-                                      ),
-                                  }
-                                : e
-                        )
+                        setEstado((e) => {
+                            if (!e) return e
+                            const lista = e.lista.map((c) =>
+                                c.id === j.data.casillaId ? { ...c, hecho: true } : c
+                            )
+                            return {
+                                ...e,
+                                recibidos: e.recibidos + 1,
+                                lista,
+                                faltan: lista.filter((c) => c.obligatorio && !c.hecho),
+                            }
+                        })
                     } else {
                         setEstado((e) =>
                             e ? { ...e, recibidos: e.recibidos + 1 } : e
@@ -147,6 +175,24 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                 actualizar({ estado: 'error', error: 'Sin conexión' })
             }
         }
+    }
+
+    /**
+     * Il bottone di una riga apre lo stesso selettore di quello grande.
+     *
+     * Non manda il file in QUELLA casella: lo smista il modello come
+     * tutto il resto, ed è quello che promette la riga in cima — «non
+     * devi acertar ninguna casilla». È un modo di dire «questo ce l'ho
+     * adesso» senza aprire una selezione generale con dentro
+     * quattrocento foto.
+     *
+     * Per le foto apre la fotocamera, per i documenti i file: chi ha il
+     * telefono in mano davanti al contatore non vuole la galleria.
+     */
+    const pedirArchivo = (_id: string, foto: boolean) => {
+        void _id
+        if (foto) camara.current?.click()
+        else suelto.current?.click()
     }
 
     if (caducado) {
@@ -299,6 +345,20 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                             e.target.value = ''
                         }}
                     />
+                    {/* Un secondo, uguale, per i bottoni delle righe: lo
+                        stesso `ref` premuto da due posti apre una sola
+                        volta e la seconda non succede niente. */}
+                    <input
+                        ref={suelto}
+                        type="file"
+                        multiple
+                        accept="application/pdf,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                            if (e.target.files?.length) void mandar(e.target.files)
+                            e.target.value = ''
+                        }}
+                    />
                 </div>
 
                 {/* ── dove è finito ognuno ─────────────────────────── */}
@@ -347,26 +407,40 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                     </ul>
                 )}
 
-                {/* ── cosa manca ancora ────────────────────────────── */}
-                {estado && estado.faltan.length > 0 && (
-                    <section className="mt-10">
-                        <p className="label-mono text-[var(--caes-faint)]">
-                            Lo que falta · {estado.faltan.length}
+                {/* ── quello che serve, e quello che c'è già ───────── */}
+                {estado && estado.lista.length > 0 && (
+                    <section className="mt-12 flex flex-col gap-8">
+                        <Bloque
+                            titulo="Fotos que hay que hacer"
+                            pie="Con el móvil, ahí mismo. No hace falta que salgan bonitas — tienen que verse."
+                            casillas={estado.lista.filter((c) => c.foto)}
+                            onElegir={(id) => pedirArchivo(id, true)}
+                        />
+                        <Bloque
+                            titulo="Documentos"
+                            pie="PDF o foto de la hoja, las dos valen."
+                            casillas={estado.lista.filter((c) => !c.foto)}
+                            onElegir={(id) => pedirArchivo(id, false)}
+                        />
+
+                        <p className="text-[12.5px] leading-[1.5] text-[var(--caes-faint)]">
+                            Si mandas algo que no está en la lista, también vale: lo
+                            colocamos igual.
                         </p>
-                        <ul className="mt-3 flex flex-col gap-2.5">
-                            {estado.faltan.map((f) => (
-                                <li key={f.id} className="text-[14px] leading-[1.5]">
-                                    {f.label}
-                                    <span className="block text-[12.5px] text-[var(--caes-faint)]">
-                                        {f.why}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                        <p className="mt-6 text-[12.5px] leading-[1.5] text-[var(--caes-faint)]">
-                            La lista se va acortando según suben. Si mandas algo que
-                            no está aquí, también vale: lo colocamos igual.
-                        </p>
+
+                        {/* Per chi un account ce l'ha. Da qui non si entra:
+                            senza sessione quella pagina non apre. Serve solo
+                            a non dover cercare il proprio espediente fra
+                            quaranta dopo aver caricato. */}
+                        {estado.panel && (
+                            <a
+                                href={estado.panel}
+                                className="inline-flex items-center gap-2 self-start text-[13px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+                            >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                Si tienes cuenta, ver el expediente entero
+                            </a>
+                        )}
                     </section>
                 )}
 
@@ -405,5 +479,103 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                 )}
             </div>
         </main>
+    )
+}
+
+/**
+ * Un gruppo di caselle: le foto, o le carte.
+ *
+ * Divise perché sono due lavori. Le foto si fanno in cantiere col
+ * telefono in mano; i documenti si cercano, e spesso da un'altra parte e
+ * un altro giorno. In un elenco unico si leggevano tutte allo stesso
+ * modo, e chi le guardava non sapeva cosa poteva chiudere lì e cosa no.
+ */
+function Bloque({
+    titulo,
+    pie,
+    casillas,
+    onElegir,
+}: {
+    titulo: string
+    pie: string
+    casillas: Casilla[]
+    onElegir: (id: string) => void
+}) {
+    if (casillas.length === 0) return null
+
+    const hechas = casillas.filter((c) => c.hecho).length
+
+    return (
+        <section>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 className="text-[15px] font-semibold tracking-[-0.018em]">{titulo}</h2>
+                {/* Il conto che sale. «3 de 5» risponde alla domanda vera
+                    di chi sta caricando, che è quanto manca alla fine. */}
+                <span className="label-mono text-[var(--caes-faint)]">
+                    {hechas} de {casillas.length}
+                </span>
+            </div>
+            <p className="mt-1.5 text-[13px] leading-[1.5] text-[var(--caes-mut)]">{pie}</p>
+
+            <ul className="mt-4 flex flex-col gap-2">
+                {casillas.map((c) => (
+                    <li
+                        key={c.id}
+                        className={`flex items-start gap-3.5 rounded-xl border px-4 py-3.5 transition-colors ${
+                            c.hecho
+                                ? 'border-[var(--caes-green)]/25 bg-[var(--caes-green)]/[.05]'
+                                : 'border-[var(--caes-line)] bg-[var(--caes-panel)]'
+                        }`}
+                    >
+                        <span className="mt-0.5 shrink-0">
+                            {c.hecho ? (
+                                <Check
+                                    className="h-4 w-4 text-[var(--caes-green)]"
+                                    strokeWidth={3}
+                                />
+                            ) : c.foto ? (
+                                <ImageIcon
+                                    className="h-4 w-4 text-[var(--caes-faint)]"
+                                    strokeWidth={1.7}
+                                />
+                            ) : (
+                                <FileText
+                                    className="h-4 w-4 text-[var(--caes-faint)]"
+                                    strokeWidth={1.7}
+                                />
+                            )}
+                        </span>
+
+                        <div className="min-w-0 flex-1">
+                            <p className="flex flex-wrap items-center gap-x-2 text-[14.5px] font-medium leading-[1.4]">
+                                {c.label}
+                                {!c.obligatorio && (
+                                    <span className="text-[11.5px] font-normal text-[var(--caes-faint)]">
+                                        opcional
+                                    </span>
+                                )}
+                            </p>
+                            {/* Il perché anche quando è già fatto: chi
+                                torna il giorno dopo vuole poter
+                                controllare che quella che ha mandato
+                                fosse quella giusta. */}
+                            <p className="mt-1 text-[12.5px] leading-[1.5] text-[var(--caes-mut)]">
+                                {c.why}
+                            </p>
+                        </div>
+
+                        {!c.hecho && (
+                            <button
+                                type="button"
+                                onClick={() => onElegir(c.id)}
+                                className="mt-0.5 shrink-0 rounded-full border border-[var(--caes-line)] bg-[var(--caes-paper)] px-3.5 py-1.5 text-[12.5px] transition-colors hover:border-[var(--caes-ink)] hover:bg-[var(--caes-band)]"
+                            >
+                                {c.foto ? 'Hacerla' : 'Subirlo'}
+                            </button>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </section>
     )
 }
