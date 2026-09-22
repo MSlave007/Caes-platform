@@ -194,8 +194,20 @@ function Campo({
             className={`flex flex-col gap-1 border-b border-[var(--caes-line-2)] px-2 py-2.5 last:border-b-0 ${inseguro ? 'bg-[var(--caes-falta)]/[.06]' : ''
                 }`}
         >
-            <div className="flex items-center gap-2.5">
-                <span className="min-w-0 flex-1 truncate text-[13.5px] text-[var(--caes-mut)]">
+            <div className="flex items-start gap-2.5">
+                {/*
+                    Va a capo, non si taglia.
+                    Tagliata, questa colonna dava «NIF / NIE...» e «Nombre
+                    ...», e «NIF / NIE del cliente» contro «NIF del
+                    instalador» diventavano la stessa cosa — proprio i due
+                    campi che un controllo incrociato confronta fra loro.
+                    Una riga in piu e meno grave di un campo confermato
+                    guardando quello sbagliato.
+                */}
+                <span
+                    title={def.label}
+                    className="min-w-0 flex-1 pt-1.5 text-[13.5px] leading-[1.35] text-[var(--caes-mut)]"
+                >
                     {def.label}
                     {def.destino !== 'documentos' && (
                         <span
@@ -452,7 +464,7 @@ function Avisos({ lista }: { lista: Senal[] }) {
     const pendientes = lista.filter((a) => a.estado === 'pendiente')
 
     return (
-        <div className="flex flex-col gap-2.5">
+        <div id="comprobaciones" className="flex flex-col gap-2.5">
             <span className="font-mono text-[9.5px] uppercase tracking-[.14em] text-[var(--caes-faint)]">
                 Comprobaciones automáticas
             </span>
@@ -802,6 +814,9 @@ export default function DocumentReview({
         return (
             <li
                 key={s.id}
+                // L'ancora a cui portano le pastiglie degli avvisi in
+                // cima alla pagina.
+                id={`doc-${s.id}`}
                 onDragOver={(e) => {
                     e.preventDefault()
                     setEncima(s.id)

@@ -404,8 +404,12 @@ export default function AdminReviewDetail({
                         ? 'Una comprobación no cuadra'
                         : `${noCuadran.length} comprobaciones no cuadran`,
                 detalle:
-                    'Lo dicen los documentos entre ellos. Está abajo, con los dos valores al lado.',
-                piezas: noCuadran.map((s) => s.titulo),
+                    'Lo dicen los documentos entre ellos. Pulsa para ver los dos valores.',
+                quien: 'tu',
+                piezas: noCuadran.map((s) => ({
+                    texto: s.titulo,
+                    ancla: 'comprobaciones',
+                })),
             })
         }
 
@@ -414,11 +418,18 @@ export default function AdminReviewDetail({
                 tipo: 'falta',
                 titulo: `Faltan ${missing.length} ${missing.length === 1 ? 'documento obligatorio' : 'documentos obligatorios'}`,
                 detalle: 'Sin ellos no se puede aprobar. Pídeselos al instalador o súbelos tú si los tienes.',
+                quien: 'instalador',
                 piezas: missing.map((m) => {
                     const n = m.minFiles ?? 1
-                    return n > 1
-                        ? `${m.label} · ${cuantos[m.id] ?? 0} de ${n}`
-                        : m.label
+                    return {
+                        texto:
+                            n > 1
+                                ? `${m.label} · ${cuantos[m.id] ?? 0} de ${n}`
+                                : m.label,
+                        // Alla riga di QUEL documento, dove c'e anche il
+                        // bottone per caricarlo al posto suo.
+                        ancla: `doc-${m.id}`,
+                    }
                 }),
             })
         }

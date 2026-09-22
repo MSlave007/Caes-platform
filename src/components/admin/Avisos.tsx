@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, Ban } from 'lucide-react'
+import { AlertTriangle, ArrowDown, Ban } from 'lucide-react'
 
 /**
  * Quello che impedisce di approvare.
@@ -32,6 +32,19 @@ import { AlertTriangle, Ban } from 'lucide-react'
  * telefonata, dirgli che la pratica non è ammissibile è un'altra.
  */
 
+export type Pieza = {
+    texto: string
+    /**
+     * L'id dell'elemento a cui porta, se c'è.
+     *
+     * Senza, la pastiglia resta un'etichetta e si veste da etichetta.
+     * Con, diventa un bottone vero — perché il difetto peggiore di
+     * prima era proprio questo: bordo tondo e imbottitura identici ai
+     * bottoni due centimetri sopra, e cliccandole non succedeva niente.
+     */
+    ancla?: string
+}
+
 export type Aviso = {
     tipo: 'bloqueo' | 'falta'
     /** Tre-cinque parole. È quello che si legge per primo. */
@@ -39,7 +52,33 @@ export type Aviso = {
     /** Una frase di contesto. Facoltativa. */
     detalle?: string
     /** Le cose che mancano, una per etichetta. */
-    piezas?: string[]
+    piezas?: Pieza[]
+    /**
+     * Chi deve muoversi.
+     *
+     * È la differenza che due riquadri dello stesso ambra non
+     * riuscivano a dire: «mancano sette documenti» è una telefonata
+     * all'installatore, «due controlli non tornano» è una cosa da
+     * guardare adesso. Scritto, si capisce senza interpretare una
+     * tinta.
+     */
+    quien?: 'instalador' | 'tu'
+}
+
+/** Porta all'elemento e lo fa notare per un attimo. */
+function irA(id: string) {
+    const el = document.getElementById(id)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    // Un lampo, non una selezione permanente: dice «è questo» e sparisce.
+    el.animate(
+        [
+            { boxShadow: '0 0 0 0 rgba(217,169,79,0)' },
+            { boxShadow: '0 0 0 4px rgba(217,169,79,.55)' },
+            { boxShadow: '0 0 0 0 rgba(217,169,79,0)' },
+        ],
+        { duration: 1400, easing: 'ease-out' }
+    )
 }
 
 export default function Avisos({ avisos }: { avisos: Aviso[] }) {
@@ -70,12 +109,24 @@ export default function Avisos({ avisos }: { avisos: Aviso[] }) {
                         </span>
 
                         <div className="min-w-0 flex-1">
-                            <p
-                                className={`text-[14.5px] font-semibold tracking-[-0.014em] ${bloqueo ? 'text-[var(--caes-bloqueo-deep)]' : 'text-[var(--caes-falta-deep)]'
-                                    }`}
-                            >
-                                {a.titulo}
-                            </p>
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                                <p
+                                    className={`text-[14.5px] font-semibold tracking-[-0.014em] ${bloqueo ? 'text-[var(--caes-bloqueo-deep)]' : 'text-[var(--caes-falta-deep)]'
+                                        }`}
+                                >
+                                    {a.titulo}
+                                </p>
+                                {a.quien && (
+                                    <span
+                                        className={`label-mono shrink-0 ${bloqueo ? 'text-[var(--caes-bloqueo-ink)]/70' : 'text-[var(--caes-falta-ink)]/70'
+                                            }`}
+                                    >
+                                        {a.quien === 'tu'
+                                            ? 'Lo miras tú'
+                                            : 'Lo trae el instalador'}
+                                    </span>
+                                )}
+                            </div>
 
                             {a.detalle && (
                                 <p
@@ -90,17 +141,43 @@ export default function Avisos({ avisos }: { avisos: Aviso[] }) {
                                 contano con l'occhio invece di leggerle. */}
                             {a.piezas && a.piezas.length > 0 && (
                                 <ul className="mt-3.5 flex flex-wrap gap-1.5">
-                                    {a.piezas.map((t) => (
-                                        <li
-                                            key={t}
-                                            className={`rounded-full border px-2.5 py-1 text-[12.5px] ${bloqueo
-                                                ? 'border-[var(--caes-bloqueo)]/35 bg-[var(--caes-bloqueo-bg)] text-[var(--caes-bloqueo-ink)]'
-                                                : 'border-[var(--caes-falta)]/45 bg-[var(--caes-falta-bg)] text-[var(--caes-falta-ink)]'
-                                                }`}
-                                        >
-                                            {t}
-                                        </li>
-                                    ))}
+                                    {a.piezas.map((p) => {
+                                        const tono = bloqueo
+                                            ? 'border-[var(--caes-bloqueo)]/35 bg-[var(--caes-bloqueo-bg)] text-[var(--caes-bloqueo-ink)]'
+                                            : 'border-[var(--caes-falta)]/45 bg-[var(--caes-falta-bg)] text-[var(--caes-falta-ink)]'
+
+                                        // Con un'ancora è un bottone e si
+                                        // comporta come tale; senza, è
+                                        // un'etichetta e si veste piatta,
+                                        // senza bordo, così non promette un
+                                        // clic che non c'è.
+                                        return (
+                                            <li key={p.texto}>
+                                                {p.ancla ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => irA(p.ancla!)}
+                                                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12.5px] transition-colors hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--caes-ink)] ${tono}`}
+                                                    >
+                                                        {p.texto}
+                                                        <ArrowDown
+                                                            className="h-3 w-3 opacity-60"
+                                                            strokeWidth={2.2}
+                                                        />
+                                                    </button>
+                                                ) : (
+                                                    <span
+                                                        className={`inline-block rounded-md px-2 py-1 text-[12.5px] ${bloqueo
+                                                            ? 'bg-[var(--caes-bloqueo-bg)] text-[var(--caes-bloqueo-ink)]'
+                                                            : 'bg-[var(--caes-falta-bg)] text-[var(--caes-falta-ink)]'
+                                                            }`}
+                                                    >
+                                                        {p.texto}
+                                                    </span>
+                                                )}
+                                            </li>
+                                        )
+                                    })}
                                 </ul>
                             )}
                         </div>
