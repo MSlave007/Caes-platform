@@ -481,7 +481,10 @@ export const HUECOS: Record<string, Hueco> = {
         id: 'fecha_firma',
         label: 'Fecha de firma',
         origen: 'agencia',
-        ejemplo: '07 de Septiembre de 2026',
+        // In spagnolo il mese va minuscolo, ed e cosi che lo scrive
+        // `extrasDeAgencia`: l'esempio con la maiuscola faceva sembrare
+        // sbagliato il documento vero.
+        ejemplo: '07 de septiembre de 2026',
         requerido: true,
     },
 }

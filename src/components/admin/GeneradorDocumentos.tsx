@@ -8,9 +8,9 @@ import {
     Download,
     FileText,
     Pencil,
+    ExternalLink,
     PenLine,
     RotateCcw,
-    Send,
 } from 'lucide-react'
 import {
     HUECOS,
@@ -68,6 +68,8 @@ import type { Localizacion } from '@/lib/caes/catastro'
  */
 
 type Props = {
+    /** Serve a chiedere il PDF: i dati veri li rimonta il server. */
+    expedienteId: string
     datos: Datos
     /**
      * Quello che è stato riscritto a mano dentro il documento.
@@ -486,6 +488,7 @@ function Leyenda() {
  * ==================================================================== */
 
 export default function GeneradorDocumentos({
+    expedienteId,
     datos,
     retoques,
     onRetocar,
@@ -500,6 +503,20 @@ export default function GeneradorDocumentos({
     const faltan = useMemo(() => faltanEn(plantilla, datos), [plantilla, datos])
     const estado = estadoDe(plantilla, datos, Boolean(revisados[plantilla.id]))
     const retocados = Object.keys(retoques)
+
+    /**
+     * L'indirizzo del PDF vero.
+     *
+     * Non porta i dati: porta quale fascicolo e quale documento. Li
+     * rimonta il server dall'estrazione confermata e dai ritocchi
+     * salvati — vedi `/api/documentos`. Un contratto firmato non si
+     * compone con quello che dice il browser.
+     */
+    const enlace = (descargar: boolean) =>
+        `/api/documentos?id=${encodeURIComponent(expedienteId)}` +
+        `&plantilla=${plantilla.id}` +
+        (conEjemplo ? '&ejemplo=1' : '') +
+        (descargar ? '&descargar=1' : '')
 
     return (
         <div className="flex flex-col gap-5">
@@ -720,25 +737,35 @@ export default function GeneradorDocumentos({
                     </button>
                 )}
 
-                <button
-                    type="button"
-                    onClick={() => window.print()}
-                    disabled={faltan.length > 0}
-                    className="flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-3.5 py-2 text-[12.5px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)] disabled:opacity-40 disabled:hover:border-[var(--caes-line)] disabled:hover:text-[var(--caes-mut)]"
+                {/**
+                  * Aprire e scaricare sono due gesti diversi.
+                  *
+                  * Chi rivede vuole guardarlo — e lo guarda venti volte
+                  * prima di mandarlo. Scaricare venti copie in
+                  * «Descargas» per leggerle e poi cancellarle non e' un
+                  * modo di lavorare.
+                  *
+                  * Tutti e due escono anche incompleti: la bozza serve
+                  * proprio a vedere cosa manca, e quando manca qualcosa
+                  * il PDF porta «BORRADOR» di traverso su ogni pagina.
+                  */}
+                <a
+                    href={enlace(false)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 rounded-full border border-[var(--caes-line)] px-3.5 py-2 text-[12.5px] text-[var(--caes-mut)] transition-colors hover:border-[var(--caes-ink)] hover:text-[var(--caes-ink)]"
+                >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {faltan.length > 0 ? 'Ver el borrador' : 'Ver el PDF'}
+                </a>
+
+                <a
+                    href={enlace(true)}
+                    className="flex items-center gap-2 rounded-full bg-[var(--caes-ink)] px-3.5 py-2 text-[12.5px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90"
                 >
                     <Download className="h-3.5 w-3.5" />
-                    Descargar PDF
-                </button>
-
-                <button
-                    type="button"
-                    disabled
-                    title="Todavía no está conectado a ninguna firma electrónica"
-                    className="flex items-center gap-2 rounded-full bg-[var(--caes-ink)]/10 px-3.5 py-2 text-[12.5px] text-[var(--caes-faint)]"
-                >
-                    <Send className="h-3.5 w-3.5" />
-                    Enviar a firma
-                </button>
+                    Descargar
+                </a>
             </div>
         </div>
     )

@@ -224,6 +224,7 @@ export default function DocumentosDelExpediente({
             </div>
 
             <GeneradorDocumentos
+                expedienteId={String(id)}
                 datos={datos}
                 retoques={retoques}
                 onRetocar={(id, valor) =>
