@@ -60,6 +60,7 @@ export default function Firmar({
     nombreSugerido = '',
     ocupado = false,
     error,
+    puedeGuardar = false,
     onFirmar,
 }: {
     /** Come lo chiama il documento: «El Cedente», «El Cesionario». */
@@ -67,6 +68,16 @@ export default function Firmar({
     nombreSugerido?: string
     ocupado?: boolean
     error?: string | null
+    /**
+     * Se offrire di conservare questa firma per la prossima volta.
+     *
+     * Falso di suo, e falso sulla pagina del cliente. Non basta che la
+     * rotta non risponda: senza sessione risponde «nessuna firma
+     * salvata», che non è la stessa cosa di «qui non si salva», e al
+     * cliente compariva la casella per conservare la sua firma sui
+     * nostri server. Lui firma una volta nella vita.
+     */
+    puedeGuardar?: boolean
     onFirmar: (firma: { png: string; nombre: string; metodo: Metodo }) => void
 }) {
     const [modo, setModo] = useState<Metodo>('trazo')
@@ -133,6 +144,7 @@ export default function Firmar({
      * spegnere: la funzione semplicemente non compare dove non serve.
      */
     useEffect(() => {
+        if (!puedeGuardar) return
         let vivo = true
         fetch('/api/mi-firma')
             .then((r) => (r.ok ? r.json() : null))
@@ -146,7 +158,7 @@ export default function Firmar({
         return () => {
             vivo = false
         }
-    }, [])
+    }, [puedeGuardar])
 
     const punto = (e: React.PointerEvent<HTMLCanvasElement>) => {
         const c = lienzo.current
@@ -507,7 +519,7 @@ export default function Firmar({
               * la casella non compare. Il cliente firma una volta nella
               * vita, e la sua firma non è roba nostra da conservare.
               */}
-            {modo !== 'guardada' && guardada === null && (
+            {puedeGuardar && modo !== 'guardada' && guardada === null && (
                 <label className="mt-5 flex cursor-pointer items-start gap-3">
                     <input
                         type="checkbox"

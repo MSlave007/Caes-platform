@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useEffect, useRef, useState } from 'react'
-import { Check, Loader2, Upload, X } from 'lucide-react'
+import { Camera, Check, Loader2, Upload, X } from 'lucide-react'
 
 /**
  * «Suelta aquí los papeles».
@@ -55,6 +55,7 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
     const [subidos, setSubidos] = useState<Subido[]>([])
     const [encima, setEncima] = useState(false)
     const input = useRef<HTMLInputElement>(null)
+    const camara = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         let vivo = true
@@ -239,16 +240,54 @@ export default function Subida({ params }: { params: Promise<{ token: string }> 
                         className="mx-auto h-7 w-7 text-[var(--caes-faint)]"
                         strokeWidth={1.6}
                     />
-                    <button
-                        type="button"
-                        onClick={() => input.current?.click()}
-                        className="mt-5 inline-flex items-center gap-2.5 rounded-full bg-[var(--caes-ink)] px-7 py-3.5 text-[15px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90"
-                    >
-                        Elegir archivos
-                    </button>
+                    {/**
+                      * La macchina fotografica per prima, sul telefono.
+                      *
+                      * Chi apre questo link sta in piedi in un
+                      * pianerottolo e la foto non ce l'ha ancora: la deve
+                      * fare adesso. «Elegir archivos» apre la galleria e
+                      * lo obbliga a uscire, fotografare, tornare e
+                      * ritrovare il link — tre passaggi per una cosa che
+                      * è un tocco.
+                      *
+                      * `capture` lo capisce solo un telefono. Su un
+                      * computer il bottone non compare: là non c'è
+                      * nessuna fotocamera da aprire.
+                      */}
+                    <div className="mt-5 flex flex-col items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => camara.current?.click()}
+                            className="inline-flex items-center gap-2.5 rounded-full bg-[var(--caes-ink)] px-7 py-3.5 text-[15px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90 sm:hidden"
+                        >
+                            <Camera className="h-4 w-4" />
+                            Hacer una foto
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => input.current?.click()}
+                            className="inline-flex items-center gap-2.5 rounded-full border border-[var(--caes-line)] bg-[var(--caes-paper)] px-7 py-3.5 text-[15px] font-medium transition-colors hover:border-[var(--caes-ink)]/40 sm:border-0 sm:bg-[var(--caes-ink)] sm:text-[var(--caes-paper)] sm:hover:opacity-90"
+                        >
+                            Elegir archivos
+                        </button>
+                    </div>
+
                     <p className="mt-4 text-[13px] text-[var(--caes-faint)]">
-                        PDF o fotos. Puedes hacerlas ahora con la cámara.
+                        PDF o fotos. Puedes mandar varias de golpe.
                     </p>
+
+                    <input
+                        ref={camara}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                            if (e.target.files?.length) void mandar(e.target.files)
+                            e.target.value = ''
+                        }}
+                    />
                     <input
                         ref={input}
                         type="file"

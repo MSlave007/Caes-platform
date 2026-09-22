@@ -417,6 +417,7 @@ export default function Firmas({
                                     nombreSugerido={nombre}
                                     ocupado={ocupado}
                                     error={error}
+                                    puedeGuardar
                                     onFirmar={(f) => void firmar(rol, f)}
                                 />
                                 <button
