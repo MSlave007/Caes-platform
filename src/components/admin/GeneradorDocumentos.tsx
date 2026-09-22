@@ -23,6 +23,8 @@ import {
     type Origen,
     type Plantilla,
 } from '@/lib/caes/plantillas'
+import BuscarCatastro from './BuscarCatastro'
+import type { Localizacion } from '@/lib/caes/catastro'
 
 /**
  * Anteprima dei documenti che il fascicolo produce.
@@ -583,6 +585,28 @@ export default function GeneradorDocumentos({
                         }
                     >
                         <Faltan huecos={faltan} />
+
+                        {/* Quando mancano dati del Catastro, il modo di
+                            prenderli sta QUI, accanto all'elenco di cosa
+                            manca — non in un'altra scheda. Vedi
+                            src/components/admin/BuscarCatastro.tsx. */}
+                        {faltan.some((h) => h.origen === 'catastro') && (
+                            <div className="mt-5">
+                                <BuscarCatastro
+                                    sugerida={String(datos.ref_catastral ?? '')}
+                                    onEncontrado={(d: Localizacion) => {
+                                        // Uno per uno, come se li avesse
+                                        // scritti chi rivede: restano suoi,
+                                        // e si possono correggere a mano
+                                        // come qualunque altro ritocco.
+                                        for (const [id, valor] of Object.entries(d)) {
+                                            if (id === 'direccion') continue
+                                            if (valor) onRetocar(id, String(valor))
+                                        }
+                                    }}
+                                />
+                            </div>
+                        )}
                     </Desplegable>
                 ) : (
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[var(--caes-green)]/40 bg-[var(--caes-green)]/[.05] px-4 py-3">
