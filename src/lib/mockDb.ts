@@ -54,6 +54,14 @@ export type Project = {
     model: string
     power_kw: number
     docs: ProjectDoc[]
+    /**
+     * L'identificatore pubblico, per la pagina che vede il cliente.
+     *
+     * Lo genera il database (uuid v4). In dimostrazione non c'e: la
+     * pagina ripiega sull'id, che basta a farla vedere ma non sarebbe
+     * accettabile in produzione — un id progressivo si indovina.
+     */
+    seguimiento_token?: string
     /** Note libere dell'installatore, scritte al caricamento. */
     notas?: string
     /** Come l'ha chiamato chi l'ha aperto, quando il cliente non c'era ancora. */

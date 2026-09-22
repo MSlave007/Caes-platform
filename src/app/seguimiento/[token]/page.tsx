@@ -1,0 +1,198 @@
+import Link from 'next/link'
+import { createAdminClient } from '@/lib/supabaseAdmin'
+import { mockDb } from '@/lib/mockDb'
+import { vistaParaCliente, type VistaCliente } from '@/lib/caes/seguimiento'
+import { eur } from '@/lib/caes/estimate'
+import type { Project } from '@/lib/mockDb'
+
+/**
+ * «Tu ayuda, cómo va».
+ *
+ * ── SENZA ACCOUNT ─────────────────────────────────────────────────────
+ *
+ * Chiedere al cliente di registrarsi per guardare lo stato di un aiuto
+ * che ha già firmato è chiedergli lavoro in cambio di niente, e non lo
+ * farebbe. L'indirizzo porta un uuid: 122 bit a caso, non si indovina.
+ *
+ * Non protegge da chi inoltra il link, e non serve: chi ce l'ha è il
+ * cliente o qualcuno a cui l'ha passato lui, e quello che si vede è
+ * roba sua. **Quello che NON si vede** è deciso in
+ * `src/lib/caes/seguimiento.ts`, e sono quasi tutti i campi.
+ *
+ * ── PERCHÉ IL SERVER ──────────────────────────────────────────────────
+ *
+ * Il fascicolo si legge qui e ne esce solo la proiezione. Una pagina
+ * client che scarica il progetto intero e ne mostra tre campi manda al
+ * browser anche gli altri trenta: basta aprire la rete per vederli.
+ */
+
+export const dynamic = 'force-dynamic'
+
+async function buscar(token: string): Promise<Project | null> {
+    // Le regole di riga su `projects` dicono «solo i tuoi», e qui non c'è
+    // nessun «tu»: la chiave di servizio è l'unico modo. È accettabile
+    // perché la query è una sola, per token esatto, e quello che esce
+    // passa comunque dalla proiezione.
+    const admin = createAdminClient()
+    if (admin) {
+        const { data } = await admin
+            .from('projects')
+            .select('*')
+            .eq('seguimiento_token', token)
+            .maybeSingle()
+        if (data) return data as Project
+    }
+
+    // In dimostrazione si usa l'id: non ci sono token, e serve poter
+    // vedere la pagina senza database.
+    return mockDb.getProjectById(token) ?? null
+}
+
+export default async function Seguimiento({
+    params,
+}: {
+    params: Promise<{ token: string }>
+}) {
+    const { token } = await params
+    const proyecto = await buscar(token)
+
+    if (!proyecto) return <NoHayNada />
+
+    return <Ficha v={vistaParaCliente(proyecto)} />
+}
+
+/* ------------------------------------------------------------ la ficha */
+
+function Ficha({ v }: { v: VistaCliente }) {
+    const fecha = new Intl.DateTimeFormat('es-ES', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    }).format(new Date(v.desde))
+
+    return (
+        <main className="min-h-screen bg-[var(--caes-paper)] px-6 py-16 font-sans text-[var(--caes-ink)] sm:px-10 sm:py-24">
+            <div className="mx-auto max-w-[44rem]">
+                <Link href="/" className="flex items-center gap-2.5" aria-label="CAES">
+                    <span className="relative block h-[18px] w-[18px] rounded-[3px] bg-[var(--caes-ink)]">
+                        <span className="absolute bottom-[4px] left-[4px] block h-[6px] w-[6px] rounded-[1px] bg-[var(--caes-lime)]" />
+                    </span>
+                    <span className="font-mono text-[14px] font-medium tracking-[.15em]">
+                        CAES
+                    </span>
+                </Link>
+
+                <p className="label-mono mt-14 text-[var(--caes-mut)]">Tu ayuda</p>
+                <h1 className="mt-4 text-balance text-[clamp(30px,4.4vw,44px)] font-semibold leading-[1.05] tracking-[-0.04em]">
+                    {v.titulo}
+                </h1>
+                <p className="mt-5 max-w-[52ch] text-[16px] leading-[1.65] text-[var(--caes-mut)]">
+                    {v.detalle}
+                </p>
+
+                {/* ── il percorso ─────────────────────────────────── */}
+                {v.paso > 0 && (
+                    <div className="mt-12">
+                        <div className="flex gap-1.5" aria-hidden>
+                            {Array.from({ length: v.total }, (_, i) => (
+                                <span
+                                    key={i}
+                                    className={`h-1.5 flex-1 rounded-full ${
+                                        i < v.paso
+                                            ? 'bg-[var(--caes-green)]'
+                                            : 'bg-[var(--caes-line)]'
+                                    }`}
+                                />
+                            ))}
+                        </div>
+                        <p className="mt-3 text-[13px] text-[var(--caes-faint)]">
+                            Paso {v.paso} de {v.total}
+                        </p>
+                    </div>
+                )}
+
+                {/* ── i dati, pochi ───────────────────────────────── */}
+                <dl className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-2">
+                    <Dato etiqueta="La vivienda" valor={v.direccion} />
+                    <Dato
+                        etiqueta="Tu instalador"
+                        valor={v.instalador ?? 'Todavía sin asignar'}
+                    />
+                    <Dato etiqueta="Empezó el" valor={fecha} />
+                    <Dato
+                        etiqueta="Lo que te corresponde"
+                        valor={
+                            v.suParte === null
+                                ? 'Se sabrá al aprobarse'
+                                : eur(v.suParte)
+                        }
+                        // Prima dell'approvazione il riparto non e'
+                        // deciso. Dare una cifra che poi cambia e' peggio
+                        // che non darne nessuna: diventa quella che il
+                        // cliente ricorda.
+                        apagado={v.suParte === null}
+                    />
+                </dl>
+
+                {v.cerrado && (
+                    <p className="mt-8 rounded-2xl border border-[var(--caes-green)]/40 bg-[var(--caes-green)]/[.06] px-6 py-5 text-[14.5px] leading-[1.6] text-[var(--caes-ink)]">
+                        Esto ya está cerrado. Si el ingreso no te ha llegado, habla
+                        con tu instalador: es quien tiene el expediente.
+                    </p>
+                )}
+
+                <p className="mt-14 max-w-[52ch] text-[13.5px] leading-[1.6] text-[var(--caes-faint)]">
+                    Esta página se actualiza sola. Puedes guardarla en favoritos y
+                    volver cuando quieras — no hace falta cuenta ni contraseña. Si
+                    algo no te cuadra, tu instalador es quien mejor te lo explica.
+                </p>
+            </div>
+        </main>
+    )
+}
+
+function Dato({
+    etiqueta,
+    valor,
+    apagado,
+}: {
+    etiqueta: string
+    valor: string
+    apagado?: boolean
+}) {
+    return (
+        <div className="bg-[var(--caes-panel)] px-6 py-5">
+            <dt className="label-mono text-[var(--caes-faint)]">{etiqueta}</dt>
+            <dd
+                className={`mt-2 text-[16px] font-medium tracking-[-0.018em] ${
+                    apagado ? 'text-[var(--caes-faint)]' : ''
+                }`}
+            >
+                {valor}
+            </dd>
+        </div>
+    )
+}
+
+/**
+ * Link sbagliato.
+ *
+ * Non dice se il token esiste o no, e non invita a riprovare: una
+ * pagina pubblica che distingue «non c'è» da «non è tuo» è una pagina
+ * su cui si possono provare indirizzi finché uno funziona.
+ */
+function NoHayNada() {
+    return (
+        <main className="flex min-h-screen items-center justify-center bg-[var(--caes-paper)] px-6 font-sans text-[var(--caes-ink)]">
+            <div className="max-w-[34rem] text-center">
+                <h1 className="text-balance text-[26px] font-semibold tracking-[-0.03em]">
+                    Este enlace no lleva a ninguna parte.
+                </h1>
+                <p className="mx-auto mt-4 max-w-[42ch] text-[15px] leading-[1.6] text-[var(--caes-mut)]">
+                    Puede que esté incompleto por cómo te llegó. Pídele el enlace
+                    otra vez a tu instalador.
+                </p>
+            </div>
+        </main>
+    )
+}

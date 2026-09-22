@@ -636,3 +636,28 @@ create policy "Solo la agencia escribe el catalogo"
     exists (select 1 from public.profiles p
             where p.id = auth.uid() and p.role = 'admin')
   );
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  El enlace que se le da al cliente
+--
+--  Hoy el cliente final no ve nada. Firma un Convenio cediendo su
+--  certificado y luego, silencio: cuando se cansa llama al instalador,
+--  que pierde el rato contándole algo que el sistema ya sabe.
+--
+--  Un enlace, sin cuenta y sin contraseña. Pedirle que se registre para
+--  mirar el estado de una ayuda que ya ha firmado es pedirle trabajo a
+--  cambio de nada, y no lo haría.
+--
+--  La seguridad está en que el identificador no se adivina: un uuid v4
+--  son 122 bits al azar. No protege de quien reenvía el enlace, y no
+--  hace falta: quien lo tiene es el cliente o alguien a quien él se lo
+--  ha pasado, y lo que se ve es suyo. Lo que NO se ve está decidido en
+--  src/lib/caes/seguimiento.ts, y es casi todo.
+-- ════════════════════════════════════════════════════════════════════
+
+alter table public.projects
+  add column if not exists seguimiento_token uuid not null default gen_random_uuid();
+
+create unique index if not exists projects_seguimiento_token_idx
+  on public.projects (seguimiento_token);

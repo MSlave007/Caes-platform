@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, FileText, Loader2 } from 'lucide-react'
+import EnlaceCliente from '@/components/platform/EnlaceCliente'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
 import { DOCUMENTS } from '@/lib/documents'
 import { AHORRO_MINIMO_PCT, eur } from '@/lib/caes/estimate'
@@ -193,6 +194,13 @@ export default function InstallerProjectDetail({
                             </>
                         )}
                     </section>
+
+                    {/* --------------------------------- link per il cliente */}
+                    <EnlaceCliente
+                        token={p.seguimiento_token ?? String(p.id)}
+                        cliente={p.client_name}
+                        clienteId={p.cliente_id}
+                    />
 
                     {/* ------------------------------------------- documenti */}
                     <section className="rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-7">
