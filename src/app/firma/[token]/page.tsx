@@ -177,8 +177,18 @@ export default function FirmaPublica({
                     </p>
                 ) : (
                     <>
-                        {/* ── il documento, aperto ─────────────────── */}
-                        <div className="mt-8">
+                        {/**
+                          * Il documento più largo del testo che lo
+                          * accompagna.
+                          *
+                          * La colonna di lettura sta a 46rem perché una
+                          * riga più lunga si legge peggio. Un contratto
+                          * da leggere dentro un visore vuole il
+                          * contrario: più larghezza, più grande il testo.
+                          * Quindi esce dalla colonna, sugli schermi che
+                          * ce l'hanno.
+                          */}
+                        <div className="mt-8 lg:-mx-[7rem] xl:-mx-[11rem]">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <p className="flex items-center gap-2 text-[13px] text-[var(--caes-mut)]">
                                     <FileText className="h-3.5 w-3.5" />
@@ -231,7 +241,19 @@ export default function FirmaPublica({
                               * finestra meno quello che sta sopra.
                               */}
                             <object
-                                data={`/api/firma/${token}/pdf#view=FitH`}
+                                /**
+                                  * `navpanes=0`: via la barra delle
+                                  * miniature.
+                                  *
+                                  * Con quella aperta il visore aveva 420
+                                  * pixel per un foglio largo 794 e lo
+                                  * apriva al 52%: il Convenio non si
+                                  * leggeva, che è l'unica cosa che deve
+                                  * fare questa pagina. Le miniature di un
+                                  * documento di due pagine non servono a
+                                  * nessuno.
+                                  */
+                                data={`/api/firma/${token}/pdf#toolbar=1&navpanes=0&view=FitH`}
                                 type="application/pdf"
                                 className="mt-3 hidden h-[calc(100vh-13rem)] min-h-[30rem] w-full rounded-xl border border-[var(--caes-line)] bg-white sm:block"
                             />
