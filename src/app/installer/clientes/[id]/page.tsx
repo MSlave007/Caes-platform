@@ -11,7 +11,7 @@ import {
     Pencil,
     Phone,
     Plus,
-    UserRound,
+    UserRound, MessageCircle,
 } from 'lucide-react'
 import FichaClienteForm, {
     type DatosCliente,
@@ -315,13 +315,37 @@ export default function ClientePage({
                     <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
                         Sus datos
                     </h2>
-                    <button
-                        type="button"
-                        onClick={() => setEditando(true)}
-                        className="text-[13px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
-                    >
-                        Corregir
-                    </button>
+                    <div className="flex items-center gap-4">
+                        {/*
+                            Il telefono e gia un link `tel:`, ma con un
+                            cliente si parla su WhatsApp, non chiamando.
+                            `wa.me` apre la conversazione senza nessuna
+                            API e funziona dal telefono, che e dove sta
+                            l'installatore quando gli serve.
+                        */}
+                        {c.telefono && (
+                            <a
+                                href={`https://wa.me/${
+                                    c.telefono.replace(/[^0-9]/g, '').length === 9
+                                        ? '34' + c.telefono.replace(/[^0-9]/g, '')
+                                        : c.telefono.replace(/[^0-9]/g, '')
+                                }`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-[13px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+                            >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                WhatsApp
+                            </a>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setEditando(true)}
+                            className="text-[13px] text-[var(--caes-mut)] underline-offset-4 transition-colors hover:text-[var(--caes-ink)] hover:underline"
+                        >
+                            Corregir
+                        </button>
+                    </div>
                 </div>
                 <p className="mt-2 max-w-[56ch] text-[13.5px] leading-[1.55] text-[var(--caes-mut)]">
                     Son los que se escriben en el Convenio. La próxima vez que le hagas

@@ -99,13 +99,25 @@ export default function AdminLeads() {
             <div>
                 <p className="label-mono text-[var(--caes-mut)]">Leads</p>
                 <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
+                    {/*
+                        Tre casi, non due. Zero perche sono stati tutti
+                        distribuiti e zero perche non ne e mai arrivato
+                        nessuno danno lo stesso numero e vogliono dire
+                        cose opposte: «Todos repartidos» su una pagina
+                        vuota si vanta di un lavoro che non e mai
+                        esistito.
+                    */}
                     {nuevos > 0 ? (
                         <>
                             {nuevos} sin <em className="serif-accent">asignar</em>.
                         </>
-                    ) : (
+                    ) : sorted.length > 0 ? (
                         <>
                             Todos <em className="serif-accent">repartidos</em>.
+                        </>
+                    ) : (
+                        <>
+                            Todavía no ha llamado <em className="serif-accent">nadie</em>.
                         </>
                     )}
                 </h1>

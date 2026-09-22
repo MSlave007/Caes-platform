@@ -195,7 +195,10 @@ export default function InstallerProfilePage() {
                                 placeholder="B12345678"
                             />
                         </Field>
-                        <Field label="Teléfono">
+                        <Field
+                            label="Teléfono"
+                            hint="Sale en la página que ven tus clientes, con un botón para llamarte. Sin él no aparece."
+                        >
                             <input
                                 type="tel"
                                 className={inputClass}
@@ -204,7 +207,14 @@ export default function InstallerProfilePage() {
                                 placeholder="600 000 000"
                             />
                         </Field>
-                        <Field label="Correo" hint="Para cambiarlo, escríbenos.">
+                        {/* Il suggerimento mandava a scriverci per una
+                            cosa che si fa da soli in due clic: il cambio
+                            email sta in «Mi cuenta», con la conferma sul
+                            vecchio indirizzo. */}
+                        <Field
+                            label="Correo"
+                            hint="Es con el que entras. Para cambiarlo, en Mi cuenta."
+                        >
                             <input
                                 className={`${inputClass} cursor-not-allowed opacity-60`}
                                 value={email ?? ''}
