@@ -11,6 +11,7 @@ import { AHORRO_MINIMO_PCT, eur } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
 
 import { PISTA, posicionPista, esperaAlInstalador, estado } from '@/lib/caes/status'
+import { faseDe } from '@/lib/caes/fase'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -78,6 +79,7 @@ export default function InstallerProjectDetail({
     const currentStep = rejected ? -1 : posicionPista(st)
     const tuTurno = esperaAlInstalador(st)
     const detalle = estado(st)
+    const fase = faseDe(p)
 
     const specs = DOCUMENTS[p.source === 'client' ? 'client' : 'installer']
     const uploaded = new Set((p.docs ?? []).map((d) => d.id))
@@ -102,7 +104,25 @@ export default function InstallerProjectDetail({
                     </h1>
                     <p className="mt-2 text-[14px] text-[var(--caes-mut)]">{p.address}</p>
                 </div>
-                <StatusChip status={p.status} />
+                {/**
+                  * Lo stato, e sotto a che punto è davvero.
+                  *
+                  * «Enviado» copre tre settimane in cui succedono tre
+                  * cose diverse — mancano le carte, le stiamo leggendo,
+                  * si aspetta una firma — e le raccontava tutte e tre
+                  * allo stesso modo. Da qui nascevano le telefonate.
+                  */}
+                <div className="flex flex-col items-end gap-2">
+                    <StatusChip status={p.status} />
+                    <span
+                        className={`text-[12.5px] ${fase.mano === 'instalador'
+                            ? 'font-medium text-[var(--caes-falta-ink)]'
+                            : 'text-[var(--caes-mut)]'
+                            }`}
+                    >
+                        {fase.paraInstalador}
+                    </span>
+                </div>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">

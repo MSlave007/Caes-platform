@@ -2,6 +2,7 @@ import { estado, type EstadoId } from '@/lib/caes/status'
 import { proveedor } from '@/lib/caes/proveedores'
 import { VALIDEZ_ANOS } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
+import { faseDe } from '@/lib/caes/fase'
 
 /**
  * Quello che il cliente finale può vedere della sua pratica.
@@ -192,10 +193,25 @@ export function vistaParaCliente(p: Project): VistaCliente {
     const e = estado(p.status)
     const t = TEXTOS[e.id] ?? TEXTOS.submitted
 
+    /**
+     * Dentro «enviado» ci stanno tre settimane e tre cose diverse.
+     *
+     * Lo stato le racconta tutte allo stesso modo: «Lo estamos
+     * revisando», per venti giorni, mentre in realtà si è passati da
+     * «mancano le carte» a «te l'abbiamo mandato da firmare». Il cliente
+     * riapre la pagina, legge la stessa riga di dieci giorni fa, e
+     * telefona.
+     *
+     * Dagli altri stati la fase non aggiunge niente — approvato è
+     * approvato — e non si tocca.
+     */
+    const fase = faseDe(p)
+    const dentroDeEnviado = e.id === 'submitted' || e.id === 'draft'
+
     return {
         direccion: p.address || 'Tu vivienda',
         instalador: p.installer_name ?? null,
-        titulo: t.titulo,
+        titulo: dentroDeEnviado ? fase.paraCliente : t.titulo,
         detalle: t.detalle,
         paso: t.paso,
         total: PASOS,

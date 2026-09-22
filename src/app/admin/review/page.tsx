@@ -2,28 +2,46 @@
 
 import { useCarga, Estado } from '@/components/Carga'
 import { Suspense, useMemo, useState } from 'react'
-import { ordenarPorRiesgo, type Nivel } from '@/lib/caes/riesgo'
+import { ordenarPorRiesgo } from '@/lib/caes/riesgo'
 import { useSearchParams } from 'next/navigation'
-import { ESTADOS, type EstadoId } from '@/lib/caes/status'
+import { FASES, ORDEN, faseDe, type FaseId } from '@/lib/caes/fase'
 import { motion } from 'framer-motion'
 import { Search } from 'lucide-react'
 import ProjectRow from '@/components/admin/ProjectRow'
-import { normalize } from '@/components/platform/StatusChip'
 import type { Project, Source } from '@/lib/mockDb'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
 type SourceFilter = 'all' | Source
-/** Un filtro per ogni stato reale, piu "todos". */
-type StatusFilter = 'all' | EstadoId
 
-const STATUS_TABS: { id: StatusFilter; label: string }[] = [
-    { id: 'all', label: 'Todos' },
-    ...ESTADOS.filter((e) => e.id !== 'draft').map((e) => ({
-        id: e.id as StatusFilter,
-        label: e.label,
-    })),
+/**
+ * Un filtro per fase, non per stato.
+ *
+ * Gli stati dicevano cosa è stato deciso; la fase dice di chi è la
+ * palla. «Enviado» era un filtro che conteneva tre lavori diversi —
+ * sollecitare, leggere, aspettare una firma — e chi lo premeva non
+ * poteva sapere quale dei tre stava guardando.
+ */
+type FaseFilter = 'all' | FaseId
+
+const FASE_TABS: { id: FaseFilter; label: string }[] = [
+    { id: 'all', label: 'Todas' },
+    ...ORDEN.map((id) => ({ id: id as FaseFilter, label: FASES[id].label })),
 ]
+
+/**
+ * I link che arrivano da fuori parlano ancora di stati.
+ *
+ * `submitted` non si traduce in una fase: ne contiene tre, ed è tutto il
+ * problema. Quindi diventa «todas», e le fasi stesse fanno il taglio.
+ */
+const DESDE_ESTADO: Record<string, FaseFilter> = {
+    approved: 'fuera',
+    issued: 'fuera',
+    paid: 'cobrado',
+    rejected: 'parado',
+    changes_requested: 'parado',
+}
 
 const SOURCE_TABS: { id: SourceFilter; label: string }[] = [
     { id: 'all', label: 'Todo' },
@@ -43,11 +61,9 @@ function ColaDeRevision() {
     const projects = useMemo<Project[]>(() => datos ?? [], [datos])
     const [source, setSource] = useState<SourceFilter>('all')
     const params = useSearchParams()
-    const desdeUrl = params.get('estado')
-    const [status, setStatus] = useState<StatusFilter>(
-        desdeUrl && STATUS_TABS.some((t) => t.id === desdeUrl)
-            ? (desdeUrl as StatusFilter)
-            : 'submitted'
+    const desdeUrl = params.get('fase') ?? DESDE_ESTADO[params.get('estado') ?? ''] ?? ''
+    const [fase, setFase] = useState<FaseFilter>(
+        FASE_TABS.some((t) => t.id === desdeUrl) ? (desdeUrl as FaseFilter) : 'all'
     )
     const [q, setQ] = useState('')
 
@@ -61,13 +77,29 @@ function ColaDeRevision() {
         }
     }, [projects])
 
+    /**
+     * Quanti ce n'è in ogni fase, con l'origine già applicata.
+     *
+     * Con l'origine e non senza: se stai guardando solo gli espedienti
+     * dei clienti, un «Faltan papeles · 5» che conta anche quelli degli
+     * installatori è un numero che non corrisponde a niente di quello
+     * che vedi sotto.
+     */
+    const porFase = useMemo(() => {
+        const base =
+            source === 'all' ? projects : projects.filter((p) => p.source === source)
+        const c: Record<string, number> = { all: base.length }
+        for (const id of ORDEN) c[id] = 0
+        for (const p of base) c[faseDe(p).id]++
+        return c
+    }, [projects, source])
+
     const filtered = useMemo(() => {
         const needle = q.trim().toLowerCase()
         return projects.filter((p) => {
             if (source !== 'all' && p.source !== source) return false
 
-            const st = normalize(p.status)
-            if (status !== 'all' && st !== status) return false
+            if (fase !== 'all' && faseDe(p).id !== fase) return false
 
             if (!needle) return true
             return (
@@ -77,7 +109,7 @@ function ColaDeRevision() {
                 p.id.includes(needle)
             )
         })
-    }, [projects, source, status, q])
+    }, [projects, source, fase, q])
 
     /**
      * La coda in ordine di lavoro, non di arrivo.
@@ -86,11 +118,23 @@ function ColaDeRevision() {
      * mai se sta per perdere due minuti o mezz'ora. Separati, i puliti
      * si chiudono di fila e il tempo vero va dove serve.
      */
-    const enOrden = useMemo(() => ordenarPorRiesgo(filtered), [filtered])
+    const enOrden = useMemo(() => {
+        const porRiesgo = ordenarPorRiesgo(filtered)
+        return [...porRiesgo].sort(
+            (a, b) => ORDEN.indexOf(faseDe(a.proyecto).id) - ORDEN.indexOf(faseDe(b.proyecto).id)
+        )
+    }, [filtered])
 
-    const pending = projects.filter((p) =>
-        normalize(p.status) === 'submitted'
-    ).length
+    /**
+     * Quanti aspettano NOI, non quanti sono «enviado».
+     *
+     * Contava gli `submitted`, che sono anche quelli fermi in attesa
+     * dell'installatore o del cliente: il titolo diceva «6 esperando tu
+     * firma» quando cinque aspettavano qualcun altro. La fase sa di chi
+     * è la palla, e questo è l'unico numero che dice a chi legge se ha
+     * qualcosa da fare adesso.
+     */
+    const nuestros = projects.filter((p) => faseDe(p).mano === 'nosotros').length
 
     return (
         <div className="flex flex-col gap-9">
@@ -112,9 +156,16 @@ function ColaDeRevision() {
                         <>
                             Cargando <em className="serif-accent">la cola</em>…
                         </>
-                    ) : pending > 0 ? (
+                    ) : nuestros > 0 ? (
                         <>
-                            {pending} esperando <em className="serif-accent">tu firma</em>.
+                            {nuestros} esperando <em className="serif-accent">a ti</em>.
+                        </>
+                    ) : projects.length > 0 ? (
+                        // Non «vuota»: ci sono fascicoli, semplicemente
+                        // nessuno aspetta noi. Dire «vacía» davanti a
+                        // ventitre righe è una bugia detta con sicurezza.
+                        <>
+                            Nada <em className="serif-accent">para ti</em> ahora mismo.
                         </>
                     ) : (
                         <>
@@ -153,20 +204,31 @@ function ColaDeRevision() {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--caes-line)] pt-4">
+                    {/* I conteggi sulle pastiglie, non solo sul gruppo:
+                        si vede dove sta il lavoro senza scorrere. */}
                     <div className="flex flex-wrap items-center gap-1">
-                        {STATUS_TABS.map((t) => (
-                            <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => setStatus(t.id)}
-                                className={`rounded-full px-3.5 py-2 text-[13px] transition-colors ${t.id === status
-                                        ? 'bg-[var(--caes-band)] font-medium text-[var(--caes-ink)]'
-                                        : 'text-[var(--caes-mut)] hover:text-[var(--caes-ink)]'
-                                    }`}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
+                        {FASE_TABS.map((t) => {
+                            const n = porFase[t.id] ?? 0
+                            return (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => setFase(t.id)}
+                                    title={t.id === 'all' ? undefined : FASES[t.id].hint}
+                                    className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] transition-colors ${t.id === fase
+                                            ? 'bg-[var(--caes-band)] font-medium text-[var(--caes-ink)]'
+                                            : n === 0
+                                                ? 'text-[var(--caes-faint)] hover:text-[var(--caes-mut)]'
+                                                : 'text-[var(--caes-mut)] hover:text-[var(--caes-ink)]'
+                                        }`}
+                                >
+                                    {t.label}
+                                    <span className="font-mono tabular text-[11px] text-[var(--caes-faint)]">
+                                        {n}
+                                    </span>
+                                </button>
+                            )
+                        })}
                     </div>
 
                     <div className="relative w-full max-w-[22rem]">
@@ -202,11 +264,13 @@ function ColaDeRevision() {
             ) : (
                 <ul className="flex flex-col gap-3">
                     {enOrden.map(({ proyecto: p, riesgo }, i) => {
-                        // Il titolo del gruppo compare solo quando il
-                        // livello cambia: tre intestazioni fisse su una
-                        // coda di quattro fascicoli sarebbero piu
+                        // Il titolo compare solo quando la fase cambia:
+                        // un'intestazione sopra ogni riga sarebbe piu
                         // rumore che ordine.
-                        const anterior = enOrden[i - 1]?.riesgo.nivel
+                        const suFase = faseDe(p).id
+                        const anterior = enOrden[i - 1]
+                            ? faseDe(enOrden[i - 1].proyecto).id
+                            : null
                         return (
                             <motion.li
                                 key={p.id}
@@ -218,12 +282,12 @@ function ColaDeRevision() {
                                     ease: EASE,
                                 }}
                             >
-                                {riesgo.nivel !== anterior && (
+                                {suFase !== anterior && (
                                     <TituloDeGrupo
-                                        nivel={riesgo.nivel}
+                                        fase={suFase}
                                         cuantos={
                                             enOrden.filter(
-                                                (x) => x.riesgo.nivel === riesgo.nivel
+                                                (x) => faseDe(x.proyecto).id === suFase
                                             ).length
                                         }
                                         primero={i === 0}
@@ -244,31 +308,24 @@ function ColaDeRevision() {
     )
 }
 
-const GRUPOS: Record<Nivel, { titulo: string; hint: string }> = {
-    limpio: {
-        titulo: 'Sin nada pendiente',
-        hint: 'Todas las carpetas, ninguna comprobación en rojo. Míralos y confirma.',
-    },
-    mirar: {
-        titulo: 'Hay algo que mirar',
-        hint: 'Algo no cuadra entre documentos, o una lectura no es segura.',
-    },
-    parado: {
-        titulo: 'Faltan documentos',
-        hint: 'No se pueden aprobar aunque los abras: hay que pedírselos al instalador.',
-    },
-}
-
+/**
+ * I titoli vengono da `fase.ts`, non da una tabella qui.
+ *
+ * Erano scritti qui e dicevano tre cose sul rischio. La fase le dice per
+ * tutti e sette i casi, ed è la stessa frase che vede l'installatore nel
+ * suo pannello: se stessero in due posti, un giorno direbbero due cose
+ * diverse della stessa pratica.
+ */
 function TituloDeGrupo({
-    nivel,
+    fase,
     cuantos,
     primero,
 }: {
-    nivel: Nivel
+    fase: FaseId
     cuantos: number
     primero: boolean
 }) {
-    const g = GRUPOS[nivel]
+    const g = { titulo: FASES[fase].label, hint: FASES[fase].hint }
     return (
         <div className={primero ? 'mb-3' : 'mb-3 mt-8'}>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">

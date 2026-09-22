@@ -13,9 +13,18 @@
  * etichette vengono da src/lib/caes/status.ts, che è la fonte unica.
  */
 
-import { estado, type EstadoId } from '@/lib/caes/status'
+import { estado, normalize, type EstadoId } from '@/lib/caes/status'
 
 export type Status = EstadoId
+
+/**
+ * Si riesporta: sei schermate la importavano da qui.
+ *
+ * Adesso vive in `status.ts`, dove vivono gli stati — ma cambiare sei
+ * import per spostare una funzione vuol dire toccare sei file per
+ * niente.
+ */
+export { normalize }
 
 const TONO: Record<string, { dot: string; bg: string; fg: string }> = {
     neutral: {
@@ -43,33 +52,6 @@ const TONO: Record<string, { dot: string; bg: string; fg: string }> = {
         bg: 'bg-[var(--caes-bloqueo)]/14',
         fg: 'text-[var(--caes-bloqueo-ink)]',
     },
-}
-
-/** Accetta anche le vecchie scritture, così i dati esistenti non si rompono. */
-export function normalize(raw?: string): Status {
-    const s = (raw ?? '').toLowerCase().trim()
-
-    // sinonimi storici e spagnolismi finiti nei dati
-    const alias: Record<string, EstadoId> = {
-        aprobado: 'approved',
-        rechazado: 'rejected',
-        enviado: 'submitted',
-        borrador: 'draft',
-        // "in revisione" non esiste piu come stato a se: una pratica
-        // arrivata e' gia in revisione. I vecchi dati confluiscono qui.
-        in_review: 'submitted',
-        under_review: 'submitted',
-        review: 'submitted',
-        revision: 'submitted',
-        en_revision: 'submitted',
-        awaiting_signatures: 'changes_requested',
-        at_delegate: 'approved',
-    }
-    if (alias[s]) return alias[s]
-
-    // se è già un id valido lo teniamo; altrimenti è una bozza
-    const e = estado(s)
-    return e.id === 'submitted' && s !== 'submitted' ? 'draft' : e.id
 }
 
 export default function StatusChip({ status }: { status?: string }) {

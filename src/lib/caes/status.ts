@@ -145,6 +145,40 @@ export function estado(id: string): Estado {
     return PORID.get(id as EstadoId) ?? ESTADOS[1]
 }
 
+/**
+ * Accetta anche le vecchie scritture, così i dati esistenti non si rompono.
+ *
+ * Stava dentro `StatusChip`, che è un componente. Tradurre «aprobado» in
+ * `approved` però non è un lavoro da componente — e serve anche dove non
+ * si disegna niente: la fase di un fascicolo si deduce dallo stato, e si
+ * deduce anche sul server. `StatusChip` continua a riesportarla.
+ */
+export function normalize(raw?: string): EstadoId {
+    const s = (raw ?? '').toLowerCase().trim()
+
+    // sinonimi storici e spagnolismi finiti nei dati
+    const alias: Record<string, EstadoId> = {
+        aprobado: 'approved',
+        rechazado: 'rejected',
+        enviado: 'submitted',
+        borrador: 'draft',
+        // "in revisione" non esiste piu come stato a se: una pratica
+        // arrivata e' gia in revisione. I vecchi dati confluiscono qui.
+        in_review: 'submitted',
+        under_review: 'submitted',
+        review: 'submitted',
+        revision: 'submitted',
+        en_revision: 'submitted',
+        awaiting_signatures: 'changes_requested',
+        at_delegate: 'approved',
+    }
+    if (alias[s]) return alias[s]
+
+    // se è già un id valido lo teniamo; altrimenti è una bozza
+    const e = estado(s)
+    return e.id === 'submitted' && s !== 'submitted' ? 'draft' : e.id
+}
+
 /** Progressione normale, senza le eccezioni. */
 export const FLUJO: EstadoId[] = ESTADOS.filter((e) => !e.excepcion).map((e) => e.id)
 
