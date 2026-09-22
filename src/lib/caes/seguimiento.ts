@@ -1,4 +1,6 @@
 import { estado, type EstadoId } from '@/lib/caes/status'
+import { proveedor } from '@/lib/caes/proveedores'
+import { VALIDEZ_ANOS } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
 
 /**
@@ -59,6 +61,51 @@ export type VistaCliente = {
     suParte: number | null
     /** Vero quando è finita bene. */
     cerrado: boolean
+    /**
+     * Cosa dice il Convenio, in lingua normale.
+     *
+     * `null` finché non c'è niente di firmato da spiegare.
+     */
+    queFirmo: string[] | null
+}
+
+/**
+ * Il Convenio spiegato, senza avvocato e senza modello.
+ *
+ * ── PERCHÉ NON LO SCRIVE UN'INTELLIGENZA ARTIFICIALE ──────────────────
+ *
+ * Perché il Convenio è un modello fisso con dei buchi. Il riassunto è
+ * la stessa cosa: una frase fissa con gli stessi buchi. Generarlo ogni
+ * volta vorrebbe dire pagare per riscrivere un testo che sappiamo già,
+ * con la possibilità che una volta esca sbagliato — su un contratto che
+ * qualcuno ha firmato.
+ *
+ * Una frase scritta bene una volta e rivista da una persona vale più di
+ * mille generate.
+ *
+ * ── PERCHÉ NON SOSTITUISCE NIENTE ─────────────────────────────────────
+ *
+ * Non è il contratto e non ne fa le veci. Serve perché un cliente che
+ * capisce cosa ha firmato non chiama a marzo per chiedere se gli hanno
+ * tolto qualcosa. Sulla pagina è etichettato come riassunto, e il
+ * documento vero resta quello che ha firmato.
+ */
+function queFirmoElCliente(p: Project): string[] | null {
+    // Prima dell'approvazione non c'è ancora un Convenio con dei numeri
+    // dentro: spiegare un contratto che può ancora cambiare è peggio che
+    // non spiegarlo.
+    if (!['approved', 'issued', 'paid'].includes(p.status)) return null
+
+    const sd = proveedor(p.proveedor)
+    const suya = parteDelCliente(p)
+
+    return [
+        `Cediste a ${sd.etiqueta} el certificado de ahorro energético que genera tu instalación. El certificado pasa a ser suyo; la instalación sigue siendo tuya.`,
+        suya === null
+            ? 'A cambio recibes una cantidad, una sola vez.'
+            : `A cambio recibes ${suya.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}, una sola vez. No es una cuota ni un descuento en la factura de la luz: es un pago.`,
+        `El certificado vale ${VALIDEZ_ANOS} años y no te obliga a nada más: ni a mantener un contrato, ni a cambiar de compañía, ni a dejar entrar a nadie en tu casa.`,
+    ]
 }
 
 /**
@@ -157,5 +204,6 @@ export function vistaParaCliente(p: Project): VistaCliente {
             (p as { updated_at?: string }).updated_at || p.created_at,
         suParte: parteDelCliente(p),
         cerrado: p.status === 'paid',
+        queFirmo: queFirmoElCliente(p),
     }
 }

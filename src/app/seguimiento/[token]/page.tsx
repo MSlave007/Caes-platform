@@ -200,6 +200,37 @@ function Ficha({
                     />
                 </dl>
 
+                {/* Cosa ha firmato, in lingua normale. Non sostituisce
+                    il contratto: serve perche un cliente che capisce
+                    non chiama a marzo per chiedere se gli hanno tolto
+                    qualcosa. Vedi src/lib/caes/seguimiento.ts. */}
+                {v.queFirmo && (
+                    <section className="mt-10 rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-6 sm:p-7">
+                        <h2 className="text-[16px] font-semibold tracking-[-0.022em]">
+                            Lo que firmaste, en corto
+                        </h2>
+                        <ul className="mt-4 flex flex-col gap-3">
+                            {v.queFirmo.map((linea) => (
+                                <li
+                                    key={linea.slice(0, 24)}
+                                    className="flex gap-3 text-[14.5px] leading-[1.6] text-[var(--caes-mut)]"
+                                >
+                                    <span
+                                        className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-[var(--caes-green)]"
+                                        aria-hidden
+                                    />
+                                    {linea}
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="mt-5 text-[12.5px] leading-[1.5] text-[var(--caes-faint)]">
+                            Esto es un resumen para entenderlo, no el contrato. Lo que
+                            vale es el Convenio que firmaste, y tu instalador te puede
+                            mandar una copia cuando quieras.
+                        </p>
+                    </section>
+                )}
+
                 {v.cerrado && (
                     <p className="mt-8 rounded-2xl border border-[var(--caes-green)]/40 bg-[var(--caes-green)]/[.06] px-6 py-5 text-[14.5px] leading-[1.6] text-[var(--caes-ink)]">
                         Esto ya está cerrado. Si el ingreso no te ha llegado, habla
