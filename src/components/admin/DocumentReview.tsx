@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ProjectDoc } from '@/lib/mockDb'
-import { AlertTriangle, Check, CheckCheck, ChevronRight, Loader2, Paperclip, ScanText, Sparkles, Upload, X } from 'lucide-react'
+import { AlertTriangle, Check, CheckCheck, ChevronRight, Loader2, MessageSquare, Paperclip, ScanText, Sparkles, Upload, X } from 'lucide-react'
 import DocumentViewer from './DocumentViewer'
 import {
     senales,
@@ -1231,26 +1231,62 @@ function Comentario({
         setTexto(valor)
     }
 
+    const escrita = valor.trim().length > 0
+
     return (
-        <div className="mt-4 shrink-0">
+        /**
+         * Si vede che è un posto dove si scrive a qualcuno.
+         *
+         * Come campo grigio in fondo alla colonna si confondeva con i
+         * dati estratti — che sono l'esatto contrario: quelli si
+         * confermano, questo si scrive. Il verde è lo stesso della
+         * firma e del link: «questa è una cosa che parte da qui e
+         * arriva a una persona».
+         *
+         * E quando c'è già una nota il riquadro resta acceso: aprendo il
+         * documento si deve vedere subito che qualcosa gli è già stato
+         * detto, se no gliene si scrive un'altra uguale.
+         */
+        <div
+            className={`mt-4 shrink-0 rounded-xl border p-4 transition-colors ${escrita
+                    ? 'border-[var(--caes-green)]/35 bg-gradient-to-br from-[var(--caes-green)]/[.09] to-transparent'
+                    : 'border-[var(--caes-line)] bg-[var(--caes-band)]/50'
+                }`}
+        >
             <label
                 htmlFor={id}
-                className="label-mono block text-[var(--caes-faint)]"
+                className="flex items-center gap-2 text-[13px] font-medium"
             >
+                <MessageSquare
+                    className={`h-3.5 w-3.5 ${escrita ? 'text-[var(--caes-green)]' : 'text-[var(--caes-mut)]'}`}
+                    strokeWidth={2}
+                />
                 Nota para el instalador
             </label>
+
             <textarea
                 id={id}
-                rows={2}
+                rows={3}
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 onBlur={() => texto !== valor && onGuardar(texto)}
-                placeholder="«La factura no se lee» · «La foto de la etiqueta está movida»"
-                className="mt-1.5 w-full resize-y rounded-xl border border-[var(--caes-line)] bg-[var(--caes-paper)] px-3.5 py-2.5 text-[13px] leading-[1.5] outline-none transition-colors placeholder:text-[var(--caes-faint)] focus:border-[var(--caes-green)]"
+                placeholder="«La factura no se lee, manda el PDF original» · «En la foto de la etiqueta no se ve el modelo»"
+                className="mt-2.5 w-full resize-y rounded-lg border border-[var(--caes-line)] bg-[var(--caes-paper)] px-3.5 py-3 text-[13.5px] leading-[1.55] outline-none transition-colors placeholder:text-[var(--caes-faint)] focus:border-[var(--caes-green)] focus:ring-4 focus:ring-[var(--caes-green)]/12"
             />
-            <p className="mt-1.5 text-[11.5px] leading-[1.45] text-[var(--caes-faint)]">
-                La verá junto a este documento en su panel. Déjala vacía si no hay
-                nada que decir.
+
+            <p className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-[1.45] text-[var(--caes-mut)]">
+                {escrita ? (
+                    <>
+                        <Check
+                            className="mt-px h-3 w-3 shrink-0 text-[var(--caes-green)]"
+                            strokeWidth={3}
+                        />
+                        La ve en su panel, en la fila de este documento. Bórrala
+                        cuando ya esté resuelto.
+                    </>
+                ) : (
+                    'La verá junto a este documento en su panel, no perdida en un correo. Déjala vacía si no hay nada que decir.'
+                )}
             </p>
         </div>
     )

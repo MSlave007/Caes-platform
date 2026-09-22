@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Loader2, Search, Users } from 'lucide-react'
+import { AlertTriangle, Loader2, Search, UserPlus, Users } from 'lucide-react'
 import {
     carteraDeClientes,
     carteraDeInstaladores,
@@ -12,6 +12,7 @@ import {
 import { estado } from '@/lib/caes/status'
 import FilaInstalador, { eurRedondo } from '@/components/admin/FilaInstalador'
 import AsignarInstalador from '@/components/admin/AsignarInstalador'
+import AltaInstalador from '@/components/admin/AltaInstalador'
 import type { Project } from '@/lib/mockDb'
 
 const EASE = [0.16, 1, 0.3, 1] as const
@@ -41,6 +42,10 @@ const EASE = [0.16, 1, 0.3, 1] as const
  */
 export default function AdminCartera() {
     const [proyectos, setProyectos] = useState<Project[]>([])
+    /** Il pannello per dare di alta un installatore, aperto o no. */
+    const [creando, setCreando] = useState(false)
+    /** Chi è stato creato adesso: non è ancora in nessun espediente. */
+    const [nuevos, setNuevos] = useState<string[]>([])
     const [cargando, setCargando] = useState(true)
     const [q, setQ] = useState('')
     const [abierto, setAbierto] = useState<string | null>(null)
@@ -100,17 +105,69 @@ export default function AdminCartera() {
 
     return (
         <div className="flex flex-col gap-9">
-            <div>
-                <p className="label-mono text-[var(--caes-mut)]">La cartera</p>
-                <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
-                    {resumen.instaladores} instaladores,{' '}
-                    {resumen.clientes} clientes <em className="serif-accent">entre todos</em>.
-                </h1>
-                <p className="mt-4 max-w-[58ch] text-[15px] leading-[1.6] text-[var(--caes-mut)]">
-                    Ordenados por quién necesita una llamada, no por nombre. Nada de
-                    esto se rellena a mano: sale de los expedientes que ya existen.
-                </p>
+            <div className="flex flex-wrap items-start justify-between gap-6">
+                <div>
+                    <p className="label-mono text-[var(--caes-mut)]">La cartera</p>
+                    <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
+                        {resumen.instaladores} instaladores,{' '}
+                        {resumen.clientes} clientes{' '}
+                        <em className="serif-accent">entre todos</em>.
+                    </h1>
+                    <p className="mt-4 max-w-[58ch] text-[15px] leading-[1.6] text-[var(--caes-mut)]">
+                        Ordenados por quién necesita una llamada, no por nombre. Nada
+                        de esto se rellena a mano: sale de los expedientes que ya
+                        existen.
+                    </p>
+                </div>
+
+                {/**
+                  * Anche qui, non solo dentro l'assegnazione.
+                  *
+                  * Lì serve — quando assegni e la persona non c'è, è il
+                  * momento in cui te ne accorgi. Ma non è il posto dove
+                  * uno VA a cercarla: chi deve dare di alta tre
+                  * installatori un lunedì mattina non apre tre
+                  * espedienti per farlo.
+                  */}
+                {!creando && (
+                    <button
+                        type="button"
+                        onClick={() => setCreando(true)}
+                        className="inline-flex shrink-0 items-center gap-2.5 rounded-full bg-[var(--caes-ink)] px-5 py-3 text-[14px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90"
+                    >
+                        <UserPlus className="h-4 w-4" />
+                        Crear un instalador
+                    </button>
+                )}
             </div>
+
+            {creando && (
+                <AltaInstalador
+                    onCerrar={() => setCreando(false)}
+                    onCreado={(i) => setNuevos((n) => [...n, i.nombre])}
+                />
+            )}
+
+            {/**
+              * Chi è appena stato creato, e perché non lo vedi sotto.
+              *
+              * Questa pagina si costruisce dagli ESPEDIENTI: un
+              * installatore appena dato di alta non ne ha nessuno, quindi
+              * qui sotto non comparirà finché non gliene assegni uno.
+              * Senza dirlo sembrerebbe di nuovo che non sia stato creato
+              * — che è esattamente il difetto appena corretto
+              * nell'elenco di assegnazione.
+              */}
+            {nuevos.length > 0 && (
+                <p className="rounded-xl border border-[var(--caes-green)]/30 bg-[var(--caes-green)]/[.06] px-5 py-3.5 text-[13.5px] leading-[1.5]">
+                    <strong className="font-medium">{nuevos.join(', ')}</strong> ya
+                    {nuevos.length === 1 ? ' tiene cuenta' : ' tienen cuenta'} y
+                    {nuevos.length === 1 ? ' puede' : ' pueden'} entrar. Aquí abajo
+                    no {nuevos.length === 1 ? 'aparece' : 'aparecen'} todavía: esta
+                    lista sale de los expedientes, y{' '}
+                    {nuevos.length === 1 ? 'aún no tiene ninguno' : 'aún no tienen ninguno'}.
+                </p>
+            )}
 
             {/* ── quello che va fatto oggi ─────────────────────────── */}
             {resumen.necesitan.length > 0 && (
