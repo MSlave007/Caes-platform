@@ -1,11 +1,12 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useCarga, Estado } from '@/components/Carga'
+import { Suspense, useMemo, useState } from 'react'
 import { ordenarPorRiesgo, type Nivel } from '@/lib/caes/riesgo'
 import { useSearchParams } from 'next/navigation'
 import { ESTADOS, type EstadoId } from '@/lib/caes/status'
 import { motion } from 'framer-motion'
-import { Loader2, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import ProjectRow from '@/components/admin/ProjectRow'
 import { normalize } from '@/components/platform/StatusChip'
 import type { Project, Source } from '@/lib/mockDb'
@@ -31,8 +32,15 @@ const SOURCE_TABS: { id: SourceFilter; label: string }[] = [
 ]
 
 function ColaDeRevision() {
-    const [projects, setProjects] = useState<Project[]>([])
-    const [loading, setLoading] = useState(true)
+    const {
+        datos,
+        cargando,
+        error: errorCarga,
+        recargar,
+    } = useCarga<Project[]>('/api/projects')
+    // `datos ?? []` crea un array nuovo a ogni resa, e i useMemo che
+    // dipendono da questa lista si ricalcolerebbero sempre.
+    const projects = useMemo<Project[]>(() => datos ?? [], [datos])
     const [source, setSource] = useState<SourceFilter>('all')
     const params = useSearchParams()
     const desdeUrl = params.get('estado')
@@ -42,14 +50,6 @@ function ColaDeRevision() {
             : 'submitted'
     )
     const [q, setQ] = useState('')
-
-    useEffect(() => {
-        fetch('/api/projects')
-            .then((r) => r.json())
-            .then((j) => setProjects(j.data ?? []))
-            .catch((e) => console.error('Error al cargar la cola:', e))
-            .finally(() => setLoading(false))
-    }, [])
 
     const counts = useMemo(() => {
         const bySource = (s: SourceFilter) =>
@@ -97,7 +97,22 @@ function ColaDeRevision() {
             <div>
                 <p className="label-mono text-[var(--caes-mut)]">Cola de revisión</p>
                 <h1 className="mt-4 text-balance text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.038em]">
-                    {pending > 0 ? (
+                    {/*
+                        L'errore prima del conteggio. Zero perche la
+                        coda e vuota e zero perche non e arrivato niente
+                        sono la stessa cifra e due notizie opposte: «La
+                        cola está vacía» davanti a una rete caduta e una
+                        bugia detta con sicurezza.
+                    */}
+                    {errorCarga ? (
+                        <>
+                            La cola no se ha <em className="serif-accent">podido cargar</em>.
+                        </>
+                    ) : cargando ? (
+                        <>
+                            Cargando <em className="serif-accent">la cola</em>…
+                        </>
+                    ) : pending > 0 ? (
                         <>
                             {pending} esperando <em className="serif-accent">tu firma</em>.
                         </>
@@ -168,11 +183,13 @@ function ColaDeRevision() {
             </div>
 
             {/* ---------------------------------------------------- lista */}
-            {loading ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] px-6 py-8 text-[14px] text-[var(--caes-mut)]">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Cargando la cola…
-                </div>
+            {cargando || errorCarga ? (
+                <Estado
+                    cargando={cargando}
+                    error={errorCarga}
+                    recargar={recargar}
+                    que="la cola"
+                />
             ) : filtered.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[var(--caes-line)] bg-[var(--caes-panel)]/60 px-8 py-14 text-center">
                     <h2 className="text-[19px] font-semibold tracking-[-0.026em]">

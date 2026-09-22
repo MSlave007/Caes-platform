@@ -1,9 +1,10 @@
 'use client'
 
+import { useCarga, Estado } from '@/components/Carga'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, ChevronDown, Loader2, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowRight, ChevronDown, Plus, Search, Trash2 } from 'lucide-react'
 import StatusChip, { normalize } from '@/components/platform/StatusChip'
 import TeToca, { type Pendiente } from '@/components/platform/TeToca'
 import { esperaAlInstalador, estado } from '@/lib/caes/status'
@@ -31,8 +32,15 @@ type Project = {
 }
 
 export default function InstallerDashboard() {
-    const [projects, setProjects] = useState<Project[]>([])
-    const [loading, setLoading] = useState(true)
+    const {
+        datos,
+        cargando,
+        error: errorCarga,
+        recargar,
+    } = useCarga<Project[]>('/api/projects')
+    // `datos ?? []` sarebbe un array nuovo a ogni resa, e i useMemo che
+    // dipendono da questa lista si ricalcolerebbero sempre.
+    const projects = useMemo<Project[]>(() => datos ?? [], [datos])
     const [search, setSearch] = useState('')
     const [borradores, setBorradores] = useState<Draft[]>([])
 
@@ -62,21 +70,6 @@ export default function InstallerDashboard() {
      * dell'agenzia mostrava le stesse pratiche. Due letture diverse
      * degli stessi dati sono due posti dove divergere.
      */
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const res = await fetch('/api/projects')
-                const j = await res.json()
-                setProjects(j.data ?? [])
-            } catch (err) {
-                console.error('Error al cargar los expedientes:', err)
-            } finally {
-                setLoading(false)
-            }
-        }
-        load()
-    }, [])
-
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase()
         if (!q) return projects
@@ -164,7 +157,21 @@ export default function InstallerDashboard() {
                 <div>
                     <p className="label-mono text-[var(--caes-mut)]">Tus expedientes</p>
                     <h1 className="mt-4 text-balance text-[clamp(28px,3.6vw,40px)] font-semibold leading-[1.06] tracking-[-0.038em]">
-                        {open > 0 ? (
+                        {/*
+                            L'errore prima del conteggio. «Todo al día»
+                            davanti a una rete caduta e una rassicurazione
+                            falsa — ed e peggio di un errore, perche va
+                            a casa tranquillo.
+                        */}
+                        {errorCarga ? (
+                            <>
+                                No se han podido <em className="serif-accent">cargar</em>.
+                            </>
+                        ) : cargando ? (
+                            <>
+                                Cargando <em className="serif-accent">tus expedientes</em>…
+                            </>
+                        ) : open > 0 ? (
                             <>
                                 Tienes {open} <em className="serif-accent">en curso</em>.
                             </>
@@ -189,7 +196,16 @@ export default function InstallerDashboard() {
             <TeToca pendientes={pendientes} />
 
             {/* ------------------------------------------------------ numeri */}
-            <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-2 lg:grid-cols-4">
+            {/*
+                Con la lista non caricata queste quattro cifre sarebbero
+                tutte zero: «0 en manos de la agencia, 0,00 € de ahorro».
+                Non e un dato mancante, e un dato falso — e piu
+                tranquillizzante della verita. Meglio non mostrarle.
+            */}
+            <div
+                hidden={Boolean(errorCarga)}
+                className="grid gap-px overflow-hidden rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-line)] sm:grid-cols-2 lg:grid-cols-4"
+            >
                 {[
                     // Il primo non e' un conteggio, e' una domanda: quanti
                     // stanno fermi da qualcuno che non sei tu. E' quello
@@ -307,11 +323,13 @@ export default function InstallerDashboard() {
 
                 {/* ---------------------------------------------------- lista */}
                 <div className="mt-7">
-                    {loading ? (
-                        <div className="flex items-center gap-3 rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] px-6 py-8 text-[14px] text-[var(--caes-mut)]">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Cargando tus expedientes…
-                        </div>
+                    {cargando || errorCarga ? (
+                        <Estado
+                            cargando={cargando}
+                            error={errorCarga}
+                            recargar={recargar}
+                            que="tus expedientes"
+                        />
                     ) : filtered.length === 0 ? (
                         <EmptyState searching={search.length > 0} />
                     ) : (
