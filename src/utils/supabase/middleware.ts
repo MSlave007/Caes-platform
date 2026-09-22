@@ -18,7 +18,10 @@ export async function updateSession(request: NextRequest) {
                 },
                 setAll(cookiesToSet) {
                     // Update the response cookies
-                    cookiesToSet.forEach(({ name, value, options }) => {
+                    // `options` non si prende proprio: qui si copiano i cookie
+                    // dentro la richiesta, e le opzioni servono alla
+                    // risposta, che le rimette da sola qui sotto.
+                    cookiesToSet.forEach(({ name, value }) => {
                         request.cookies.set(name, value)
                     })
 

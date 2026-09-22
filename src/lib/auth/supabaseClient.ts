@@ -16,6 +16,7 @@ export function createClient() {
                 signUp: async () => ({ error: { message: 'Supabase credentials missing in .env.local' } }),
                 onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } })
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any
     }
 

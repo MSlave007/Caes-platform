@@ -7,7 +7,6 @@ import Avisos, { type Aviso } from '@/components/admin/Avisos'
 import DocumentReview from '@/components/admin/DocumentReview'
 import {
     CAMPOS,
-    faltanParaFormula,
     type Extraccion,
 } from '@/lib/caes/extraction'
 import type { EstadoId } from '@/lib/caes/status'
@@ -29,7 +28,6 @@ import {
 } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
 
-const EASE = [0.16, 1, 0.3, 1] as const
 
 export default function AdminReviewDetail({
     params,
@@ -108,8 +106,6 @@ export default function AdminReviewDetail({
             }
             return siguiente
         })
-
-    const faltan = faltanParaFormula(extraccion)
 
     /* ------------------------------------------------ carte e lettura */
 

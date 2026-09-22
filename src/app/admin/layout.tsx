@@ -122,7 +122,7 @@ export default function AdminLayout({
             </div>
 
             <main className="px-6 py-10 sm:px-10 lg:ml-[248px] lg:px-12 lg:py-12">
-                <div className="mx-auto max-w-[1140px]">{children}</div>
+                <div className="mx-auto max-w-[var(--caes-ancho)]">{children}</div>
             </main>
         </div>
     )

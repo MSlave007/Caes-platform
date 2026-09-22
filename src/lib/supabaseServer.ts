@@ -11,7 +11,11 @@ export async function createClient() {
         console.warn('Supabase credentials missing. Returning mock server client.')
         // Return a mock object that satisfies the basic structure needed for the APIs
         return {
-            from: (table: string) => ({
+            // Il nome della tabella non serve al doppio, ma resta
+            // scritto: e la firma della funzione vera, e chi legge
+            // questo finto client deve capire cosa riceverebbe.
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            from: (_table: string) => ({
                 select: () => ({
                     eq: () => ({
                         single: () => ({ data: null, error: null }),
@@ -20,12 +24,12 @@ export async function createClient() {
                     order: () => ({ data: [], error: null }), // Add direct order support
                     width: () => ({ eq: () => ({ data: [], error: null }) })
                 }),
-                insert: (data: any) => ({
+                insert: (data: Record<string, unknown>) => ({
                     select: () => ({
                         single: () => ({ data: { ...data, id: Math.random().toString() }, error: null })
                     })
                 }),
-                update: (data: any) => ({
+                update: (data: Record<string, unknown>) => ({
                     eq: () => ({ select: () => ({ single: () => ({ data: { ...data }, error: null }) }) })
                 }),
                 upload: () => ({ data: { path: 'mock_path' }, error: null }),
@@ -41,6 +45,7 @@ export async function createClient() {
                 getUser: () => ({ data: { user: { id: 'mock_user_id', email: 'mock@example.com' } }, error: null }),
                 getSession: () => ({ data: { session: { user: { id: 'mock_user_id', email: 'mock@example.com' } } }, error: null })
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any
     }
 

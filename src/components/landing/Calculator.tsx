@@ -1,14 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, Check, Flame, Droplet, Zap, Home, Wrench } from 'lucide-react'
 import { EASE } from './motion'
 import InvestmentResult from './InvestmentResult'
 import {
-    estimateConsumer,
-    HORIZONTE_ANOS,
     type SistemaActual,
     type Zona,
 } from '@/lib/caes/consumer'
@@ -30,7 +28,6 @@ export default function Calculator({
     locale?: string
 }) {
     const t = dict.calc
-    const r = dict.result
     const reduce = useReducedMotion()
 
     // null = non ha ancora risposto: la scelta è la prima cosa che vede.
@@ -41,13 +38,6 @@ export default function Calculator({
     const [zona, setZona] = useState<Zona | null>(null)
     const [done, setDone] = useState(false)
 
-    const result = useMemo(
-        () =>
-            sistema && zona
-                ? estimateConsumer({ sistema, facturaMensual: factura, zona })
-                : null,
-        [sistema, factura, zona]
-    )
 
     const money = (n: number) =>
         new Intl.NumberFormat(dict.intlLocale, {

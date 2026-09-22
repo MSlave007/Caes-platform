@@ -14,7 +14,7 @@ export async function POST(request: Request) {
         const doc = new PDFDocument()
 
         // Push to a buffer
-        let buffers: any[] = []
+        const buffers: Buffer[] = []
         doc.on('data', buffers.push.bind(buffers))
 
         // Content
@@ -62,8 +62,12 @@ export async function POST(request: Request) {
             }
         })
 
-    } catch (error: any) {
+    } catch (error) {
+        // `any` su un errore vuol dire leggergli addosso qualsiasi
+        // proprieta: se un giorno arriva una stringa, `error.message`
+        // e `undefined` e il messaggio sparisce senza dirlo.
         console.error('PDF Generation Error:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        const mensaje = error instanceof Error ? error.message : String(error)
+        return NextResponse.json({ error: mensaje }, { status: 500 })
     }
 }

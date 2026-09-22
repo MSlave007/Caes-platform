@@ -179,6 +179,16 @@
 
   /* Testo sopra il pannello scuro. */
   --caes-on-deep: #DDE9E1;
+
+  /* ------------------------------------------------------------------
+     La larghezza del contenuto.
+
+     Era 1180 sulla landing e nell'area installatore, 1140 in quella
+     agenzia: quaranta pixel che nessuno nota da solo, ma che vogliono
+     dire che la misura non e decisa da nessuna parte. Scritta qui, la
+     prossima schermata non puo inventarsene una terza.
+     ------------------------------------------------------------------ */
+  --caes-ancho: 1180px;
 }
 
 @theme inline {

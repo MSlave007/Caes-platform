@@ -18,7 +18,7 @@ export type Lead = {
     installer_name: string | null
 }
 
-let leads: Lead[] = [
+const leads: Lead[] = [
     {
         id: 'L-0031',
         created_at: new Date(Date.now() - 3600000).toISOString(),

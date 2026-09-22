@@ -50,7 +50,7 @@ export default function InstallerLayout({
     return (
         <div className="min-h-screen bg-[var(--caes-paper)] pb-24 font-sans text-[var(--caes-ink)] md:pb-0">
             <header className="sticky top-0 z-40 border-b border-[var(--caes-line)] bg-[var(--caes-paper)]/90 backdrop-blur-md">
-                <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-6 px-6 py-4 sm:px-10">
+                <div className="mx-auto flex max-w-[var(--caes-ancho)] items-center justify-between gap-6 px-6 py-4 sm:px-10">
                     <Link
                         href="/installer/dashboard"
                         className="flex items-center gap-2.5"
@@ -111,7 +111,7 @@ export default function InstallerLayout({
                 </div>
             </header>
 
-            <main className="mx-auto max-w-[1180px] px-6 py-10 sm:px-10 sm:py-14">
+            <main className="mx-auto max-w-[var(--caes-ancho)] px-6 py-10 sm:px-10 sm:py-14">
                 {children}
             </main>
 

@@ -5,7 +5,7 @@ import { COMISION_MAXIMA_PCT } from '@/lib/caes/estimate'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { NextResponse } from 'next/server'
 
-export async function GET(request: Request) {
+export async function GET() {
     const supabase = await createClient()
     // Senza sessione si passa solo in modalità dimostrativa: prima questa
     // rotta rispondeva a chiunque, anche online.

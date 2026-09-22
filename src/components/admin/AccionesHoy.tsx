@@ -63,8 +63,26 @@ export default function AccionesHoy({ acciones }: { acciones: Accion[] }) {
         )
     }
 
+    /**
+     * Le colonne seguono quante sono le schede, non il contrario.
+     *
+     * Erano sempre due. Con tre azioni, la terza restava sola in basso a
+     * sinistra e mezza riga vuota a destra — la stessa asimmetria per
+     * cui la griglia dei documenti era stata rifatta.
+     *
+     * Le classi sono scritte per intero apposta: Tailwind legge il
+     * codice, e una classe costruita con una variabile non finisce nel
+     * foglio di stile.
+     */
+    const columnas =
+        vivas.length === 1
+            ? ''
+            : vivas.length === 3
+              ? 'sm:grid-cols-2 lg:grid-cols-3'
+              : 'sm:grid-cols-2'
+
     return (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className={`grid gap-3 ${columnas}`}>
             {vivas.map((a) => {
                 const Icono = ICONOS[a.icono]
                 // Una settimana ferma non e' un ritardo tecnico: e' il
