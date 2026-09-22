@@ -14,14 +14,16 @@ import {
 } from 'lucide-react'
 import Firmar from '@/components/firma/Firmar'
 
-type FirmaPuesta = {
+export type FirmaPuesta = {
     rol: string
     nombre: string
     metodo: string
     cuando: string
+    /** Il tratto, per disegnarlo sul foglio. */
+    png?: string
 }
 
-type Estado = {
+export type Estado = {
     congelado?: string
     huella?: string
     /** `null` quando non si è potuto ricalcolare: non è «sì». */
@@ -31,6 +33,8 @@ type Estado = {
     faltan: { rol: string; nombre: string }[]
     /** Il link mandato e non ancora usato, se è di questo documento. */
     enlace?: { token: string; caduca: string | null; rol: string } | null
+    /** Con una firma dentro, i dati non si toccano più. */
+    bloqueado?: boolean
 }
 
 const METODOS: Record<string, string> = {
@@ -59,11 +63,14 @@ export default function Firmas({
     expedienteId,
     plantillaId,
     completo,
+    onEstado,
 }: {
     expedienteId: string
     plantillaId: string
     /** Falso quando mancano dati: un borrador non si firma. */
     completo: boolean
+    /** Il foglio sopra ha bisogno degli stessi dati: tratti e blocco. */
+    onEstado?: (e: Estado | null) => void
 }) {
     const [estado, setEstado] = useState<Estado | null>(null)
     const [firmando, setFirmando] = useState<string | null>(null)
@@ -77,14 +84,35 @@ export default function Firmas({
                 `/api/firmas?id=${encodeURIComponent(expedienteId)}&plantilla=${plantillaId}`
             )
             const j = await r.json()
-            setEstado(r.ok ? j.data : { coincide: null, firmas: [], faltan: [] })
+            const e: Estado = r.ok ? j.data : { coincide: null, firmas: [], faltan: [] }
+            setEstado(e)
+            onEstado?.(e)
         } catch {
-            setEstado({ coincide: null, firmas: [], faltan: [] })
+            const e: Estado = { coincide: null, firmas: [], faltan: [] }
+            setEstado(e)
+            onEstado?.(e)
         }
-    }, [expedienteId, plantillaId])
+    }, [expedienteId, plantillaId, onEstado])
 
+    /**
+     * Si rilegge anche quando si torna sulla scheda.
+     *
+     * Il cliente firma dal suo link, in un'altra scheda o su un altro
+     * telefono. Chi rivede torna qui e leggeva ancora «enlace en
+     * marcha» e nessuna firma: tutto vero sei minuti prima, e niente
+     * che lo dicesse.
+     */
     useEffect(() => {
         void cargar()
+        const alVolver = () => {
+            if (document.visibilityState === 'visible') void cargar()
+        }
+        document.addEventListener('visibilitychange', alVolver)
+        window.addEventListener('focus', alVolver)
+        return () => {
+            document.removeEventListener('visibilitychange', alVolver)
+            window.removeEventListener('focus', alVolver)
+        }
     }, [cargar])
 
     const firmar = async (
@@ -210,6 +238,22 @@ export default function Firmas({
                 onCopiar={setCopiado}
                 onAnular={() => void anularEnlace()}
             />}
+
+            {/**
+              * Perché i dati non si toccano più.
+              *
+              * Il divieto senza la ragione è una funzione che sembra
+              * rotta: chi prova a correggere un telefono e non ci riesce
+              * pensa a un difetto, non a una regola.
+              */}
+            {estado.bloqueado && (
+                <p className="text-[13px] leading-[1.5] text-[var(--caes-mut)]">
+                    Este documento está firmado, así que sus datos ya no se
+                    pueden cambiar — ni aquí ni en las otras pestañas del
+                    expediente. Si hay que corregir algo, quita las firmas
+                    primero y vuelve a pedirlas.
+                </p>
+            )}
 
             {/* ── chi ha già firmato ───────────────────────────────── */}
             {estado.firmas.length > 0 && (

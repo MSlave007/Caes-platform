@@ -11,6 +11,7 @@ import {
 } from '@/lib/caes/fichaCliente'
 import { equipoDe, lecturasNuevas } from '@/lib/caes/aprendizaje'
 import { campo as definicionDe, documentosDe } from '@/lib/caes/extraction'
+import { cargarProyecto } from '@/lib/caes/servidor'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -64,6 +65,43 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const id = (await params).id
     const body = await request.json()
     const supabase = await createClient()
+
+    /**
+     * Firmato vuol dire chiuso.
+     *
+     * La schermata già non lascia toccare i buchi di un documento
+     * firmato, ma quello è il davanti: la stessa correzione si può
+     * mandare da una scheda rimasta aperta prima della firma, o
+     * chiamando questa rotta a mano.
+     *
+     * E i ritocchi sono del fascicolo, non del singolo documento: il
+     * telefono del cliente sta dentro tutti e tre. Quindi basta una
+     * firma su uno qualunque per fermarli tutti.
+     *
+     * Non è prudenza: è che «ha firmato questo» deve voler dire
+     * qualcosa. Correggere dopo lascia una firma valida su un foglio
+     * che non esiste più.
+     */
+    if (body.documentos?.retoques !== undefined) {
+        const actual = await cargarProyecto(id)
+        const hayFirmas = Object.values(actual?.firmas ?? {}).some(
+            (r) => (r?.firmas?.length ?? 0) > 0
+        )
+
+        // Solo se i DATI cambiano davvero. La spunta «revisado» viaggia
+        // nello stesso campo e non tocca il documento: bloccarla
+        // vorrebbe dire rispondere con un errore a chi non ha cambiato
+        // niente.
+        if (hayFirmas && !mismosRetoques(actual?.documentos?.retoques, body.documentos.retoques)) {
+            return NextResponse.json(
+                {
+                    error:
+                        'Este expediente tiene documentos firmados. Quita las firmas antes de cambiar los datos.',
+                },
+                { status: 409 }
+            )
+        }
+    }
 
     // Come sopra, in scrittura: approvare un espediente vuol dire
     // scrivere su una riga che non e tua.
@@ -415,4 +453,25 @@ async function firmar(
 
     parche.extraccion = firmada
     return parche
+}
+
+/**
+ * Due insiemi di ritocchi sono gli stessi.
+ *
+ * Non con `JSON.stringify`: i ritocchi tornano dal database come jsonb,
+ * e jsonb riordina le chiavi. Confrontando le stringhe, due oggetti
+ * identici risultavano diversi — e chi spuntava «revisado» su un
+ * documento firmato si prendeva un errore senza aver toccato niente.
+ */
+function mismosRetoques(
+    a: Record<string, string> | undefined,
+    b: Record<string, string> | undefined
+): boolean {
+    const x = a ?? {}
+    const y = b ?? {}
+    const claves = new Set([...Object.keys(x), ...Object.keys(y)])
+    for (const k of claves) {
+        if ((x[k] ?? '') !== (y[k] ?? '')) return false
+    }
+    return true
 }

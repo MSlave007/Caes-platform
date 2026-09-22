@@ -60,6 +60,8 @@ export default function DocumentosDelExpediente({
     const [guardado, setGuardado] = useState<'limpio' | 'guardando' | 'hecho' | 'error'>(
         'limpio'
     )
+    /** Il motivo, quando il server ne dà uno. Vedi il salvataggio. */
+    const [porQueNo, setPorQueNo] = useState<string | null>(null)
 
     useEffect(() => {
         fetch(`/api/projects/${id}`)
@@ -130,7 +132,22 @@ export default function DocumentosDelExpediente({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ documentos: { retoques, revisados } }),
                 })
-                setGuardado(res.ok ? 'hecho' : 'error')
+                if (res.ok) {
+                    setPorQueNo(null)
+                    setGuardado('hecho')
+                    return
+                }
+                /**
+                 * Il motivo del server, non «no se ha podido guardar».
+                 *
+                 * Da quando un documento firmato si chiude, il rifiuto
+                 * più probabile ha una ragione precisa — e senza dirla
+                 * sembra che la piattaforma abbia perso il lavoro di chi
+                 * scriveva.
+                 */
+                const j = await res.json().catch(() => null)
+                setPorQueNo(j?.error ?? null)
+                setGuardado('error')
             } catch {
                 setGuardado('error')
             }
@@ -197,7 +214,7 @@ export default function DocumentosDelExpediente({
 
                     <div className="flex flex-wrap items-center gap-4">
                         <span
-                            className={`text-[12.5px] ${guardado === 'error'
+                            className={`max-w-[38ch] text-[12.5px] leading-[1.45] ${guardado === 'error'
                                 ? 'text-[var(--caes-bloqueo-ink)]'
                                 : 'text-[var(--caes-faint)]'
                                 }`}
@@ -207,7 +224,7 @@ export default function DocumentosDelExpediente({
                                 : guardado === 'hecho'
                                     ? 'Guardado'
                                     : guardado === 'error'
-                                        ? 'No se ha podido guardar'
+                                        ? (porQueNo ?? 'No se ha podido guardar')
                                         : ''}
                         </span>
 

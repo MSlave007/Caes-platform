@@ -137,7 +137,13 @@ export async function GET(request: Request) {
 
     if (!registro?.firmas.length) {
         return NextResponse.json({
-            data: { firmas: [], faltan: partes, coincide: true, enlace },
+            data: {
+                firmas: [],
+                faltan: partes,
+                coincide: true,
+                enlace,
+                bloqueado: false,
+            },
         })
     }
     let coincide = true
@@ -167,17 +173,34 @@ export async function GET(request: Request) {
             firmas: registro.firmas.map(resumir),
             faltan: partes.filter((x) => !registro.firmas.some((f) => f.rol === x.rol)),
             enlace,
+            /**
+             * Una firma basta a chiudere il documento.
+             *
+             * Non tutte: se il Cedente ha firmato e il Cesionario no, i
+             * dati sono comunque quelli che il Cedente ha letto. Cambiarli
+             * per far comodo al secondo vorrebbe dire far firmare a due
+             * persone due fogli diversi.
+             */
+            bloqueado: true,
         },
     })
 }
 
-/** Quello che serve a schermo. Il tratto no: pesa e non si guarda in lista. */
+/**
+ * Quello che serve a schermo — tratto compreso.
+ *
+ * Il tratto sembrava di troppo in un elenco, e infatti in elenco non si
+ * guarda. Ma il foglio sopra al pannello deve mostrarlo: senza, chi
+ * firma vede scritto «firmato» e il documento identico a prima, e
+ * conclude che non è successo niente. Sono pochi kB.
+ */
 function resumir(f: Firma) {
     return {
         rol: f.rol,
         nombre: f.nombre,
         metodo: f.metodo,
         cuando: enPalabras(f.fecha),
+        png: f.png,
     }
 }
 

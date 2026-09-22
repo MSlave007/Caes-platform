@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     AlertTriangle,
     Check,
@@ -12,7 +12,7 @@ import {
     PenLine,
     RotateCcw,
 } from 'lucide-react'
-import Firmas from '@/components/admin/Firmas'
+import Firmas, { type Estado as EstadoFirmas } from '@/components/admin/Firmas'
 import {
     HUECOS,
     PLANTILLAS,
@@ -206,11 +206,14 @@ function Texto({
     datos,
     retoques,
     onRetocar,
+    bloqueado,
 }: {
     texto: string
     datos: Datos
     retoques: Datos
     onRetocar: (id: string, v: string) => void
+    /** Firmato: i buchi si leggono e basta. Vedi `Firmas`. */
+    bloqueado?: boolean
 }) {
     const trozos = texto.split(/(\{\{\w+\}\})/g)
 
@@ -235,16 +238,42 @@ function Texto({
                         ? 'bg-[var(--caes-ink)]/[.07] px-[3px] text-[var(--caes-ink)] underline decoration-[var(--caes-ink)]/30 decoration-dotted underline-offset-[3px] print:no-underline'
                         : 'bg-[var(--caes-green)]/[.10] px-[3px] text-[var(--caes-ink)]'
 
+                /**
+                 * Firmato: il buco smette di essere un campo.
+                 *
+                 * Non disabilitato — proprio non è più un campo: niente
+                 * cursore, niente riquadro al passaggio del mouse, niente
+                 * fuoco da tastiera. Un campo disabilitato invita a
+                 * riprovare; un testo no.
+                 */
+                if (bloqueado) {
+                    /**
+                     * E senza i colori dei campi.
+                     *
+                     * Quei colori dicono da dove viene ogni dato — dalla
+                     * carta o dalla tastiera di chi rivede — e servono
+                     * finché c'è una decisione da prendere. Firmato non
+                     * c'è più: è un documento, e un documento non ha i
+                     * campi evidenziati. È la stessa cosa che si fa in
+                     * stampa, per la stessa ragione.
+                     *
+                     * E lasciarli colorati inviterebbe a cliccarci, il
+                     * che vuol dire far provare a correggere una cosa
+                     * che non si corregge.
+                     */
+                    return (
+                        <span key={`${id}-${i}`} title={titulo(hueco, id, aMano)}>
+                            {valor}
+                        </span>
+                    )
+                }
+
                 return (
                     <Editable
                         key={`${id}-${i}`}
                         valor={valor}
                         vacio={hueco ? `${hueco.label} · ${ORIGEN_LABEL[hueco.origen]}` : id}
-                        titulo={
-                            aMano
-                                ? `${hueco?.label ?? id} · escrito a mano`
-                                : (hueco?.nota ?? hueco?.label ?? id)
-                        }
+                        titulo={titulo(hueco, id, aMano)}
                         className={`print:bg-transparent print:px-0 ${color}`}
                         onCommit={(v) => onRetocar(id, v)}
                     />
@@ -254,21 +283,31 @@ function Texto({
     )
 }
 
+function titulo(hueco: Hueco | undefined, id: string, aMano: boolean): string {
+    if (aMano) return `${hueco?.label ?? id} · escrito a mano`
+    return hueco?.nota ?? hueco?.label ?? id
+}
+
 function BloqueVista({
     b,
     datos,
     retoques,
     onRetocar,
+    bloqueado,
+    firmas,
 }: {
     b: Bloque
     datos: Datos
     retoques: Datos
     onRetocar: (id: string, v: string) => void
+    bloqueado?: boolean
+    /** Per ruolo: il tratto già raccolto, se c'è. */
+    firmas?: Record<string, { nombre: string; cuando: string; png?: string }>
 }) {
     // Niente componente scorciatoia definito qui dentro: React lo
     // rimonterebbe a ogni render, e un contentEditable rimontato perde
     // il cursore mentre ci stai scrivendo.
-    const propsTexto = { datos, retoques, onRetocar }
+    const propsTexto = { datos, retoques, onRetocar, bloqueado }
 
     switch (b.tipo) {
         case 'titulo':
@@ -344,16 +383,46 @@ function BloqueVista({
         case 'firmas':
             return (
                 <div className="mt-12 flex flex-wrap gap-12">
-                    {b.partes.map((p, i) => (
-                        <div key={i} className="min-w-[200px] flex-1">
-                            <span className="block text-[11px] uppercase tracking-[.08em] text-[var(--caes-mut)]">
-                                {p.rol}
-                            </span>
-                            <span className="mt-12 block border-t border-[var(--caes-ink)] pt-2 text-[12.5px] text-[var(--caes-ink)]">
-                                <Texto texto={p.nombre} {...propsTexto} />
-                            </span>
-                        </div>
-                    ))}
+                    {b.partes.map((p, i) => {
+                        const puesta = firmas?.[p.rol]
+                        return (
+                            <div key={i} className="min-w-[200px] flex-1">
+                                <span className="block text-[11px] uppercase tracking-[.08em] text-[var(--caes-mut)]">
+                                    {p.rol}
+                                </span>
+
+                                {/**
+                                  * Il tratto sopra la riga, come sul PDF.
+                                  *
+                                  * Senza, chi aveva appena firmato vedeva il
+                                  * pannello dire «firmato» e il foglio sopra
+                                  * identico a prima — e l'unica conclusione
+                                  * ragionevole è che non fosse successo
+                                  * niente.
+                                  */}
+                                <span className="flex h-[52px] items-end">
+                                    {puesta?.png && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={`data:image/png;base64,${puesta.png}`}
+                                            alt={`Firma de ${puesta.nombre}`}
+                                            className="max-h-[48px] max-w-full object-contain object-left"
+                                        />
+                                    )}
+                                </span>
+
+                                <span className="mt-2 block border-t border-[var(--caes-ink)] pt-2 text-[12.5px] text-[var(--caes-ink)]">
+                                    <Texto texto={p.nombre} {...propsTexto} />
+                                </span>
+
+                                {puesta && (
+                                    <span className="mt-1 block text-[10.5px] text-[var(--caes-mut)]">
+                                        Firmado el {puesta.cuando}
+                                    </span>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
             )
     }
@@ -499,7 +568,36 @@ export default function GeneradorDocumentos({
     conEjemplo,
 }: Props) {
     const [activa, setActiva] = useState<Plantilla['id']>('convenio')
+    /**
+     * Lo stato delle firme vive qui e non dentro `Firmas`.
+     *
+     * Perché lo guardano in due, e sono fratelli: il foglio, che ci
+     * disegna sopra i tratti e smette di farsi correggere, e il pannello
+     * sotto. Tenendolo dentro il pannello, il foglio sopra non saprebbe
+     * di essere firmato.
+     */
+    const [firmasDe, setFirmasDe] = useState<Record<string, EstadoFirmas | null>>({})
+    const estadoFirmas = firmasDe[activa] ?? null
     const plantilla = PLANTILLAS.find((p) => p.id === activa) ?? PLANTILLAS[0]
+
+    // Il pannello si rilegge da solo quando si torna sulla scheda, e
+    // ogni lettura passa di qui. Va tenuto stabile o l'effetto che lo
+    // chiama riparte a ogni render.
+    const recibirFirmas = useCallback(
+        (e: EstadoFirmas | null) => setFirmasDe((m) => ({ ...m, [activa]: e })),
+        [activa]
+    )
+
+    /** Per ruolo: il tratto e la data, come li vuole il foglio. */
+    const trazos = useMemo(() => {
+        const m: Record<string, { nombre: string; cuando: string; png?: string }> = {}
+        for (const f of estadoFirmas?.firmas ?? []) {
+            m[f.rol] = { nombre: f.nombre, cuando: f.cuando, png: f.png }
+        }
+        return m
+    }, [estadoFirmas])
+
+    const bloqueado = Boolean(estadoFirmas?.bloqueado) && !conEjemplo
 
     const faltan = useMemo(() => faltanEn(plantilla, datos), [plantilla, datos])
     const estado = estadoDe(plantilla, datos, Boolean(revisados[plantilla.id]))
@@ -679,9 +777,14 @@ export default function GeneradorDocumentos({
                 )}
             </div>
 
-            <div className="print:hidden">
-                <Leyenda />
-            </div>
+            {/* «Haz clic en cualquier dato para corregirlo» su un
+                documento firmato è un invito a fare una cosa che non si
+                può fare. */}
+            {!bloqueado && (
+                <div className="print:hidden">
+                    <Leyenda />
+                </div>
+            )}
 
             {/* ── il foglio ───────────────────────────────────────── */}
             <div
@@ -695,6 +798,8 @@ export default function GeneradorDocumentos({
                         datos={datos}
                         retoques={retoques}
                         onRetocar={onRetocar}
+                        bloqueado={bloqueado}
+                        firmas={trazos}
                     />
                 ))}
             </div>
@@ -716,6 +821,7 @@ export default function GeneradorDocumentos({
                     expedienteId={expedienteId}
                     plantillaId={plantilla.id}
                     completo={faltan.length === 0}
+                    onEstado={recibirFirmas}
                 />
             )}
 
