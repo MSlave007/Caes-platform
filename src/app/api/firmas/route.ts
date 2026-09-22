@@ -123,9 +123,21 @@ export async function GET(request: Request) {
     )
     const registro = p.firmas?.[plantilla.id]
 
+    /**
+     * Il link di firma in attesa, se è di QUESTO documento.
+     *
+     * Ce n'è uno per fascicolo: mostrarlo anche sotto gli altri due
+     * documenti farebbe credere che il cliente stia per firmare il
+     * Convenio mentre gli abbiamo mandato l'Anexo.
+     */
+    const suyo = p.firma_token && p.firma_plantilla === plantilla.id
+    const enlace = suyo
+        ? { token: p.firma_token, caduca: p.firma_caduca ?? null, rol: p.firma_rol ?? '' }
+        : null
+
     if (!registro?.firmas.length) {
         return NextResponse.json({
-            data: { firmas: [], faltan: partes, coincide: true },
+            data: { firmas: [], faltan: partes, coincide: true, enlace },
         })
     }
     let coincide = true
@@ -154,6 +166,7 @@ export async function GET(request: Request) {
             coincide,
             firmas: registro.firmas.map(resumir),
             faltan: partes.filter((x) => !registro.firmas.some((f) => f.rol === x.rol)),
+            enlace,
         },
     })
 }

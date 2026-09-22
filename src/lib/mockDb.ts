@@ -74,6 +74,19 @@ export type Project = {
     subida_token?: string
     subida_caduca?: string
     subida_nota?: string | null
+    /**
+     * Il link per firmare da lontano: token, scadenza, e QUALE firma si
+     * sta chiedendo.
+     *
+     * Quale conta: un link che apre «firma qualcosa» non e un link che
+     * si manda a un cliente. Il documento e il ruolo si decidono qui,
+     * non li sceglie chi apre.
+     */
+    firma_token?: string
+    firma_caduca?: string
+    firma_plantilla?: string
+    firma_rol?: string
+    firma_nota?: string | null
     /** Note libere dell'installatore, scritte al caricamento. */
     notas?: string
     /** Come l'ha chiamato chi l'ha aperto, quando il cliente non c'era ancora. */

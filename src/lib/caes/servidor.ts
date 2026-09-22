@@ -40,10 +40,17 @@ export type Proyecto = {
     extraccion?: Extraccion | null
     documentos?: { retoques?: Datos } | null
     firmas?: Firmas | null
+    /** Il link di firma in attesa, quando ce n'è uno. */
+    firma_token?: string | null
+    firma_caduca?: string | null
+    firma_plantilla?: string | null
+    firma_rol?: string | null
 }
 
+// Una stringa sola, non una concatenazione: i tipi di Supabase leggono
+// l'elenco delle colonne a compilazione, e di una somma non sanno niente.
 const COLUMNAS =
-    'id, client_name, installer_id, proveedor, tarifa_eur_mwh, extraccion, documentos, firmas'
+    'id, client_name, installer_id, proveedor, tarifa_eur_mwh, extraccion, documentos, firmas, firma_token, firma_caduca, firma_plantilla, firma_rol'
 
 const VACIA: Extraccion = Object.fromEntries(
     CAMPOS.map((c) => [c.id, { valor: null, estado: 'vacio' as const }])
@@ -73,7 +80,20 @@ export async function guardarEnProyecto(
     }
     const admin = createAdminClient()
     if (!admin) return false
-    const { error } = await admin.from('projects').update(parche).eq('id', id)
+
+    /**
+     * `undefined` diventa `null` prima di partire.
+     *
+     * PostgREST le chiavi con valore `undefined` non le manda proprio:
+     * `update({ firma_token: undefined })` è una UPDATE senza colonne, e
+     * il link che si voleva revocare resta vivo. Con l'archivio di prova
+     * funzionava — è il tipo di differenza che si scopre in produzione.
+     */
+    const limpio = Object.fromEntries(
+        Object.entries(parche).map(([k, v]) => [k, v === undefined ? null : v])
+    )
+
+    const { error } = await admin.from('projects').update(limpio).eq('id', id)
     if (error) {
         console.error('guardarEnProyecto:', error)
         return false

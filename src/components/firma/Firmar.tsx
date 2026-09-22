@@ -377,20 +377,25 @@ export default function Firmar({
                             type="button"
                             onClick={() => setCaracter(c.id)}
                             aria-pressed={caracter === c.id}
-                            className={`flex min-h-[4.5rem] items-center justify-between gap-4 rounded-xl border bg-white px-5 py-3 text-left transition-colors ${
+                            className={`flex flex-col gap-1.5 rounded-xl border bg-white px-5 py-3.5 text-left transition-colors ${
                                 caracter === c.id
                                     ? 'border-[var(--caes-green)] ring-4 ring-[var(--caes-green)]/12'
                                     : 'border-[var(--caes-line)] hover:border-[var(--caes-ink)]/30'
                             }`}
                         >
+                            {/* L'etichetta sopra e non di lato: accanto al
+                                nome gli rubava larghezza, e su un telefono
+                                un cognome lungo si troncava — cioe
+                                l'anteprima non era piu la firma che sarebbe
+                                uscita. */}
+                            <span className="label-mono text-[var(--caes-faint)]">
+                                {c.nombre}
+                            </span>
                             <span
-                                className={`${c.clase} truncate text-[30px] leading-none`}
+                                className={`${c.clase} truncate text-[30px] leading-[1.35]`}
                                 style={{ color: TINTA }}
                             >
                                 {nombre.trim() || 'Tu nombre'}
-                            </span>
-                            <span className="label-mono shrink-0 text-[var(--caes-faint)]">
-                                {c.nombre}
                             </span>
                         </button>
                     ))}
