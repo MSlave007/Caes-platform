@@ -39,15 +39,25 @@ export type Ajustes = {
     margen_pct: number
     proveedor: string | null
     dias_revision: number
+    /**
+     * Mesi per presentare un'attuazione dalla fine dei lavori.
+     *
+     * `null` = l'orologio è spento. Sta qui e non nel motore di calcolo
+     * perché è un termine che fissa la norma, e scriverlo nel codice
+     * senza esserne certi vorrebbe dire renderlo il numero che tutti
+     * citano. Vedi src/lib/caes/reloj.ts.
+     */
+    meses_presentacion: number | null
 }
 
 export const POR_DEFECTO: Ajustes = {
     margen_pct: CUOTA_CAES_PCT,
     proveedor: null,
     dias_revision: 5,
+    meses_presentacion: null,
 }
 
-const CAMPOS = 'margen_pct, proveedor, dias_revision'
+const CAMPOS = 'margen_pct, proveedor, dias_revision, meses_presentacion'
 
 /* ------------------------------------------------- archivio dimostrativo */
 
@@ -98,7 +108,23 @@ function sanear(body: unknown): Ajustes | { error: string } {
         proveedor = id
     }
 
-    return { margen_pct: margen, proveedor, dias_revision: dias }
+    // Vuoto e zero non sono la stessa cosa: vuoto vuol dire «non lo
+    // sappiamo ancora», e il sistema mostra l'età senza dare verdetti.
+    let meses: number | null = null
+    if (b.meses_presentacion !== null && b.meses_presentacion !== undefined && b.meses_presentacion !== '') {
+        const m = Math.round(Number(b.meses_presentacion))
+        if (!Number.isFinite(m) || m < 1 || m > 120) {
+            return { error: 'El plazo de presentación va de 1 a 120 meses, o se deja vacío.' }
+        }
+        meses = m
+    }
+
+    return {
+        margen_pct: margen,
+        proveedor,
+        dias_revision: dias,
+        meses_presentacion: meses,
+    }
 }
 
 /** Il codice che PostgREST dà quando la tabella non esiste ancora. */

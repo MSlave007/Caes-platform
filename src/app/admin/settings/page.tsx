@@ -29,6 +29,7 @@ export default function AdminSettings() {
     const [agencyPct, setAgencyPct] = useState(CUOTA_CAES_PCT)
     const [delegate, setDelegate] = useState('')
     const [reviewDays, setReviewDays] = useState(5)
+    const [mesesPlazo, setMesesPlazo] = useState('')
 
     const [cargando, setCargando] = useState(true)
     const [guardando, setGuardando] = useState(false)
@@ -51,6 +52,11 @@ export default function AdminSettings() {
                 setAgencyPct(j.data.margen_pct ?? CUOTA_CAES_PCT)
                 setDelegate(j.data.proveedor ?? '')
                 setReviewDays(j.data.dias_revision ?? 5)
+                setMesesPlazo(
+                    j.data.meses_presentacion == null
+                        ? ''
+                        : String(j.data.meses_presentacion)
+                )
                 setPersistente(j.persistente !== false)
                 setMotivo(j.motivo ?? null)
             })
@@ -82,6 +88,7 @@ export default function AdminSettings() {
                     margen_pct: agencyPct,
                     proveedor: delegate || null,
                     dias_revision: reviewDays,
+                    meses_presentacion: mesesPlazo.trim() === '' ? null : Number(mesesPlazo),
                 }),
             })
             const j = await r.json().catch(() => null)
@@ -251,6 +258,27 @@ export default function AdminSettings() {
                                 className={inputClass}
                                 value={reviewDays}
                                 onChange={(e) => setReviewDays(Number(e.target.value) || 1)}
+                            />
+                        </Field>
+
+                        {/*
+                            Vuoto vuol dire «non lo sappiamo»: il sistema
+                            mostra l'eta dell'opera senza dare un
+                            verdetto. Un numero inventato qui diventa il
+                            numero che tutti citano, e quello e peggio.
+                        */}
+                        <Field
+                            label="Plazo para presentar"
+                            hint="Meses desde el fin de obra. Déjalo vacío si no lo tienes claro: sin él se ve la antigüedad de la obra, pero sin aviso de plazo."
+                        >
+                            <input
+                                type="number"
+                                min={1}
+                                max={120}
+                                placeholder="Sin plazo"
+                                className={inputClass}
+                                value={mesesPlazo}
+                                onChange={(e) => setMesesPlazo(e.target.value)}
                             />
                         </Field>
                     </div>

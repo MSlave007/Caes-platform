@@ -6,6 +6,7 @@ import CabeceraExpediente from '@/components/admin/CabeceraExpediente'
 import Avisos, { type Aviso } from '@/components/admin/Avisos'
 import EquipoConocido from '@/components/admin/EquipoConocido'
 import { motivoSugerido } from '@/lib/caes/motivo'
+import { corriendo, relojDe } from '@/lib/caes/reloj'
 import DocumentReview from '@/components/admin/DocumentReview'
 import {
     CAMPOS,
@@ -78,6 +79,31 @@ export default function AdminReviewDetail({
             CAMPOS.map((c) => [c.id, { valor: null, estado: 'vacio' as const }])
         )
     const [extraccion, setExtraccion] = useState<Extraccion>(vacios)
+
+    /**
+     * L'ora, presa una volta sola dopo il montaggio: leggerla dentro il
+     * calcolo lo renderebbe impuro e farebbe ballare i «giorni fa» fra
+     * server e browser.
+     */
+    const [ahora, setAhora] = useState<number | null>(null)
+    useEffect(() => setAhora(Date.now()), [])
+
+    /** Il termine di presentazione, se l'agenzia ne ha fissato uno. */
+    const [mesesPlazo, setMesesPlazo] = useState<number | null>(null)
+    useEffect(() => {
+        let vivo = true
+        fetch('/api/ajustes')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => {
+                if (vivo) setMesesPlazo(j?.data?.meses_presentacion ?? null)
+            })
+            .catch(() => {
+                /* senza termine l'orologio resta spento, e si dice */
+            })
+        return () => {
+            vivo = false
+        }
+    }, [])
 
     const cambiarCampo = (id: string, valor: string) =>
         setExtraccion((prev) => ({
@@ -391,6 +417,42 @@ export default function AdminReviewDetail({
             )
         }
 
+        /**
+         * L'orologio: quanto tempo e passato dalla fine dei lavori.
+         *
+         * E l'unica cosa che nessun altro puo sapere — l'installatore
+         * quella data non ce l'ha in testa e il cliente non sa nemmeno
+         * che esista un termine. Vedi src/lib/caes/reloj.ts.
+         */
+        if (p && ahora !== null && corriendo(p)) {
+            const r = relojDe(p, ahora, mesesPlazo)
+            if (r?.vencido) {
+                lista.push({
+                    tipo: 'bloqueo',
+                    titulo: `El plazo de presentación pasó hace ${Math.abs(r.quedan ?? 0)} días`,
+                    detalle: `La obra terminó hace ${r.meses} meses y el plazo configurado es de ${mesesPlazo}. Conviene comprobarlo antes de seguir: puede que ya no sea presentable.`,
+                })
+            } else if (r?.cerca) {
+                lista.push({
+                    tipo: 'falta',
+                    titulo: `Quedan ${r.quedan} días para presentarlo`,
+                    detalle: `La obra terminó hace ${r.meses} meses. Después de esa fecha el ahorro no se puede reclamar.`,
+                    quien: 'tu',
+                })
+            } else if (r && r.quedan === null && r.meses >= 12) {
+                // Senza termine configurato non si da un verdetto: si
+                // dice l'eta, che e un fatto, e si dice che manca il
+                // numero per giudicarla.
+                lista.push({
+                    tipo: 'falta',
+                    titulo: `La obra terminó hace ${r.meses} meses`,
+                    detalle:
+                        'No hay plazo de presentación configurado, así que esto es solo la antigüedad. Si sabes cuál es el plazo, ponlo en Ajustes y el sistema avisará solo.',
+                    quien: 'tu',
+                })
+            }
+        }
+
         // I controlli automatici, in cima. Stavano solo in fondo:
         // chi apriva il fascicolo non sapeva che c'era un NIF che non
         // torna finche non ci arrivava scorrendo, e a quel punto aveva
@@ -435,7 +497,7 @@ export default function AdminReviewDetail({
         }
 
         return lista
-    }, [belowMinimum, sinCalcular, missing, cuantos, p?.savings_pct, extraccion])
+    }, [belowMinimum, sinCalcular, missing, cuantos, extraccion, p, ahora, mesesPlazo])
 
 
     // Ripartizione: l'installatore ha bloccato la sua quota all'invio;

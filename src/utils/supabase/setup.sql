@@ -661,3 +661,32 @@ alter table public.projects
 
 create unique index if not exists projects_seguimiento_token_idx
   on public.projects (seguimiento_token);
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  El reloj: cuánto tiempo hay para presentar una actuación
+--
+--  Una obra terminada hace mucho y todavía sin presentar es dinero a
+--  punto de evaporarse. Y es la única cuenta atrás que NO puede llevar
+--  nadie más: el instalador no tiene la fecha de fin de obra a mano, y
+--  el cliente ni sabe que existe un plazo.
+--
+--  Va en los ajustes y no en el código a propósito: el plazo lo fija la
+--  norma y puede cambiar, y sobre todo NO LO SÉ con seguridad. Prefiero
+--  una casilla vacía que un número inventado metido en el motor: un
+--  número inventado se convierte en el que todos citan.
+--
+--  Vacío = el reloj está apagado. La plataforma enseña la edad de la
+--  obra sin dar un veredicto, que ya es más de lo que hay hoy.
+-- ════════════════════════════════════════════════════════════════════
+
+alter table public.ajustes
+  add column if not exists meses_presentacion integer;
+
+-- `add constraint` no admite `if not exists`, y este archivo promete
+-- que se puede lanzar dos veces. Se borra antes de crearla.
+alter table public.ajustes
+  drop constraint if exists ajustes_meses_sensatos;
+alter table public.ajustes
+  add constraint ajustes_meses_sensatos
+  check (meses_presentacion is null or meses_presentacion between 1 and 120);
