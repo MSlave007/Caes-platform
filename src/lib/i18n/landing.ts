@@ -39,9 +39,9 @@ export const dictionary = {
       titleBefore: "Del albarán al certificado en ",
       titleAccent: "quince minutos",
       titleAfter: ".",
-      sub: "La IA lee tus facturas, el motor aplica la normativa BOE y el contrato sale firmado. Tú solo instalas.",
+      sub: "La IA lee tus facturas, el motor aplica la normativa BOE y el contrato sale firmado. Tú fotografías la caldera vieja antes de quitarla y subes la factura.",
       facts: [
-        { value: "130 €", label: "por MWh ahorrado", sub: "tarifa CAES vigente" },
+        { value: "130 €", label: "por MWh ahorrado", sub: "nuestra tarifa de hoy" },
         { value: "20 %", label: "ahorro mínimo", sub: "sobre línea base" },
         { value: "10 años", label: "validez del", sub: "certificado emitido" },
       ],
@@ -79,7 +79,7 @@ export const dictionary = {
       submit: "Calcular CAES",
       recalculate: "Volver a calcular",
       footnotes: [
-        "Tarifa oficial 130 €/MWh",
+        "Calculado a 130 €/MWh",
         "Resultado inmediato",
         "Sin registro previo",
       ],
@@ -161,7 +161,7 @@ export const dictionary = {
       belowMin:
         "Con estos datos la instalación no llega al 20 % de ahorro mínimo. Cambia el equipo sustituido o la zona climática.",
       disclaimer:
-        "Estimación sobre la tarifa vigente de 130 €/MWh. El valor real se calcula sobre las facturas durante la revisión.",
+        "Estimación a 130 €/MWh, que es nuestra tarifa de hoy: el mercado del CAE se mueve entre 85 y 155 €/MWh. El valor real se calcula sobre las facturas durante la revisión.",
       cta: "Calcular con mis facturas",
     },
     partners: {
@@ -201,10 +201,10 @@ export const dictionary = {
       sub: "Están en el BOE desde enero de 2023. Nosotros solo nos aseguramos de que tu expediente las cumpla todas antes de que lo envíes.",
       cards: [
         {
-          value: "130 €",
-          unit: "/ MWh",
-          title: "Tarifa oficial",
-          body: "Fija, la misma para todos. No se negocia y no depende de la agencia con la que trabajes.",
+          value: "3 años",
+          unit: "para pedirlo",
+          title: "Plazo desde el fin de obra",
+          body: "Lo instalado desde febrero de 2023 sigue siendo recuperable. Lo de 2024 empieza a caducar en 2027.",
         },
         {
           value: "20 %",
@@ -335,9 +335,9 @@ export const dictionary = {
       titleBefore: "From delivery note to certificate in ",
       titleAccent: "fifteen minutes",
       titleAfter: ".",
-      sub: "AI reads your invoices, the engine applies the regulation and the contract comes out signed. You just install.",
+      sub: "AI reads your invoices, the engine applies the regulation and the contract comes out signed. You photograph the old boiler before you remove it and upload the invoice.",
       facts: [
-        { value: "€130", label: "per MWh saved", sub: "official rate" },
+        { value: "€130", label: "per MWh saved", sub: "our rate today" },
         { value: "20%", label: "minimum saving", sub: "against baseline" },
         { value: "10 years", label: "validity of the", sub: "issued certificate" },
       ],
@@ -375,7 +375,7 @@ export const dictionary = {
       submit: "Calculate CAES",
       recalculate: "Calculate again",
       footnotes: [
-        "Official rate €130/MWh",
+        "Calculated at €130/MWh",
         "Instant result",
         "No sign-up needed",
       ],
@@ -457,7 +457,7 @@ export const dictionary = {
       belowMin:
         "With these inputs the installation does not reach the 20 % minimum saving. Change the replaced unit or the climate zone.",
       disclaimer:
-        "Estimate based on the current 130 €/MWh tariff. The real value is calculated from the invoices during review.",
+        "Estimate at €130/MWh, our rate today: the CAE market moves between €85 and €155/MWh. The real value is calculated from the invoices during review.",
       cta: "Calculate with my invoices",
     },
     partners: {
@@ -497,10 +497,10 @@ export const dictionary = {
       sub: "They have been in Spanish law since January 2023. We just make sure your case meets all of them before you submit it.",
       cards: [
         {
-          value: "€130",
-          unit: "/ MWh",
-          title: "Official rate",
-          body: "Fixed, the same for everyone. Not negotiable and not dependent on the agency you work with.",
+          value: "3 years",
+          unit: "to claim it",
+          title: "Window from completion",
+          body: "Anything installed since February 2023 is still recoverable. 2024 jobs start expiring in 2027.",
         },
         {
           value: "20%",
