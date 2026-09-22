@@ -45,6 +45,14 @@ export type VistaCliente = {
     /** Quando è stata aperta. */
     desde: string
     /**
+     * L'ultimo movimento.
+     *
+     * La pagina dice «si aggiorna da sola», e chi la riapre dopo due
+     * settimane si chiede se e' vero. Una data lo dimostra; la frase da
+     * sola e' una promessa.
+     */
+    movida: string
+    /**
      * Quello che gli tocca, in €. `null` finché non è deciso — che non è
      * lo stesso di zero, e va detto in modo diverso.
      */
@@ -145,6 +153,8 @@ export function vistaParaCliente(p: Project): VistaCliente {
         paso: t.paso,
         total: PASOS,
         desde: p.created_at,
+        movida:
+            (p as { updated_at?: string }).updated_at || p.created_at,
         suParte: parteDelCliente(p),
         cerrado: p.status === 'paid',
     }

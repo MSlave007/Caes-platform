@@ -117,11 +117,14 @@ function Ficha({
     v: VistaCliente
     telefono: string | null
 }) {
-    const fecha = new Intl.DateTimeFormat('es-ES', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-    }).format(new Date(v.desde))
+    const enEspanol = (iso: string) =>
+        new Intl.DateTimeFormat('es-ES', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+        }).format(new Date(iso))
+
+    const fecha = enEspanol(v.desde)
 
     return (
         <main className="min-h-screen bg-[var(--caes-paper)] px-6 py-16 font-sans text-[var(--caes-ink)] sm:px-10 sm:py-24">
@@ -217,9 +220,10 @@ function Ficha({
                 )}
 
                 <p className="mt-14 max-w-[52ch] text-[13.5px] leading-[1.6] text-[var(--caes-faint)]">
-                    Esta página se actualiza sola. Puedes guardarla en favoritos y
-                    volver cuando quieras — no hace falta cuenta ni contraseña. Si
-                    algo no te cuadra, tu instalador es quien mejor te lo explica.
+                    Última novedad: {enEspanol(v.movida)}. Esta página se actualiza
+                    sola — puedes guardarla en favoritos y volver cuando quieras, sin
+                    cuenta ni contraseña. Si algo no te cuadra, tu instalador es quien
+                    mejor te lo explica.
                 </p>
             </div>
         </main>

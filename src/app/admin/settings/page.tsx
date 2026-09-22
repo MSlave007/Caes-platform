@@ -13,6 +13,7 @@ import {
     eur,
 } from '@/lib/caes/estimate'
 import { PROVEEDORES } from '@/lib/caes/proveedores'
+import ComoLee from '@/components/admin/ComoLee'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -255,6 +256,12 @@ export default function AdminSettings() {
                     </div>
                 </section>
                 </div>
+
+                {/* Non e un ajuste: e un dato che si guarda ogni tanto
+                    per decidere una cosa sola, se una soglia va mossa.
+                    Una pagina sua sarebbe una voce di menu per qualcosa
+                    che si apre una volta al mese. */}
+                <ComoLee />
 
                 {error && (
                     <p className="flex items-start gap-2.5 rounded-xl border border-[var(--caes-mal)]/40 bg-[var(--caes-mal-bg)] px-4 py-3 text-[13.5px] leading-[1.5] text-[var(--caes-mal)]">
