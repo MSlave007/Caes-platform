@@ -69,20 +69,31 @@ export default function EquipoConocido({
         ? String(extraccion.modelo?.valor ?? '')
         : ''
 
-    const [equipo, setEquipo] = useState<Equipo | null>(null)
+    /**
+     * La risposta si tiene insieme alla chiave per cui e stata
+     * chiesta.
+     *
+     * Senza, passando a un altro modello resterebbe visibile la scheda
+     * del precedente finche la nuova non arriva — e azzerarla dentro
+     * l'effetto e un setState sincrono, cioe un render in piu a ogni
+     * giro. Confrontando la chiave, il caso «non e mia» si risolve in
+     * lettura.
+     */
+    const clave = marca && modelo ? `${marca}|${modelo}` : ''
+    const [respuesta, setRespuesta] = useState<{
+        clave: string
+        equipo: Equipo | null
+    } | null>(null)
 
     useEffect(() => {
-        if (!marca || !modelo) {
-            setEquipo(null)
-            return
-        }
+        if (!marca || !modelo) return
         let vivo = true
         fetch(
             `/api/equipos?marca=${encodeURIComponent(marca)}&modelo=${encodeURIComponent(modelo)}`
         )
             .then((r) => (r.ok ? r.json() : null))
             .then((j) => {
-                if (vivo) setEquipo(j?.data ?? null)
+                if (vivo) setRespuesta({ clave: `${marca}|${modelo}`, equipo: j?.data ?? null })
             })
             .catch(() => {
                 /* senza catalogo si legge la scheda, come sempre */
@@ -92,6 +103,7 @@ export default function EquipoConocido({
         }
     }, [marca, modelo])
 
+    const equipo = respuesta?.clave === clave ? respuesta.equipo : null
     if (!equipo) return null
 
     // Solo quello che manca ancora: proporre un dato che qualcuno ha
