@@ -158,22 +158,45 @@ export default function SubmitStep({
              * sarebbe sproporzionato.
              */
             let idCliente = clienteId
+            const contacto = {
+                nif: nifCliente.trim() || undefined,
+                telefono: telCliente.trim() || undefined,
+                email: emailCliente.trim() || undefined,
+                direccion: direccion.trim() || undefined,
+            }
+
             if (!idCliente && cliente.trim()) {
                 try {
                     const rc = await fetch('/api/clientes', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            nombre: cliente.trim(),
-                            nif: nifCliente.trim() || undefined,
-                            telefono: telCliente.trim() || undefined,
-                            email: emailCliente.trim() || undefined,
-                            direccion: direccion.trim() || undefined,
-                        }),
+                        body: JSON.stringify({ nombre: cliente.trim(), ...contacto }),
                     })
                     if (rc.ok) idCliente = (await rc.json())?.data?.id ?? null
                 } catch {
                     /* la rubrica non deve far fallire l'invio */
+                }
+            } else if (idCliente) {
+                /**
+                 * Cliente gia' in scheda: quello che si e' scritto qui
+                 * torna indietro sulla scheda.
+                 *
+                 * Prima no, e si vedeva: una scheda nata senza telefono
+                 * restava senza telefono per sempre, anche se a ogni
+                 * invio l'installatore lo ribatteva. Il server riempie
+                 * solo i campi vuoti, quindi correggere un numero si fa
+                 * dalla scheda — qui non si sovrascrive niente.
+                 */
+                try {
+                    if (Object.values(contacto).some(Boolean)) {
+                        await fetch(`/api/clientes/${idCliente}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ...contacto, soloVacios: true }),
+                        })
+                    }
+                } catch {
+                    /* come sopra */
                 }
             }
 

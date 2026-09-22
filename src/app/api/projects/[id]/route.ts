@@ -3,6 +3,12 @@ import { createAdminClient } from '@/lib/supabaseAdmin'
 import { mockDb } from '@/lib/mockDb'
 import { quienLlama, soloAgencia, negado, prohibido } from '@/lib/auth/guard'
 import { enviar, debeAvisar } from '@/lib/notify/email'
+import { mockClientes } from '@/lib/mockClientes'
+import {
+    hayAlgoQueRellenar,
+    rellenarFicha,
+    type Extraccion,
+} from '@/lib/caes/fichaCliente'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -90,12 +96,83 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
                     { email: '', rol: 'installer' } // DA COLLEGARE: email dal profilo
                 )
             }
+            // Anche in dimostrazione: se non si vede funzionare qui,
+            // non si puo dire che funziona.
+            try {
+                if (updated.cliente_id) {
+                    const ficha = mockClientes.byId(updated.cliente_id)
+                    if (ficha) {
+                        const parche = rellenarFicha(
+                            updated.extraccion as Extraccion | undefined,
+                            ficha
+                        )
+                        if (hayAlgoQueRellenar(parche)) {
+                            mockClientes.actualizar(updated.cliente_id, parche)
+                        }
+                    }
+                }
+            } catch {
+                /* come sopra: non deve far fallire niente */
+            }
+
             return NextResponse.json({ data: updated })
         }
         return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
+    // Quello che chi rivede ha confermato guardando la fattura va anche
+    // nella rubrica dell'installatore. Vedi src/lib/caes/fichaCliente.ts:
+    // un dato verificato che non esce dalla pratica in cui e stato
+    // verificato e un dato che qualcuno ribattera a mano.
+    void llevarALaFicha(data, escritor)
+
     return NextResponse.json({ data })
+}
+
+
+/**
+ * Porta in rubrica i contatti che la revisione ha confermato.
+ *
+ * ── PERCHE' NON FA FALLIRE NIENTE ─────────────────────────────────────
+ *
+ * Si chiama senza aspettarla e non solleva mai. Perdere l'approvazione
+ * di un espediente perche' non si e' potuto aggiornare un numero di
+ * telefono sarebbe sproporzionato: la revisione e il lavoro, la rubrica
+ * e una comodita.
+ *
+ * ── PERCHE' CON LA CHIAVE DI SERVIZIO ─────────────────────────────────
+ *
+ * Le regole di riga su `clientes` dicono `installer_id = auth.uid()`, e
+ * qui chi scrive e l'agenzia. E' giusto che sia cosi': la rubrica e
+ * dell'installatore, e l'agenzia non deve poterla sfogliare. Qui non la
+ * sfoglia — tocca una riga sola, quella dell'espediente che ha appena
+ * rivisto, e solo nei campi vuoti.
+ */
+async function llevarALaFicha(
+    proyecto: { cliente_id?: string | null; extraccion?: unknown } | null,
+    escritor: Awaited<ReturnType<typeof createClient>>
+) {
+    try {
+        const clienteId = proyecto?.cliente_id
+        if (!clienteId) return
+
+        const extraccion = proyecto?.extraccion as Extraccion | undefined
+        if (!extraccion) return
+
+        const { data: ficha } = await escritor
+            .from('clientes')
+            .select('nif, telefono, email, direccion')
+            .eq('id', clienteId)
+            .maybeSingle()
+        if (!ficha) return
+
+        const parche = rellenarFicha(extraccion, ficha)
+        if (!hayAlgoQueRellenar(parche)) return
+
+        await escritor.from('clientes').update(parche).eq('id', clienteId)
+    } catch {
+        /* la rubrica non deve far fallire una revisione */
+    }
 }
 
 

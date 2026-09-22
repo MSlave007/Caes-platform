@@ -48,13 +48,25 @@ const idDe = (nombre: string) =>
 
 // Contatti verosimili ma dichiaratamente finti. I NIF seguono la forma
 // spagnola senza essere di nessuno: otto cifre ripetute e una lettera.
-const EXTRA: Record<string, { nif: string; tel: string; email: string }> = {
+const EXTRA: Record<string, { nif: string; tel: string; email: string | null }> = {
     'María García': { nif: '11111111H', tel: '611 223 344', email: 'maria.garcia@ejemplo.es' },
     'Josep Vidal': { nif: '22222222J', tel: '622 334 455', email: 'josep.vidal@ejemplo.es' },
     'Nuria Castro': { nif: '33333333P', tel: '633 445 566', email: 'nuria.castro@ejemplo.es' },
     'Hotel Guadalquivir': { nif: 'B44444444', tel: '954 112 233', email: 'reservas@hotelguadalquivir.es' },
     'Instal·lacions Roca': { nif: 'B55555555', tel: '972 334 455', email: 'info@installacionsroca.cat' },
     'Rocío Delgado': { nif: '66666666Q', tel: '666 778 899', email: 'rocio.delgado@ejemplo.es' },
+    // I clienti arrivati con la cartera. Due restano senza contatti
+    // apposta — «Sin datos de contacto» e uno stato vero, e una
+    // dimostrazione in cui non capita mai nasconde il problema che la
+    // rubrica serve a risolvere.
+    'Inmobiliaria Sol y Mar': { nif: 'B77777777', tel: '963 118 220', email: 'administracion@solymar.es' },
+    'Residencial Los Olivos': { nif: 'H88888888', tel: '954 667 120', email: 'presidencia@losolivos.es' },
+    'Comunidad Plaza Nueva': { nif: 'H99999999', tel: '954 221 907', email: 'admin@plazanueva7.es' },
+    'Ana Belén Ruiz': { nif: '77777777T', tel: '677 889 900', email: 'anabelen.ruiz@ejemplo.es' },
+    'Vicente Alcaraz': { nif: '52341198K', tel: '655 210 344', email: null },
+    'Lucía Ferrer': { nif: '88888888V', tel: '688 990 011', email: 'lucia.ferrer@ejemplo.es' },
+    'Javier Ibáñez': { nif: '99999999R', tel: '699 001 122', email: 'javier.ibanez@ejemplo.es' },
+    'Pilar Lasheras': { nif: '12345678Z', tel: '610 334 556', email: 'pilar.lasheras@ejemplo.es' },
 }
 
 /* ------------------------------------------------- il file dei manuali */

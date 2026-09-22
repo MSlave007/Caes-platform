@@ -84,16 +84,62 @@ export async function PATCH(
         return NextResponse.json({ error: 'Nada que guardar' }, { status: 400 })
     }
 
+    /**
+     * «Riempi solo i buchi».
+     *
+     * Lo manda l'invio di un espediente: quello che l'installatore ha
+     * scritto nel modulo torna sulla scheda, ma senza pestare quello
+     * che c'e gia. Una scheda nata senza telefono restava senza per
+     * sempre; adesso si riempie da sola, e un numero gia scritto non
+     * viene sostituito da uno preso da una fattura di otto mesi fa.
+     *
+     * Il filtro lo fa il SERVER leggendo la riga, non il client
+     * mandando meno campi: e l'unico modo perche valga anche quando la
+     * richiesta arriva da qualcosa che non e il nostro modulo.
+     */
+    const soloVacios = body.soloVacios === true
+
+    const quitarLlenos = (
+        actual: Record<string, unknown> | null | undefined
+    ): Record<string, string> => {
+        if (!soloVacios || !actual) return parche
+        const filtrado: Record<string, string> = {}
+        for (const [k, v] of Object.entries(parche)) {
+            if (!String(actual[k] ?? '').trim() && v) filtrado[k] = v
+        }
+        return filtrado
+    }
+
     if (!quien.userId) {
-        const c = mockClientes.actualizar(id, parche)
+        const antes = mockClientes.byId(id)
+        if (!antes) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+        const final = quitarLlenos(antes as unknown as Record<string, unknown>)
+        if (Object.keys(final).length === 0) {
+            return NextResponse.json({ data: antes, demo: true, sinCambios: true })
+        }
+        const c = mockClientes.actualizar(id, final)
         if (!c) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
         return NextResponse.json({ data: c, demo: true })
     }
 
     const supabase = await createClient()
+
+    let final = parche
+    if (soloVacios) {
+        const { data: antes } = await supabase
+            .from('clientes')
+            .select('nombre, nif, telefono, email, direccion, notas')
+            .eq('id', id)
+            .maybeSingle()
+        final = quitarLlenos(antes)
+        if (Object.keys(final).length === 0) {
+            return NextResponse.json({ data: antes, sinCambios: true })
+        }
+    }
+
     const { data, error } = await supabase
         .from('clientes')
-        .update(parche)
+        .update(final)
         .eq('id', id)
         .select('id, nombre, nif, telefono, email, direccion, notas')
         .single()
