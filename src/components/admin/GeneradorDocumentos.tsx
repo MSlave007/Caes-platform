@@ -636,6 +636,11 @@ export default function GeneradorDocumentos({
     }, [estadoFirmas])
 
     const bloqueado = Boolean(estadoFirmas?.bloqueado) && !conEjemplo
+    /** Firmato da tutte le parti: non c'è più niente da chiedere. */
+    const firmado =
+        !conEjemplo &&
+        Boolean(estadoFirmas) &&
+        (estadoFirmas?.faltan.length ?? 1) === 0
 
     /**
      * Spostare e togliere si fanno sul foglio, ma li esegue il pannello.
@@ -835,6 +840,23 @@ export default function GeneradorDocumentos({
                 )}
             </div>
 
+            {/**
+              * Sui dati di esempio si dice perché non si può firmare.
+              *
+              * Il pannello spariva e basta, e la barra intanto diceva
+              * «Listo para firmar»: restava una promessa che la pagina
+              * non poteva mantenere. Nasconderlo è giusto — quelle firme
+              * starebbero su dati inventati — ma va detto.
+              */}
+            {conEjemplo && (
+                <p className="rounded-2xl border border-dashed border-[var(--caes-line)] px-5 py-4 text-[13px] leading-[1.5] text-[var(--caes-mut)] print:hidden">
+                    Estás viendo <strong className="font-medium">datos de ejemplo</strong>,
+                    así que aquí no se firma: esas firmas estarían sobre datos
+                    inventados. Cambia a «Datos del expediente» arriba para firmarlo
+                    de verdad.
+                </p>
+            )}
+
             {/* «Haz clic en cualquier dato para corregirlo» su un
                 documento firmato è un invito a fare una cosa che non si
                 può fare. */}
@@ -888,30 +910,71 @@ export default function GeneradorDocumentos({
 
             {/* ── le azioni finali, sempre a portata ──────────────── */}
             <div className="sticky bottom-5 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-[var(--caes-line)] bg-[var(--caes-paper)]/95 px-2.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,.06),0_16px_40px_-16px_rgba(0,0,0,.22)] backdrop-blur print:hidden">
+                {/**
+                  * Lo stato, ma senza mentire sui dati di esempio.
+                  *
+                  * Lo calcolava su quello che aveva davanti, dati finti
+                  * compresi: «Listo para firmar» era vero dell'esempio e
+                  * falso di quel fascicolo.
+                  */}
                 <span
-                    className={`flex items-center gap-2 px-3 text-[12.5px] ${estado === 'incompleto'
-                            ? 'text-[var(--caes-falta-ink)]'
-                            : estado === 'listo_firmar'
-                                ? 'text-[var(--caes-green)]'
-                                : 'text-[var(--caes-mut)]'
+                    className={`flex items-center gap-2 px-3 text-[12.5px] ${conEjemplo
+                            ? 'text-[var(--caes-faint)]'
+                            : estado === 'incompleto'
+                                ? 'text-[var(--caes-falta-ink)]'
+                                : firmado
+                                    ? 'text-[var(--caes-green)]'
+                                    : 'text-[var(--caes-mut)]'
                         }`}
                 >
-                    {estado === 'incompleto' ? (
+                    {conEjemplo ? (
+                        'Datos de ejemplo'
+                    ) : estado === 'incompleto' ? (
                         <>
                             <AlertTriangle className="h-3.5 w-3.5" />
                             Faltan {faltan.length}
                         </>
-                    ) : estado === 'listo_firmar' ? (
+                    ) : firmado ? (
                         <>
                             <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                            Listo para firmar
+                            Firmado
                         </>
                     ) : (
-                        'Listo para revisar'
+                        'Listo para firmar'
                     )}
                 </span>
 
-                {faltan.length === 0 && (
+                {/**
+                  * Firmare È la validazione.
+                  *
+                  * «Marcar como revisado» sembrava un passo prima della
+                  * firma. Non lo è mai stato — firmare chiede solo che i
+                  * dati siano completi — ma l'ordine dei bottoni lo
+                  * faceva credere, e chi premeva «revisado» restava lì
+                  * senza capire cosa fare dopo.
+                  *
+                  * Il bottone porta al pannello invece di firmare da qui:
+                  * chi firma deve scegliere per chi, e vedere il foglio
+                  * sopra.
+                  */}
+                {!conEjemplo && estado !== 'incompleto' && !firmado && (
+                    <button
+                        type="button"
+                        onClick={() =>
+                            document
+                                .getElementById('firmas')
+                                ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        }
+                        className="flex items-center gap-2 rounded-full bg-[var(--caes-ink)] px-4 py-2 text-[12.5px] font-medium text-[var(--caes-paper)] transition-opacity hover:opacity-90"
+                    >
+                        <PenLine className="h-3.5 w-3.5" />
+                        Firmar
+                    </button>
+                )}
+
+                {/* Segnare come rivisti dei dati inventati non vuol
+                    dire niente. */}
+                {faltan.length === 0 && !conEjemplo && (
                     <button
                         type="button"
                         onClick={() => onRevisar(plantilla.id)}

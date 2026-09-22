@@ -283,7 +283,10 @@ export default function Firmas({
     }
 
     return (
-        <section className="flex flex-col gap-4 rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-6 print:hidden">
+        <section
+            id="firmas"
+            className="flex flex-col gap-4 scroll-mt-24 rounded-2xl border border-[var(--caes-line)] bg-[var(--caes-panel)] p-6 print:hidden"
+        >
             <div>
                 <h3 className="text-[15px] font-semibold tracking-[-0.018em]">Firmas</h3>
                 <p className="mt-1.5 max-w-[64ch] text-[13px] leading-[1.5] text-[var(--caes-mut)]">
