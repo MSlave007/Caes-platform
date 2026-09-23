@@ -183,6 +183,33 @@ export function faseDe(p: Project): Fase {
     return FASES.revisar
 }
 
+/**
+ * Quello che è GIÀ successo, accanto a quello che manca.
+ *
+ * La fase dice cosa blocca, ed è giusto: con documenti obbligatori
+ * mancanti non si approva, nemmeno col Convenio firmato. Ma dicendo
+ * solo quello, la firma spariva da ogni riassunto — e il caso peggiore
+ * era il cliente, che firmava e cinque minuti dopo leggeva «reuniendo
+ * la documentación». Chiunque penserebbe che non sia andata.
+ *
+ * Sono due informazioni diverse e servono tutte e due: cosa aspetto, e
+ * cosa è successo.
+ */
+export type Hitos = {
+    /** Firme del Convenio: quante ce ne sono e quante ne vuole. */
+    convenio: { hechas: number; total: number }
+    /** Firmato da tutte le parti. */
+    convenioFirmado: boolean
+}
+
+export function hitosDe(p: Project): Hitos {
+    const hechas = p.firmas?.['convenio']?.firmas?.length ?? 0
+    return {
+        convenio: { hechas, total: FIRMAS_CONVENIO },
+        convenioFirmado: hechas >= FIRMAS_CONVENIO,
+    }
+}
+
 export function faseCuenta(proyectos: Project[]): Record<FaseId, number> {
     const cuenta = Object.fromEntries(
         Object.keys(FASES).map((k) => [k, 0])

@@ -2,7 +2,7 @@ import { estado, type EstadoId } from '@/lib/caes/status'
 import { proveedor } from '@/lib/caes/proveedores'
 import { VALIDEZ_ANOS } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
-import { faseDe } from '@/lib/caes/fase'
+import { faseDe, hitosDe } from '@/lib/caes/fase'
 
 /**
  * Quello che il cliente finale può vedere della sua pratica.
@@ -206,13 +206,34 @@ export function vistaParaCliente(p: Project): VistaCliente {
      * approvato — e non si tocca.
      */
     const fase = faseDe(p)
+    const hitos = hitosDe(p)
     const dentroDeEnviado = e.id === 'submitted' || e.id === 'draft'
+
+    /**
+     * Se ha firmato, la prima cosa che legge è quello.
+     *
+     * Senza, firmava e cinque minuti dopo trovava «reuniendo la
+     * documentación de la obra»: vero — mancano le carte
+     * dell'installatore — ma chiunque penserebbe che la firma non sia
+     * andata, e richiamerebbe. Che è la telefonata che questa pagina
+     * esiste per evitare.
+     */
+    const titulo = dentroDeEnviado
+        ? hitos.convenio.hechas > 0
+            ? 'Convenio firmado'
+            : fase.paraCliente
+        : t.titulo
+
+    const detalle =
+        dentroDeEnviado && hitos.convenio.hechas > 0
+            ? `Tu firma está registrada. ${fase.paraCliente}.`
+            : t.detalle
 
     return {
         direccion: p.address || 'Tu vivienda',
         instalador: p.installer_name ?? null,
-        titulo: dentroDeEnviado ? fase.paraCliente : t.titulo,
-        detalle: t.detalle,
+        titulo,
+        detalle,
         paso: t.paso,
         total: PASOS,
         desde: p.created_at,

@@ -12,7 +12,7 @@ import { AHORRO_MINIMO_PCT, eur } from '@/lib/caes/estimate'
 import type { Project } from '@/lib/mockDb'
 
 import { PISTA, posicionPista, esperaAlInstalador, estado } from '@/lib/caes/status'
-import { faseDe } from '@/lib/caes/fase'
+import { faseDe, hitosDe } from '@/lib/caes/fase'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -81,6 +81,7 @@ export default function InstallerProjectDetail({
     const tuTurno = esperaAlInstalador(st)
     const detalle = estado(st)
     const fase = faseDe(p)
+    const hitos = hitosDe(p)
 
     const specs = DOCUMENTS[p.source === 'client' ? 'client' : 'installer']
     const uploaded = new Set((p.docs ?? []).map((d) => d.id))
@@ -123,6 +124,19 @@ export default function InstallerProjectDetail({
                     >
                         {fase.paraInstalador}
                     </span>
+
+                    {/* Quello che è già fatto, accanto a quello che
+                        manca. Con le carte mancanti la fase dice «faltan
+                        documentos» — vero — e la firma del Convenio
+                        spariva dal riepilogo come se non fosse successa. */}
+                    {hitos.convenio.hechas > 0 && (
+                        <span className="flex items-center gap-1.5 text-[12px] text-[var(--caes-green)]">
+                            <Check className="h-3 w-3" strokeWidth={3} />
+                            {hitos.convenioFirmado
+                                ? 'Convenio firmado'
+                                : `Convenio · ${hitos.convenio.hechas} de ${hitos.convenio.total} firmas`}
+                        </span>
+                    )}
                 </div>
             </div>
 

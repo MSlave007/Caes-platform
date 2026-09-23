@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Home, Wrench } from 'lucide-react'
+import { ArrowRight, Check, Home, Wrench } from 'lucide-react'
 import { eur, AHORRO_MINIMO_PCT } from '@/lib/caes/estimate'
+import { hitosDe } from '@/lib/caes/fase'
 import type { Project } from '@/lib/mockDb'
 
 /**
@@ -43,6 +44,7 @@ export default function ProjectRow({ p }: { p: Project }) {
     const pct = typeof p.savings_pct === 'number' ? p.savings_pct : null
     const below = pct !== null && pct < AHORRO_MINIMO_PCT
     const dias = diasParado(p)
+    const hitos = hitosDe(p)
 
     return (
         <Link
@@ -79,6 +81,17 @@ export default function ProjectRow({ p }: { p: Project }) {
                 <p className="mt-1 truncate text-[13px] text-[var(--caes-mut)]">
                     {p.installer_name ?? 'Sin instalador asignado'} · {p.address}
                 </p>
+                {/* Quello che è già fatto. Il gruppo sopra dice cosa
+                    blocca — «faltan papeles» — e la firma del Convenio
+                    spariva dalla riga come se non fosse successa. */}
+                {hitos.convenio.hechas > 0 && (
+                    <p className="mt-1 flex items-center gap-1.5 text-[12px] text-[var(--caes-green)]">
+                        <Check className="h-3 w-3 shrink-0" strokeWidth={3} />
+                        {hitos.convenioFirmado
+                            ? 'Convenio firmado'
+                            : `Convenio · ${hitos.convenio.hechas} de ${hitos.convenio.total} firmas`}
+                    </p>
+                )}
             </div>
 
             {/**
