@@ -129,6 +129,7 @@ export async function POST(
     const nuevo: ProjectDoc = {
         id: casilla,
         name: archivo.name.slice(0, 180),
+        cuando: new Date().toISOString(),
         // Mai verificato: lo decide chi rivede, guardandolo.
         verified: false,
         path: ruta,

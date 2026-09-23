@@ -282,6 +282,7 @@ export async function POST(
         {
             id: clasificacion.documento,
             name: archivo.name.slice(0, 180),
+            cuando: new Date().toISOString(),
             // Chi l'ha messo lì e perché. Vedi `ProjectDoc`.
             auto: true,
             confianza: clasificacion.confianza,

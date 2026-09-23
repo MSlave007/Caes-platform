@@ -41,6 +41,17 @@ export type ProjectDoc = {
     /** Quanto era sicuro il modello, da 0 a 1. */
     confianza?: number
     /**
+     * Quando è arrivato, ISO.
+     *
+     * Senza, «l'ultimo movimento» di un fascicolo non si poteva sapere:
+     * `projects` non ha `updated_at`, e la pagina del cliente finiva per
+     * mostrare la data di apertura chiamandola «última novedad».
+     *
+     * Assente sui file caricati prima che esistesse: allora si ripiega
+     * su quello che si sa.
+     */
+    cuando?: string
+    /**
      * Cosa ha visto per deciderlo, in una riga.
      *
      * Il modello la scriveva, si mostrava a chi caricava, e poi si

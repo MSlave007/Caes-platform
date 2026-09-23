@@ -189,6 +189,34 @@ function parteDelCliente(p: Project): number | null {
  * giorno in cui `projects` prende una colonna nuova, quella colonna non
  * compare da nessuna parte finché qualcuno non la scrive qui.
  */
+/**
+ * L'ultima cosa che sappiamo essere successa.
+ *
+ * Era `updated_at || created_at`, e `projects` non ha `updated_at`: non
+ * esiste la colonna e non c'è nessun trigger. Quindi era sempre la data
+ * di apertura, chiamata «última novedad» — su una pagina che due righe
+ * sotto promette di aggiornarsi da sola. Un cliente che firmava vedeva
+ * «hace tres días».
+ *
+ * Adesso si guardano le date che esistono davvero: le firme ce l'hanno,
+ * e da poco anche i file caricati. Quando non ce n'è nessuna resta
+ * l'apertura — che per un fascicolo a cui non è ancora successo niente è
+ * la verità.
+ */
+function ultimoMovimiento(p: Project): string {
+    const fechas = [
+        p.created_at,
+        (p as { updated_at?: string }).updated_at,
+        ...(p.docs ?? []).map((d) => d.cuando),
+        ...Object.values(p.firmas ?? {}).flatMap((r) =>
+            (r?.firmas ?? []).map((f) => f.fecha)
+        ),
+    ].filter((f): f is string => Boolean(f) && Number.isFinite(Date.parse(f as string)))
+
+    if (fechas.length === 0) return p.created_at
+    return fechas.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a))
+}
+
 export function vistaParaCliente(p: Project): VistaCliente {
     const e = estado(p.status)
     const t = TEXTOS[e.id] ?? TEXTOS.submitted
@@ -237,8 +265,7 @@ export function vistaParaCliente(p: Project): VistaCliente {
         paso: t.paso,
         total: PASOS,
         desde: p.created_at,
-        movida:
-            (p as { updated_at?: string }).updated_at || p.created_at,
+        movida: ultimoMovimiento(p),
         suParte: parteDelCliente(p),
         cerrado: p.status === 'paid',
         queFirmo: queFirmoElCliente(p),
